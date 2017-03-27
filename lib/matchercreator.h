@@ -204,6 +204,11 @@ llvm::Value * allCreators(enum ExpElemKeys replfirst, llvm::Value * oprdptr1, ll
         {
             return oprdptr1;
         }
+        case mCONST_VALUE_OF:
+        {
+            //The operand 'oprdptr1' here is already the constant, just return it
+            return oprdptr1;
+        }
         case mADD:
         {
             llvm::Value *add = builder.CreateAdd(oprdptr1, oprdptr2);
