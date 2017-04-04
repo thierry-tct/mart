@@ -8,6 +8,8 @@
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/Support/raw_ostream.h"
 
+#include "llvm/IR/DataLayout.h"
+
 #include "typesops.h"
 
 int depPosofPos (std::vector<llvm::Value *> &toMatch, llvm::Value *irinst, int pos);
@@ -196,7 +198,7 @@ llvm::Value * allCreators(enum ExpElemKeys replfirst, llvm::Value * oprdptr1, ll
             
             //store operand order is opposite of classical assignement (r->l)
             assert (oprdptr2->getType()->getPrimitiveSizeInBits() && "The value to assign must be primitive here");
-            llvm::Value *store = builder.CreateAlignedStore(oprdptr2, oprdptr1, oprdptr2->getType()->getPrimitiveSizeInBits()/8);
+            llvm::Value *store = builder.CreateAlignedStore(oprdptr2, oprdptr1, oprdptr2->getType()->getPrimitiveSizeInBits()/8);  //TODO: Maybe replace the alignement here with that from DataLayout
             replacement.push_back(store);
             return valRet;
         }
@@ -410,17 +412,42 @@ llvm::Value * allCreators(enum ExpElemKeys replfirst, llvm::Value * oprdptr1, ll
             }
             
             //Assuming that we check before that it was a variable with 'checkCPTypeInIR'
-            assert ((llvm::isa<llvm::LoadInst>(oprdptr1) || llvm::isa<llvm::PtrToIntInst>(oprdptr1)) && "Must be Load Instruction here (assign left hand oprd)");
+            assert ((llvm::isa<llvm::LoadInst>(oprdptr1) /*|| llvm::isa<llvm::PtrToIntInst>(oprdptr1)*/) && "Must be Load Instruction here (assign left hand oprd)");
             
             llvm::Value *changedVal;
-            if (replfirst == mLEFTINC || replfirst == mRIGHTINC)
-                changedVal = builder.CreateAdd(oprdptr1, llvm::ConstantInt::get(oprdptr1->getType(), 1));
-            else if (replfirst == mFLEFTINC || replfirst == mFRIGHTINC)
-                changedVal = builder.CreateFAdd(oprdptr1, llvm::ConstantFP::get(oprdptr1->getType(), 1.0));
-            else if (replfirst == mLEFTDEC || replfirst == mRIGHTDEC)
-                changedVal = builder.CreateSub(oprdptr1, llvm::ConstantInt::get(oprdptr1->getType(), 1));
-            else if (replfirst == mFLEFTDEC || replfirst == mFRIGHTDEC)
-                changedVal = builder.CreateFSub(oprdptr1, llvm::ConstantFP::get(oprdptr1->getType(), 1.0));
+            if (seenCasts.empty())
+            {
+                if (replfirst == mLEFTINC || replfirst == mRIGHTINC)
+                    changedVal = builder.CreateAdd(oprdptr1, llvm::ConstantInt::get(oprdptr1->getType(), 1));
+                else if (replfirst == mFLEFTINC || replfirst == mFRIGHTINC)
+                    changedVal = builder.CreateFAdd(oprdptr1, llvm::ConstantFP::get(oprdptr1->getType(), 1.0));
+                else if (replfirst == mLEFTDEC || replfirst == mRIGHTDEC)
+                    changedVal = builder.CreateSub(oprdptr1, llvm::ConstantInt::get(oprdptr1->getType(), 1));
+                else if (replfirst == mFLEFTDEC || replfirst == mFRIGHTDEC)
+                    changedVal = builder.CreateFSub(oprdptr1, llvm::ConstantFP::get(oprdptr1->getType(), 1.0));
+            }
+            else
+            {
+                if (replfirst == mLEFTINC || replfirst == mRIGHTINC || replfirst == mFLEFTINC || replfirst == mFRIGHTINC)
+                {
+                    if (oprdptr1->getType()->isIntegerTy())
+                        changedVal = builder.CreateAdd(oprdptr1, llvm::ConstantInt::get(oprdptr1->getType(), 1));
+                    else if (oprdptr1->getType()->isFloatingPointTy())
+                        changedVal = builder.CreateFAdd(oprdptr1, llvm::ConstantFP::get(oprdptr1->getType(), 1.0));
+                    else
+                        assert ("The type is neither integer nor floating point, can't INC");
+                }
+                else if (replfirst == mLEFTDEC || replfirst == mRIGHTDEC || replfirst == mFLEFTDEC || replfirst == mFRIGHTDEC)
+                {
+                    if (oprdptr1->getType()->isIntegerTy())
+                        changedVal = builder.CreateSub(oprdptr1, llvm::ConstantInt::get(oprdptr1->getType(), 1));
+                    else if (oprdptr1->getType()->isFloatingPointTy())
+                        changedVal = builder.CreateFSub(oprdptr1, llvm::ConstantFP::get(oprdptr1->getType(), 1.0));
+                    else
+                        assert ("The type is neither integer nor floating point, can't DEC");
+                }
+            }
+            
             if (!llvm::dyn_cast<llvm::Constant>(changedVal))
                 replacement.push_back(changedVal);
             //llvm::dyn_cast<llvm::Instruction>(changedVal)->dump();//DEBUG
@@ -660,6 +687,13 @@ void matchANYEXPR (std::vector<llvm::Value *> &toMatch, llvmMutationOp &mutation
         
         if ((val->getType()->isFloatingPointTy() && !isInt) || (val->getType()->isIntegerTy() && isInt))
         {
+            //Case of match any var
+            if (mutationOp.matchOp == mANYIVAR || mutationOp.matchOp == mANYFVAR)
+            {
+                if (! llvm::isa<llvm::LoadInst>(val))
+                    continue;
+            }
+            
             ///REPLACE    
             std::vector<llvm::Value *> toMatchClone;
             std::vector<unsigned> posOfIRtoRemove({pos+1});
@@ -706,6 +740,16 @@ void matchANYFCONST (std::vector<llvm::Value *> &toMatch, llvmMutationOp &mutati
 void matchANYICONST (std::vector<llvm::Value *> &toMatch, llvmMutationOp &mutationOp, std::vector<std::vector<llvm::Value *>> &resultMuts) 
 {
     matchANYCONST (toMatch, mutationOp, resultMuts, true);
+}
+
+void matchANYFVAR (std::vector<llvm::Value *> &toMatch, llvmMutationOp &mutationOp, std::vector<std::vector<llvm::Value *>> &resultMuts) 
+{
+    matchANYEXPR (toMatch, mutationOp, resultMuts, false);  //there mach only load
+}
+
+void matchANYIVAR (std::vector<llvm::Value *> &toMatch, llvmMutationOp &mutationOp, std::vector<std::vector<llvm::Value *>> &resultMuts) 
+{
+    matchANYEXPR (toMatch, mutationOp, resultMuts, true);   //there mach only load
 }
 
 void matchANYFEXPR (std::vector<llvm::Value *> &toMatch, llvmMutationOp &mutationOp, std::vector<std::vector<llvm::Value *>> &resultMuts)
@@ -1695,11 +1739,16 @@ void matchCALL (std::vector<llvm::Value *> &toMatch, llvmMutationOp &mutationOp,
                     assert (repl.second[0] > llvmMutationOp::maxOprdNum);  //repl.second[0,1,...] should be >  llvmMutationOp::maxOprdNum
                     if (cf->getName() == llvmMutationOp::getConstValueStr(repl.second[0]))    //'repl.second[0]' is it the function to match?
                     {
+#if (LLVM_VERSION_MAJOR <= 3) && (LLVM_VERSION_MINOR < 5)
+                        llvm::Module * curModule = call->getParent()->getParent()->getParent();
+#else
+                        llvm::Module * curModule = call->getModule();
+#endif
                         for (auto i=1; i < repl.second.size(); i++)
                         {
                             toMatchClone.clear();
                             cloneStmtIR (toMatch, toMatchClone);
-                            llvm::Function *repFun = llvmMutationOp::getModule()->getFunction(llvmMutationOp::getConstValueStr(repl.second[i]));
+                            llvm::Function *repFun = curModule->getFunction(llvmMutationOp::getConstValueStr(repl.second[i]));
                             if (!repFun)
                             {
                                 llvm::errs() << "\n# Error: Replcaing function not found in module: " << llvmMutationOp::getConstValueStr(repl.second[i]) << "\n";
@@ -1716,6 +1765,144 @@ void matchCALL (std::vector<llvm::Value *> &toMatch, llvmMutationOp &mutationOp,
                         }
                     }
                 }
+            }
+        }
+    }
+}
+
+//TODO TODO TODO
+void matchRETURN_BREAK_CONTINUE (std::vector<llvm::Value *> &toMatch, llvmMutationOp &mutationOp, std::vector<std::vector<llvm::Value *>> &resultMuts)
+{
+    static llvm::Function *prevFunc = nullptr;
+    static const llvm::Value *structRetUse = nullptr;
+    //Here toMatch should have only one elem for 'br' and for ret, the last elem should be 'ret'
+    llvm::Instruction * retbr = llvm::dyn_cast<llvm::Instruction>(toMatch.back());
+    std::vector<llvm::Value *> toMatchClone;
+    assert (mutationOp.mutantReplacorsList.size() == 1 && "Return, Break and Continue can only be deleted");
+#if (LLVM_VERSION_MAJOR <= 3) && (LLVM_VERSION_MINOR < 5)
+    llvm::Function *curFunc = retbr->getParent()->getParent(); 
+#else
+    llvm::Function *curFunc = retbr->getFunction();
+#endif
+    if (prevFunc != curFunc)
+    {
+        prevFunc = curFunc;
+        assert (!structRetUse && "Error, Maybe the return struct vas not mutated for perv funtion!");
+        // Check whether the function returns a struct
+        if (curFunc->getReturnType()->isVoidTy())
+        {
+            for (llvm::Function::const_arg_iterator II = curFunc->arg_begin(), EE = curFunc->arg_end(); II != EE; ++II)
+            {
+                const llvm::Argument *param = &*II;
+                if (param->hasStructRetAttr())
+                {
+                    structRetUse = param;
+                    break;
+                }
+            }
+        }
+    }
+    if(structRetUse && toMatch.size() == 3)     //1: bitcast dests, 2: bitcast src, 3: copy src to dest (llvm.memcpy)
+    {
+        bool found = false;
+        for (auto *ins: toMatch)
+            if (llvm::isa<llvm::BitCastInst>(ins) && llvm::dyn_cast<llvm::User>(ins)->getOperand(0) == structRetUse)
+                found = true;
+        if (found)
+        {
+            for (auto &repl: mutationOp.mutantReplacorsList)
+            {
+                if (repl.first == mDELSTMT)
+                {
+                    resultMuts.push_back(std::vector<llvm::Value *>());
+                }
+                else
+                    assert ("The replacement for return break and continue should be delete stmt");
+            }
+        }
+    }
+    
+    if (auto *br = llvm::dyn_cast<llvm::BranchInst>(retbr))
+    {
+        if (br->isConditional())
+            return;
+        assert (toMatch.size() == 1 && "unconditional break should be the only instruction in the statement");
+        llvm::BasicBlock *targetBB = br->getSuccessor(0);
+#if (LLVM_VERSION_MAJOR <= 3) && (LLVM_VERSION_MINOR < 5)
+        llvm::Function::iterator FI = br->getParent()->getNextNode();//Iterator();
+        if (FI) //!= br->getFunction()->end() && FI )
+        {
+#else
+        llvm::Function::iterator FI = br->getParent()->getIterator();
+        FI++;
+        if (FI != br->getFunction()->end() && FI )
+        {
+#endif
+            llvm::BasicBlock *followBB = &*FI;
+            if (followBB != targetBB)
+            {
+                for (auto &repl: mutationOp.mutantReplacorsList)
+                {
+                    if (repl.first == mDELSTMT)
+                    {
+                        toMatchClone.clear();
+                        cloneStmtIR (toMatch, toMatchClone);
+                        llvm::dyn_cast<llvm::BranchInst>(toMatchClone.back())->setSuccessor(0, followBB);
+                        resultMuts.push_back(toMatchClone);
+                    }
+                    else
+                        assert ("The replacement for return break and continue should be delete stmt");
+                }
+            }
+        }
+    }
+    else if (auto *ret = llvm::dyn_cast<llvm::ReturnInst>(retbr))
+    {
+        if (ret->getReturnValue() == nullptr)   //void type
+            return;
+            
+        llvm::Type *retType = curFunc->getReturnType();
+        llvm::IRBuilder<> builder(llvm::getGlobalContext());
+        //Case of main (delete lead to ret 0 - integer)
+        if (curFunc->getName().equals(G_MAIN_FUNCTION_NAME))
+        {
+            assert (retType->isIntegerTy() && "Main function must return an integer");
+            for (auto &repl: mutationOp.mutantReplacorsList)
+            {
+                if (repl.first == mDELSTMT)
+                {
+                    toMatchClone.clear();
+                    llvm::ReturnInst *newret = builder.CreateRet(llvm::ConstantInt::get(retType, 0));
+                    toMatchClone.push_back(newret);
+                    resultMuts.push_back(toMatchClone);
+                }
+                else
+                    assert ("The replacement for return break and continue should be delete stmt");
+            }
+        }
+        else if (retType->isIntOrIntVectorTy() || retType->isFPOrFPVectorTy () || retType->isPtrOrPtrVectorTy())
+        {//Case of primitive and pointer(delete lead to returning of varable value without reaching definition - uninitialized)
+#if (LLVM_VERSION_MAJOR <= 3) && (LLVM_VERSION_MINOR < 5)
+            llvm::DataLayout DL(ret->getParent()->getParent()->getParent());
+#else
+            llvm::DataLayout *DL(ret->getModule());
+#endif
+            for (auto &repl: mutationOp.mutantReplacorsList)
+            {
+                if (repl.first == mDELSTMT)
+                {
+                    toMatchClone.clear();
+                    llvm::AllocaInst *alloca = builder.CreateAlloca(retType);
+                    alloca->setAlignment( DL.getTypeStoreSize(retType));
+                    toMatchClone.push_back(alloca);
+                    llvm::LoadInst *load = builder.CreateAlignedLoad(alloca, DL.getTypeStoreSize(retType));
+                    toMatchClone.push_back(load);
+                    llvm::ReturnInst *newret = builder.CreateRet(load);
+                    toMatchClone.push_back(newret);
+                    resultMuts.push_back(toMatchClone);
+                }
+                else
+                    assert ("The replacement for return val should be delete stmt");
             }
         }
     }

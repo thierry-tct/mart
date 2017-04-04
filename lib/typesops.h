@@ -10,11 +10,13 @@
 
 #include "llvm/Support/raw_ostream.h"
 
+char * G_MAIN_FUNCTION_NAME = "main";
+
 enum codeParts {cpEXPR=0, cpCONSTNUM, cpVAR, cpADDRESS, cpPOINTER};
 
 //enum typeOP {Arithetical, Relational, Logical, Bitwise, Assignement, Misc, Call, DelStmt};
 //enum modeOP {Unary, Binary, None};	//None for DelStmt
-enum ExpElemKeys {mALLSTMT=0, mALLFEXPR, mALLIEXPR, mANYVAR, mANYFCONST, mANYICONST, mDELSTMT, mKEEP_ONE_OPRD, mCONST_VALUE_OF, //special, Delete stmt
+enum ExpElemKeys {mALLSTMT=0, mALLFEXPR, mALLIEXPR, mANYFVAR, mANYIVAR, mANYFCONST, mANYICONST, mDELSTMT, mKEEP_ONE_OPRD, mCONST_VALUE_OF, //special, Delete stmt
             mIASSIGN, mFASSIGN, mADD, mFADD, mPADD, mSUB, mFSUB, mPSUB, mMUL, mFMUL, mSDIV, mUDIV, mFDIV, mSMOD, mUMOD, mFMOD,  //Arithmetic Binary
             mNEG, mFNEG, mLEFTINC, mFLEFTINC, mRIGHTINC, mFRIGHTINC, mLEFTDEC, mFLEFTDEC, mRIGHTDEC, mFRIGHTDEC, mABS, mFABS,    //Arithmetic Unary
             mBITAND, mBITOR, mBITXOR, mBITSHIFTLEFT, mABITSHIFTRIGHT, mLBITSHIFTRIGHT,    //Bitwise Binary
@@ -25,6 +27,7 @@ enum ExpElemKeys {mALLSTMT=0, mALLFEXPR, mALLIEXPR, mANYVAR, mANYFCONST, mANYICO
             mNOT,                                    //Logical Unary
             
             mCALL, mNEWCALLEE,              // called function
+            mRETURN_BREAK_CONTINUE,         // delete them by replacing unconditional 'br' target. for the final return with argument, set it to 0
             /**** ADD HERE ****/
             
             
@@ -37,6 +40,8 @@ class llvmMutationOp;
 
 void matchANYFEXPR (std::vector<llvm::Value *> &toMatch, llvmMutationOp &mutationOp, std::vector<std::vector<llvm::Value *>> &resultMuts);
 void matchANYIEXPR (std::vector<llvm::Value *> &toMatch, llvmMutationOp &mutationOp, std::vector<std::vector<llvm::Value *>> &resultMuts);
+void matchANYFVAR (std::vector<llvm::Value *> &toMatch, llvmMutationOp &mutationOp, std::vector<std::vector<llvm::Value *>> &resultMuts);
+void matchANYIVAR (std::vector<llvm::Value *> &toMatch, llvmMutationOp &mutationOp, std::vector<std::vector<llvm::Value *>> &resultMuts);
 void matchANYFCONST (std::vector<llvm::Value *> &toMatch, llvmMutationOp &mutationOp, std::vector<std::vector<llvm::Value *>> &resultMuts);
 void matchANYICONST (std::vector<llvm::Value *> &toMatch, llvmMutationOp &mutationOp, std::vector<std::vector<llvm::Value *>> &resultMuts);
 void matchASSIGN (std::vector<llvm::Value *> &toMatch, llvmMutationOp &mutationOp, std::vector<std::vector<llvm::Value *>> &resultMuts);
@@ -67,6 +72,8 @@ void matchRELATIONALS (std::vector<llvm::Value *> &toMatch, llvmMutationOp &muta
 void matchAND_OR (std::vector<llvm::Value *> &toMatch, llvmMutationOp &mutationOp, std::vector<std::vector<llvm::Value *>> &resultMuts);
 
 void matchCALL (std::vector<llvm::Value *> &toMatch, llvmMutationOp &mutationOp, std::vector<std::vector<llvm::Value *>> &resultMuts);
+
+void matchRETURN_BREAK_CONTINUE (std::vector<llvm::Value *> &toMatch, llvmMutationOp &mutationOp, std::vector<std::vector<llvm::Value *>> &resultMuts);
 
 /**** ADD HERE ****/
 
@@ -186,6 +193,10 @@ public:
         addConfNameOpPair ("@", {mALLFEXPR, mALLFEXPR, mALLIEXPR, mALLIEXPR});
         addOpMatchFuncPair (mALLFEXPR, matchANYFEXPR);
         addOpMatchFuncPair (mALLIEXPR, matchANYIEXPR);    //TODO: do this one as the const one
+        
+        addConfNameOpPair ("V", {mANYFVAR, mANYFVAR,/**/ mANYIVAR, mANYIVAR});
+        addOpMatchFuncPair (mANYFVAR, matchANYFVAR);
+        addOpMatchFuncPair (mANYIVAR, matchANYIVAR);
         
         addConfNameOpPair ("C", {mANYFCONST, mANYFCONST,/**/ mANYICONST, mANYICONST});
         addOpMatchFuncPair (mANYFCONST, matchANYFCONST);
@@ -320,6 +331,9 @@ public:
         // define what function should be changed to what when CALL is matched: 1st=matched callee; 2nd,3rd...=replacing callees
         addConfNameOpPair ("NEWCALLEE", {mNEWCALLEE, mNEWCALLEE, mNEWCALLEE, mNEWCALLEE});
         
+        // to delete the return, break and continue (actually replace the target od unconditional br, or replace the return value of ret by 0). Should be replcaed only by delstmt
+        addConfNameOpPair ("RETURN_BREAK_CONTINUE", {mRETURN_BREAK_CONTINUE,  mRETURN_BREAK_CONTINUE,  mRETURN_BREAK_CONTINUE,  mRETURN_BREAK_CONTINUE});
+        
         /**** ADD HERE ****/
         
     }
@@ -420,23 +434,6 @@ public:
 	    return ( iss.rdbuf()->in_avail() == 0 );
     }
     
-    /** 
-     *   Needed for the Called function replacement
-     */
-    static llvm::Module * curModule;
-    static void setModule (llvm::Module *M)
-    {
-        curModule = M;
-    }
-    static void unsetModule ()
-    {
-        curModule = nullptr;
-    }
-    static llvm::Module* getModule ()
-    {
-        return curModule;
-    }
-
     std::string toString()
     {
         std::string ret(std::to_string(matchOp) + " --> ");
@@ -457,7 +454,6 @@ public:
 };
 
 std::map<unsigned, std::string> llvmMutationOp::posConstValueMap;
-llvm::Module * llvmMutationOp::curModule = nullptr;
 
 #endif  //__KLEE_SEMU_GENMU_typesops__
 

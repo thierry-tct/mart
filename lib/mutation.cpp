@@ -262,6 +262,11 @@ bool Mutation::getConfiguration(std::string &mutConfFile)
         return false;
     }
     
+    // @ Make sure that the redundant deletions are removed (delete any stmt -> 
+    // @    -   remove deletion for others with straight deletion
+    // @    -   add those with not stright deletion if absent 'like delete return, break and continue'.) 
+    //TODO: above
+    
     /*//DEBUG
     for (llvmMutationOp oops: configuration.mutators)   //DEBUG
         llvm::errs() << oops.toString();    //DEBUG
@@ -380,14 +385,18 @@ void Mutation::mutantsOfStmt (std::vector<llvm::Value *> &stmtIR, std::vector<st
             }
             default:    //Anything beside math anything and delete whole stmt
             {
-                llvmMutationOp::setModule(&module);
                 usermaps.getMatcherFunc(mutator.matchOp) (stmtIR, mutator, ret_mutants);
-                llvmMutationOp::unsetModule();
+                
                 // Verify that no constant is considered as instruction in the mutant (inserted in replacement vector)
+                /*# llvm::errs() << "\n@orig\n";   //DBG
+                for (auto *dd: stmtIR)          //DBG
+                    dd->dump();                 //DBG*/
                 for (auto &mutInsVec: ret_mutants)
                 {    
+                    /*# llvm::errs() << "\n@Muts\n";    //DBG*/
                     for (auto *mutIns: mutInsVec)
                     {
+                        /*# mutIns->dump();     //DBG*/
                         if(llvm::dyn_cast<llvm::Constant>(mutIns))
                         {
                             llvm::errs() << "\nError: A constant is considered as Instruction (inserted in 'replacement') for mutator (enum ExpElemKeys): " << mutator.matchOp << "\n\n";
