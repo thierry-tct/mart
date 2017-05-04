@@ -22,15 +22,25 @@ void insertMutSelectGetenv(llvm::Module *mod)
 }
 
 //print all the modules of mutants, sorted from mutant 0(original) to mutant max
-bool dumpMutantsCallback (std::map<unsigned, std::vector<unsigned>> &poss, std::vector<llvm::Module *> &mods)
+bool dumpMutantsCallback (std::map<unsigned, std::vector<unsigned>> &poss, std::vector<llvm::Module *> &mods, llvm::Module *wmModule=nullptr)
 {
     std::string mutantsDir = outputDir+"//"+mutantsFolder;
+    std::string wmFilePath = outputDir+"//"+"wm-"+outFile+".bc";
     if (mkdir(mutantsDir.c_str(), 0777) != 0)
         assert (false && "Failed to create mutants output directory");
     
     llvm::Module *formutsModule = mods.at(0);
     unsigned mid = 0;
-        
+    
+    //weak mutation
+    if (wmModule)
+    {
+        if (! writeIRObj::writeIR (wmModule, wmFilePath))
+        {
+            assert (false && "Failed to output weak mutation IR file");
+        }
+    }
+    
     //original
     if (mkdir((mutantsDir+"//0").c_str(), 0777) != 0)
         assert (false && "Failed to create output directory for original (0)");
@@ -59,10 +69,13 @@ int main (int argc, char ** argv)
 {
     char * inputIRfile = nullptr;
     char * mutantConfigfile = nullptr;
+    const char * wmLogFuncinputIRfileName="useful/wmlog-driver.bc";
     
     bool dumpPreTCEMeta = false;
     bool dumpMetaIRbc = true; 
     bool dumpMutants = false;
+    bool enabledWeakMutation = false;
+    bool dumpMutantInfos = true;
 #ifdef KLEE_SEMU_GENMU_OBJECTFILE
     bool dumpMetaObj = false; 
 #endif  //#ifdef KLEE_SEMU_GENMU_OBJECTFILE
@@ -76,6 +89,10 @@ int main (int argc, char ** argv)
         else if (strcmp(argv[i], "-gen-mutants") == 0)
         {
             dumpMutants = true;
+        }
+        else if (strcmp(argv[i], "-WM") == 0)
+        {
+            enabledWeakMutation = true;
         }
         else if (strcmp(argv[i], "-mutant-config") == 0)
         {
@@ -96,6 +113,7 @@ int main (int argc, char ** argv)
     assert (inputIRfile && "Error: No input llvm IR file passed!");
     
     llvm::Module *moduleM;
+    llvm::Module *modWMLog = nullptr;
     
     // Read IR into moduleM
     ///llvm::LLVMContext context;
@@ -116,6 +134,31 @@ int main (int argc, char ** argv)
     }
     // ~
     
+    /// Weak mutation 
+    if (enabledWeakMutation)
+    {
+        std::string wmLogFuncinputIRfile(dirname(inputIRfile));
+        wmLogFuncinputIRfile = wmLogFuncinputIRfile + "//"+wmLogFuncinputIRfileName; 
+        // get the module containing the function to log WM info. to be linked with WMModule
+#if (LLVM_VERSION_MAJOR <= 3) && (LLVM_VERSION_MINOR < 5)
+        modWMLog = llvm::ParseIRFile(wmLogFuncinputIRfile, SMD, llvm::getGlobalContext());
+#else
+        auto _M = llvm::parseIRFile(wmLogFuncinputIRfile, SMD, llvm::getGlobalContext());
+        // _M is unique pointer, we need to get Module *
+        modWMLog = _M.get();
+#endif
+        if (!modWMLog) 
+        {
+            llvm::errs() << "Failed parsing '" << wmLogFuncinputIRfile << "' file:\n";
+            SMD.print("KLEE-SEMu-GenMu", llvm::errs());
+            return 1;
+        }
+    }
+    else
+    {
+        modWMLog = nullptr;
+    }
+    
     /**********************  To BE REMOVED (used to extrac line num from bc whith llvm 3.8.0)
     for (auto &Func: *moduleM)
     {
@@ -127,14 +170,10 @@ int main (int argc, char ** argv)
             {
                 //Location in source file
                 if (const llvm::Instruction *I = llvm::dyn_cast<llvm::Instruction>(&Inst)) {
-                    const llvm::DebugLoc& Loc = I->getDebugLoc();
-                    if(Loc) {
+                    std::string tmpStr = UtilsFunctions::getSrcLoc(I);
+                    if(!tmpStr.empty()) {
                         llvm::errs() << Func.getName() << " ";
-                        std::string stmp;
-                        llvm::raw_string_ostream ross(stmp);
-                        Loc.print(llvm::cast<llvm::raw_ostream>(ross));
-                        //ross.flush();
-                        llvm::errs() << ross.str();
+                        llvm::errs() << tmpStr();
                         llvm::errs() << "\n";
                     }
                 }
@@ -149,8 +188,8 @@ int main (int argc, char ** argv)
     //std::string mutconffile;
     
     // @Mutation
-    Mutation mut(mutantConfigfile, dumpMutantsCallback);
-    if (! mut.doMutate(*moduleM))
+    Mutation mut(*moduleM, mutantConfigfile, dumpMutantsCallback);
+    if (! mut.doMutate())
     {
         llvm::errs() << "\nMUTATION FAILED!!\n\n";
         return 1;
@@ -177,10 +216,15 @@ int main (int argc, char ** argv)
     {
         if (! writeIRObj::writeIR (moduleM, outputDir+"/MetaMu_"+outFile+"_preTCE.bc"))
             assert (false && "Failed to output pre-TCE meta-mutatant IR file");
+       // mut.dumpMutantInfos (outputDir+"//"+outFile+"mutantLocs-preTCE.json");
     }
     
     //@ Remove equivalent mutants and //@ print mutants in case on
-    mut.doTCE(*moduleM, dumpMutants);
+    mut.doTCE(dumpMutants, modWMLog);
+    
+    /// Mutants Infos into json
+    if (dumpMutantInfos)
+        mut.dumpMutantInfos (outputDir+"//"+outFile+"mutantInfos.json");
     
     //@ Print post-TCE meta-mutant
     if (dumpMetaIRbc) 

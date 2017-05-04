@@ -1,0 +1,37 @@
+#ifndef __KLEE_SEMU_GENMU_operatorClasses__SIntegerLessThan__
+#define __KLEE_SEMU_GENMU_operatorClasses__SIntegerLessThan__
+
+/**
+ * -==== SIntegerLessThan.h
+ *
+ *                LLGenMu LLVM Mutation Tool
+ *
+ * This file is distributed under the University of Illinois Open Source
+ * License. See LICENSE.TXT for details. 
+ *  
+ * \brief     Generic abstract base class for all SInteger LT relational mutation operator.
+ * \details   This abstract class define is extended from the Generic base class. 
+ */
+ 
+#include "../IntegerRelational_Base.h"
+
+class SIntegerLessThan: public IntegerRelational_Base
+{
+  protected:
+    /**
+     * \brief Implements from NumericAndPointerRelational_Base
+     */
+    inline bool predMatch (llvm::CmpInst::Predicate predToMatch)
+    {
+        return (predToMatch == llvm::CmpInst::ICMP_SLT);
+    }
+    
+  public:
+    llvm::Value * createReplacement (llvm::Value * oprd1_addrOprd, llvm::Value * oprd2_intValOprd, std::vector<llvm::Value *> &replacement, ModuleUserInfos const &MI)
+    {
+        llvm::IRBuilder<> builder(MI.getContext());
+        
+    }
+};
+
+#endif //__KLEE_SEMU_GENMU_operatorClasses__SIntegerLessThan__

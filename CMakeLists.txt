@@ -85,7 +85,7 @@ if (KLEE_SEMU_GENMU)
     else()
         remove_definitions(-DKLEE_SEMU_GENMU_OBJECTFILE)
         set(KS_COMPONENTS_BY_VERSION llvm_libs support core transformutils ipo
-		                             irreader bitwriter analysis asmparser)
+		                             irreader bitwriter analysis asmparser linker)
 	    message(STATUS "KLEE_SEMU_GENMU_OBJECTFILE is OFF")
 	endif(KLEE_SEMU_GENMU_OBJECTFILE)
 ##
@@ -138,4 +138,5 @@ message(STATUS "CMAKE_INSTALL_INCLUDEDIR: \"${CMAKE_INSTALL_INCLUDEDIR}\"")
 add_subdirectory(lib)
 #add_subdirectory(tests EXCLUDE_FROM_ALL)
 add_subdirectory(tools)
+add_subdirectory(test EXCLUDE_FROM_ALL)
 

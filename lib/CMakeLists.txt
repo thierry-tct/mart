@@ -1,21 +1,40 @@
 if (KLEE_SEMU_GENMU)
-        add_library(KLEE-SEMu-GenMu SHARED
-            mutation.cpp
-            #llvm-diff
-            llvm-diff/DiffConsumer.cpp
-            llvm-diff/DiffLog.cpp
-            llvm-diff/DifferenceEngine.cpp
-        )
 
-        target_link_libraries(KLEE-SEMu-GenMu ${llvm_libs})
+    include_directories( ${CMAKE_CURRENT_SOURCE_DIR}/operatorsClasses )
+    #include_directories( ${CMAKE_CURRENT_SOURCE_DIR}/third-parties )
+    
+    add_custom_command ( OUTPUT operatorsClasses/mutation_op_headers.h.inc
+                 PRE_BUILD 
+                 COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/operatorsClasses/updateHeaderList.sh 
+                 WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/)
+    
+    add_custom_target(
+                 CollectMutOpHeaders ALL
+                 DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/operatorsClasses/mutation_op_headers.h.inc
+                )
+
+    add_library(KLEE-SEMu-GenMu SHARED
+        mutation.cpp
+        usermaps.cpp
+        #llvm-diff
+        llvm-diff/DiffConsumer.cpp
+        llvm-diff/DiffLog.cpp
+        llvm-diff/DifferenceEngine.cpp
+    )
+
+    target_link_libraries(KLEE-SEMu-GenMu ${llvm_libs} JsonBox) #link with JsonBox
         
 	install(TARGETS KLEE-SEMu-GenMu
 		LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR})
 
-        install(FILES
-                mutation.h
-                typesops.h
-                readwriteIR.h
-                DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/klee-semu-genmu/)
+    install(FILES
+            mutation.h
+            typesops.h
+            usermaps.h
+            readwriteIR.h
+            DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/klee-semu-genmu/)
+    
+    add_subdirectory(third-parties/JsonBox)     #Add JsonBox build dir
+    
 endif (KLEE_SEMU_GENMU)
 

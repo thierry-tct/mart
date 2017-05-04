@@ -33,7 +33,7 @@ cp -r $TOPDIR/operator "test" || error_exit "Failed to copy $TOPDIR/operator int
 cd test/tmpRunDir
 
 CLANGC=clang
-LLVM_DIS=llvm-dis-3.4
+LLVM_DIS=llvm-dis-3.4  #llvm-dis
 
 ## compile
 if [ "$testSrcs" = "" ]; then
@@ -50,9 +50,10 @@ do
     trap "echo 'cmd: ../../tools/ks-genMutants -mutant-config ../operator/mutconf.conf $filep.bc 2>&1'" INT
     
     echo -n "> $filep...  compiling...   "
-    $CLANGC -c -emit-llvm -o $filep.bc $src || error_exit "Failed to compile $src"
+    $CLANGC -g -c -emit-llvm -o $filep.bc $src || error_exit "Failed to compile $src"
     echo -n "mutation...   "
-    ../../tools/ks-genMutants -print-preTCE-Meta -mutant-config ../operator/mutconf.conf $filep.bc 2>$filep.info > $filep.info || { printf "\n---\n"; cat $filep.info; echo "---"; error_exit "mutation Failed for $src. cmd: $(readlink -f ../../tools/ks-genMutants) -mutant-config $(readlink -f ../operator/mutconf.conf) $(readlink -f $filep.bc) 2>&1"; }
+    
+    $buildDir/../tools/ks-genMutants -print-preTCE-Meta -mutant-config ../operator/mutconf.conf $filep.bc 2>$filep.info > $filep.info || { printf "\n---\n"; cat $filep.info; echo "---"; error_exit "mutation Failed for $src. cmd: `readlink -f  $buildDir/../tools/ks-genMutants` -mutant-config $(readlink -f ../operator/mutconf.conf) $(readlink -f $filep.bc) 2>&1"; }
     mv KS-GenMu-out-0 $filep-out || error_exit "Failed to store output"
     mv $filep.info $filep-out || error_exit "Failed to move info to output"
     echo "llvm-dis..."

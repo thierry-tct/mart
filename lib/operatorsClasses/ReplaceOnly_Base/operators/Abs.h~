@@ -1,0 +1,23 @@
+/**
+ * -==== IAbs.h
+ *
+ *                LLGenMu LLVM Mutation Tool
+ *
+ * This file is distributed under the University of Illinois Open Source
+ * License. See LICENSE.TXT for details. 
+ *  
+ * \brief    Class for replacing a numeric integer expresion with absolute value
+ */
+ 
+#include "../ReplaceOnly_Base.h"
+
+class IAbs: public ReplaceOnly_Base
+{
+    /**
+     * \bref Inplements virtual from @see GenericMuOpBase
+     */
+    llvm::Value * createReplacement (llvm::Value * lh_addrOprd, llvm::Value * rh_intValOprd, std::vector<llvm::Value *> &replacement, ModuleInfos &MI)
+    {
+        
+    }
+};

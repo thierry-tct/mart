@@ -10,6 +10,18 @@ if (KLEE_SEMU_GENMU)
 
 	install(TARGETS ks-genMutants
 		RUNTIME DESTINATION bin)
+		
+	# WM Log Driver
+	add_custom_command ( OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/useful/wmlog-driver.bc
+                 POST_BUILD 
+                 COMMAND ${LLVM_BUILD_PATH}/bin/clang -c -emit-llvm ${CMAKE_CURRENT_SOURCE_DIR}/useful/wmlog-driver.c -o  ${CMAKE_CURRENT_BINARY_DIR}/wmlog-driver.bc
+                 WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/)
+    
+    add_custom_target(
+                 Compilewmlogdriver ALL
+                 DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/useful/wmlog-driver.bc
+                )
+                
 endif (KLEE_SEMU_GENMU)
 
 include_directories('../lib')

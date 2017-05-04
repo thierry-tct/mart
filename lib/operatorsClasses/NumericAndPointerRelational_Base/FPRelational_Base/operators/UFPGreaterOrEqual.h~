@@ -1,0 +1,38 @@
+#ifndef __KLEE_SEMU_GENMU_operatorClasses__UFPGreaterOrEqual__
+#define __KLEE_SEMU_GENMU_operatorClasses__UFPGreaterOrEqual__
+
+/**
+ * -==== UFPGreaterOrEqual.h
+ *
+ *                LLGenMu LLVM Mutation Tool
+ *
+ * This file is distributed under the University of Illinois Open Source
+ * License. See LICENSE.TXT for details. 
+ *  
+ * \brief     Generic abstract base class for all UFP GE relational mutation operator.
+ * \details   This abstract class define is extended from the Generic base class. 
+ */
+ 
+#include "../FPRelational_Base.h"
+
+class UFPGreaterOrEqual: public FPRelational_Base
+{
+  protected:
+    /**
+     * \brief Implements from NumericAndPointerRelational_Base
+     */
+    inline bool predMatch (llvm::CmpInst::Predicate predToMatch)
+    {
+        return (predToMatch == llvm::CmpInst::FCMP_UGE);
+    }
+    
+    /**
+     * \brief Implements from FPRelational_Base
+     */
+    inline bool isUnordedRel() 
+    {
+        return true;
+    }
+};
+
+#endif //__KLEE_SEMU_GENMU_operatorClasses__UFPGreaterOrEqual__

@@ -87,6 +87,12 @@ bool checkCPTypeInIR (enum codeParts cpt, llvm::Value *val)
     {
         case cpEXPR:
         {
+#if (LLVM_VERSION_MAJOR <= 3) && (LLVM_VERSION_MINOR < 5)
+            if (!(llvm::PointerType::isValidElementType(val->getType()) && !val->getType()->isFunctionTy()))
+#else
+            if (!llvm::PointerType::isLoadableorStorableType(val->getType()))
+#endif
+                return false;
             if (! (llvm::isa<llvm::CompositeType>(val->getType()) || llvm::isa<llvm::FunctionType>(val->getType())))
                 return true;
             return false;
@@ -107,10 +113,10 @@ bool checkCPTypeInIR (enum codeParts cpt, llvm::Value *val)
                     break;
                 val = llvm::dyn_cast<llvm::User>(val)->getOperand(0);
             }
-            if (llvm::isa<llvm::LoadInst>(val) || llvm::isa<llvm::PtrToIntInst>(val)) // || llvm::isa<llvm::ExtractValueInst>(val) || llvm::isa<llvm::ExtractElementInst>(val))
+            if (llvm::isa<llvm::LoadInst>(val)) //|| llvm::isa<llvm::PtrToIntInst>(val)) // || llvm::isa<llvm::ExtractValueInst>(val) || llvm::isa<llvm::ExtractElementInst>(val))
             {
                 llvm::Type *valelty = llvm::dyn_cast<llvm::User>(val)->getOperand(0)->getType()->getPointerElementType();
-                if (! (llvm::isa<llvm::CompositeType>(valelty) || llvm::isa<llvm::FunctionType>(valelty)))
+                if (! (llvm::isa<llvm::CompositeType>(valelty) || llvm::isa<llvm::FunctionType>(valelty)))      //XXX: Change this to add support for array and vector operation (besid float and int)
                     return true;
             }
             return false;
@@ -531,6 +537,175 @@ llvm::Value * allCreators(enum ExpElemKeys replfirst, llvm::Value * oprdptr1, ll
     }
 }
 
+// The pointer is alway loaded (to get its address) then GEP
+// array cannot be modified (array++ unallowed)
+llvm::Value * allPCreators(enum ExpElemKeys replfirst, llvm::Value * addrOprd, llvm::Value * intValOprd, std::vector<llvm::Value *> &replacement, llvm::DataLayout &DL)
+{
+    llvm::IRBuilder<> builder(llvm::getGlobalContext());
+    switch (replfirst)
+    {
+        case mKEEP_ONE_OPRD:
+        {
+            return oprdptr1;
+        }
+        case mCONST_VALUE_OF:
+        {
+            //The operand 'oprdptr1' here is already the constant, just return it
+            return oprdptr1;
+        }
+        case mPADD:
+        case mPSUB:
+        {
+            llvm::Value *valtmp = (replfirst==mPADD) ? intValOprd : builder.CreateNeg(intValOprd);
+            if (!llvm::dyn_cast<llvm::Constant>(valtmp))
+                replacement.push_back(valtmp);
+            llvm::Value *addsub_gep = builder.CreateInBoundsGEP(nullptr, addrOprd, valtmp);
+            if (!llvm::dyn_cast<llvm::Constant>(addsub_gep))
+                replacement.push_back(addsub_gep);
+            return addsub_gep;
+        }        
+        case mPLEFTINC:
+        case mPRIGHTINC:
+        case mPLEFTDEC:
+        case mPRIGHTDEC:
+        {
+            //Assuming that we check before that it was a Pointer with 'checkCPTypeInIR'
+            assert (llvm::isa<llvm::LoadInst>(addrOprd) && "Must be Load Instruction here (address oprd)");
+            
+            int inc_dec;
+            if (replfirst == mPLEFTINC || replfirst == mPRIGHTINC)
+                inc_dec = 1;
+            else if (replfirst == mPLEFTDEC || replfirst == mPRIGHTDEC)
+                inc_dec = -1;
+            llvm::Value *changedVal = builder.CreateInBoundsGEP(nullptr, addrOprd, 
+                                                                llvm::ConstantInt::get(llvm::Type::getIntNTy(llvm::getGlobalContext(), DL.getPointerTypeSizeInBits(addrOprd->getType())), inc_dec));
+            
+            if (!llvm::dyn_cast<llvm::Constant>(changedVal))
+                replacement.push_back(changedVal);
+            //llvm::dyn_cast<llvm::Instruction>(changedVal)->dump();//DEBUG
+            llvm::Value *storeit = llvm::dyn_cast<llvm::LoadInst>(addrOprd)->getPointerOperand();  //get the address where the data comes from (for store)
+            //assert(changedVal->getType()->getPrimitiveSizeInBits() && "Must be primitive here");
+            storeit = builder.CreateAlignedStore(changedVal, storeit, DL.getPointerTypeSize(storeit.getType()));       //the val here is a pointer
+            replacement.push_back(storeit);
+            if (replfirst == mPLEFTINC || replfirst == mPLEFTDEC)
+                return changedVal;
+            else
+                return addrOprd;
+        }
+    }
+}
+
+// Operation like (*p)++, *(p++), p[1], p[0]+1, ...
+// array cannot be modified (array++ unallowed)
+llvm::Value * allPDerefCreators(enum ExpElemKeys replfirst, llvm::Value * addrOprd, llvm::Value * valOprd, std::vector<llvm::Value *> &replacement, llvm::DataLayout &DL)
+{
+    llvm::IRBuilder<> builder(llvm::getGlobalContext());
+    switch (replfirst)
+    {
+        case mPADD_DEREF:   // *(p + x) or p[x]
+        case mPSUB_DEREF:   // *(p - x)
+        {
+            //assert (llvm::isa<llvm::LoadInst>(addrOprd) && "Must be Load Instruction here (address oprd): allPDerefCreators");
+            assert (llvm::isa<llvm::IntegerType>(valOprd) && "The index for pointer deref must be integer");
+            llvm::Value *pOP = allPCreators ((replfirst==mPADD_DEREF)?mPADD:mPSUB, addrOprd, valOprd, replacement, DL);
+            llvm::Type *valType = pOP->getPointerElementType();    //get the type pointed by pOP
+#if (LLVM_VERSION_MAJOR <= 3) && (LLVM_VERSION_MINOR < 5)
+            assert ((llvm::PointerType::isValidElementType(valType) && !valType->isFunctionTy()) && "Problem: this should not be called when the type is not loadable or storable(verifiy before)")
+#else
+            assert (llvm::PointerType::isLoadableorStorableType(valType) && "Problem: this should not be called when the type is not loadable or storable(verifiy before)");
+#endif
+            llvm::LoadInst *deref = builder.CreateAlignedLoad(pOP, DL.getTypeStoreSize(valType));
+            replacement.push_back(deref);
+            return deref;
+        }     
+        case mPDEREF_ADD:   // *(p) + x or p[0] + x
+        case mPDEREF_SUB:   // *(p) - x or p[0] - x
+        {
+            //assert (llvm::isa<llvm::LoadInst>(addrOprd) && "Must be Load Instruction here (address oprd): allPDerefCreators");
+            llvm::Type *valType = addrOprd->getPointerElementType();    //get the type pointed by addrOprd
+            llvm::LoadInst *deref = builder.CreateAlignedLoad(addrOprd, DL.getTypeStoreSize(valType));
+            replacement.push_back(deref);
+            llvm::Value *addsubP;
+            if (llvm::isa<llvm::PointerType>(deref))
+            {
+                assert (llvm::isa<llvm::IntegerType>(valOprd) && "The val(index) to add/sud to pointer must be integer");
+                addsubP = allPCreators ((replfirst==mPDEREF_ADD)?mPADD:mPSUB, deref, valOprd, replacement, DL);
+            }
+            else
+            {
+                //deref has been loaded thus support arithmetic operation
+                assert (checkCPTypeInIR(cpEXPR, valOprd) && "The value for arithmetic add or sub must be suporting arithmetic operation (cpExpr)");
+                addsubP = allCreators ((replfirst==mPDEREF_ADD)?mADD:mSUB, deref, valOprd, replacement);
+            }
+            return addsubP;
+        }   
+        case mPLEFTINC_DEREF:   // *(++p)
+        case mPRIGHTINC_DEREF:  // *(p++)
+        case mPLEFTDEC_DEREF:   // *(--p)
+        case mPRIGHTDEC_DEREF:  // *(p--)
+        {
+            enum ExpElemKeys tmpRepl;
+            if (replfirst==mPLEFTINC_DEREF) 
+                tmpRepl = mPLEFTINC;
+            else if (replfirst==mPRIGHTINC_DEREF)
+                tmpRepl = mPRIGHTINC;
+            else if (replfirst==mPLEFTDEC_DEREF)
+                tmpRepl = mPLEFTDEC;
+            else
+                tmpRepl = mPRIGHTDEC;
+            assert (llvm::isa<llvm::LoadInst>(addrOprd) && "Must be Load Instruction here (address oprd), inc dec: allPDerefCreators");
+            llvm::Value *pOP = allPCreators (tmpRepl, addrOprd, valOprd, replacement, DL);
+            llvm::Type *valType = pOP->getPointerElementType();    //get the type pointed by pOP
+#if (LLVM_VERSION_MAJOR <= 3) && (LLVM_VERSION_MINOR < 5)
+            assert ((llvm::PointerType::isValidElementType(valType) && !valType->isFunctionTy()) && "Problem: this should not be called when the type is not loadable or storable(verifiy before)");
+#else
+            assert (llvm::PointerType::isLoadableorStorableType(valType) && "Problem: this should not be called when the type is not loadable or storable(verifiy before)");
+#endif
+            llvm::LoadInst *deref = builder.CreateAlignedLoad(pOP, DL.getTypeStoreSize(valType));
+            replacement.push_back(deref);
+            return deref;
+        }
+        case mPDEREF_LEFTINC:   // ++(*p)
+        case mPDEREF_RIGHTINC:  // (*p)++
+        case mPDEREF_LEFTDEC:   // --(*p)
+        case mPDEREF_RIGHTDEC:  // (*p)--
+        {
+            enum ExpElemKeys tmpRepl;
+            //assert (llvm::isa<llvm::LoadInst>(addrOprd) && "Must be Load Instruction here (address oprd): allPDerefCreators");
+            llvm::Type *valType = addrOprd->getPointerElementType();    //get the type pointed by addrOprd
+            llvm::LoadInst *deref = builder.CreateAlignedLoad(addrOprd, DL.getTypeStoreSize(valType));
+            replacement.push_back(deref);
+            llvm::Value *incdecP;
+            if (llvm::isa<llvm::PointerType>(deref))
+            {
+                if (replfirst==mPDEREF_LEFTINC) 
+                    tmpRepl = mPLEFTINC;
+                else if (replfirst==mPDEREF_RIGHTINC)
+                    tmpRepl = mPRIGHTINC;
+                else if (replfirst==mPDEREF_LEFTDEC)
+                    tmpRepl = mPLEFTDEC;
+                else
+                    tmpRepl = mPRIGHTDEC;
+                incdecP = allPCreators (tmpRepl, deref, valOprd, replacement, DL);
+            }
+            else
+            {
+                //deref has been loaded thus is a variable that can be inc/dec
+                if (replfirst==mPDEREF_LEFTINC) 
+                    tmpRepl = mLEFTINC;
+                else if (replfirst==mPDEREF_RIGHTINC)
+                    tmpRepl = mRIGHTINC;
+                else if (replfirst==mPDEREF_LEFTDEC)
+                    tmpRepl = mLEFTDEC;
+                else
+                    tmpRepl = mRIGHTDEC;
+                incdecP = allCreators (tmpRepl, deref, valOprd, replacement);
+            }
+            return incdecP;
+        }
+    }
+}
+
 llvm::Constant *constCreator (llvm::Type *type, unsigned &posConstValueMap_POS, llvm::Constant *toCompare=nullptr)
 {
     llvm::Constant *nc = nullptr;
@@ -892,7 +1067,7 @@ void matchArithBinOp (std::vector<llvm::Value *> &toMatch, llvmMutationOp &mutat
                     for (auto &U: llvm::dyn_cast<llvm::Instruction>(toMatchClone[posInClone])->uses())
                     {
                         llvm::User *user = U.getUser();
-                        affectedUnO.push_back(std::pair<llvm::User *, unsigned>(user,ui.getOperandNo()));
+                        affectedUnO.push_back(std::pair<llvm::User *, unsigned>(user,U.getOperandNo()));
                         //user->setOperand(U.getOperandNo(), createdRes);
 #endif
                         //Avoid infinite loop because of setoperand ...
@@ -933,11 +1108,6 @@ void matchFADD (std::vector<llvm::Value *> &toMatch, llvmMutationOp &mutationOp,
     matchArithBinOp (toMatch, mutationOp, resultMuts, llvm::Instruction::FAdd);
 }
 
-void matchPADD (std::vector<llvm::Value *> &toMatch, llvmMutationOp &mutationOp, std::vector<std::vector<llvm::Value *>> &resultMuts) 
-{
-    matchArithBinOp (toMatch, mutationOp, resultMuts, llvm::Instruction::GetElementPtr);
-}
-
 //@toMatch: the statement from where to match
 //@replacors: list of replacement (<op, list of index of params of sub>)
 void matchSUB (std::vector<llvm::Value *> &toMatch, llvmMutationOp &mutationOp, std::vector<std::vector<llvm::Value *>> &resultMuts) 
@@ -952,9 +1122,209 @@ void matchFSUB (std::vector<llvm::Value *> &toMatch, llvmMutationOp &mutationOp,
     matchArithBinOp (toMatch, mutationOp, resultMuts, llvm::Instruction::FSub);
 }
 
+// Return nullptr if the gep do not represent a pointer indexing, else, it return the value representing the index
+// The when the pointer oprd do not comes from LoadInst, the 1st index of get just take out the address part (as alloca vars are actually addresses)
+inline llvm::Value* checkIsPointerIndexingAndGet (llvm::GetElementPtrInst * gep, int &index)
+{
+    index = -1;
+    if (gep->getNumIndices() < 1)
+        return nullptr;
+    llvm::Instruction *ptrOprd = gep->getPointerOperand();
+    //if the pointer operand points to a non sequential type, the pointer must come from load instruction, and the 1st idx of get will be the index needed
+    if (! llvm::isa<llvm::SequentialType>(ptrOprd->getPointerElementType()))
+    {
+        if (llvm::isa<llvm::LoadInst>(ptrOprd))
+        {
+            // return the first index (idx = 0)
+            index = 0;
+            return *(gep->idx_begin() + index);
+        }
+        else
+        {
+            return nullptr;
+        }
+    }
+    else    // The pointer operand point to a sequential type, take idx 0 if comes from load, else take idx 1
+    {
+        if (llvm::isa<llvm::LoadInst>(ptrOprd))
+        {
+            // return the first index (idx = 0)
+            index = 0;
+            return *(gep->idx_begin() + index);
+        }
+        else
+        {
+            // return the first index (idx = 1)
+            assert (gep->getNumIndices() > 1 && "gep should have more than 1 index here");
+            index = 1;
+            return *(gep->idx_begin() + index);
+        }
+    }
+}
+
+// The pointer operand is at the left side and the integer at the right side
+void matchPADD_SUB (std::vector<llvm::Value *> &toMatch, llvmMutationOp &mutationOp, std::vector<std::vector<llvm::Value *>> &resultMuts) 
+{
+    int pos = -1;
+    bool stmtDeleted = false;
+    for (auto *val:toMatch)
+    {
+        pos++;
+        
+        ///MATCH
+        if (auto *gep = llvm::dyn_cast<llvm::GetElementPtrInst>(val))
+        {
+            // check the pointer displacement index (0)'s value
+            int indx;
+            llvm::Value *indxVal = checkIsPointerIndexingAndGet(gep, indx);
+            if (! indxVal)
+                continue;
+            if (llvm::ConstantInt * constIndxVal = llvm::dyn_cast<llvm::ConstantInt>(indxVal))
+            {
+                if (constIndxVal->isZero())
+                    continue;
+                else if(constIndxVal->isNegative()) //Match PSUB
+                {
+                    if (mutationOp.matchOp != mPSUB)
+                        continue
+                }
+                else    //Match PADD
+                {
+                    if (mutationOp.matchOp != mPADD)
+                        continue
+                }
+            }
+            else    //it is a non constant
+            {   
+                llvm::Instruction *tmpI = llvm::dyn_cast<llvm::Instruction>(indxVal);
+                while (llvm::isa<llvm::CastInst>(tmpI))
+                    tmpI = llvm::dyn_cast<llvm::User>(tmpI)->getOperand(0)
+                if (llvm::isa<llvm::binaryOperator>(tmpI) && (tmpI->getOpcode() == llvm::Instruction::Sub || tmpI->getOpcode() == llvm::Instruction::FSub)) //match PSUB
+                {
+                    if (mutationOp.matchOp != mPSUB)
+                        continue
+                }
+                else    //match PADD
+                {
+                    if (mutationOp.matchOp != mPADD)
+                        continue
+                }
+            }
+            
+            // Make sure the pointer is the right type  TODO: case where PADD (p,c), PADD(c,p), PADD(p,@)
+            if (! checkCPTypeInIR (mutationOp.getCPType(0), gep->getpointerOperand()))
+                continue;
+                    
+            int newPos = pos;
+            if (indx > 0)
+                newPos++;
+            
+            std::vector<unsigned> posOfIRtoRemove({newPos});
+            for (auto &repl: mutationOp.mutantReplacorsList)
+            {
+                toMatchClone.clear();
+                if (repl.first == mDELSTMT)
+                {
+                    doReplacement (toMatch, resultMuts, repl, toMatchClone, posOfIRtoRemove, nullptr, nullptr, nullptr);
+                }
+                else
+                {
+                    assert ((repl.first != mKEEP_ONE_OPRD || (repl.second.size()==1 && repl.second[0] < 2)) && "Error in the replacor 'mKEEP_ONE_OPRD'");
+                    
+                    cloneStmtIR (toMatch, toMatchClone);
+                    std::vector<llvm::Value> extraIdx;
+                    llvm::GetElementPointer * preGep=nullptr, postGep=nullptr;
+                    llvm::IRBuilder<> builder(llvm::getGlobalContext());
+                    if (indx > 0)
+                    {
+                        llvm::GetElementPointer * curGI = llvm::dyn_cast<llvm::GetElementPointerInst>(toMatchClone[pos]);
+                        extraIdx.clear();
+                        for (auto i=0; i<indx;i++)
+                            extraIdx.push_back(*(curGI->idx_begin() + i));
+                        llvm::GetElementPointer * preGep = builder.CreateInBoundsGEP(nullptr, curGI->getPointerOperand(), extraIdx);
+                    }
+                    if (indx < gep->getNumIndices()-1)
+                    {
+                        llvm::GetElementPointer * curGI = llvm::dyn_cast<llvm::GetElementPointerInst>(toMatchClone[pos]);
+                        extraIdx.clear();
+                        for (auto i=indx+1; i<gep->getNumIndices();i++)
+                            extraIdx.push_back(*(curGI->idx_begin() + i));
+                        llvm::GetElementPointer * postGep = builder.CreateInBoundsGEP(nullptr, curGI, extraIdx);
+                        std::vector<std::pair<llvm::User *, unsigned>> affectedUnO;
+                        //set uses of the matched IR to corresponding OPRD
+#if (LLVM_VERSION_MAJOR <= 3) && (LLVM_VERSION_MINOR < 5)
+                        for (llvm::Value::use_iterator ui=curGI->use_begin(), ue=curGI->use_end(); ui!=ue; ++ui)
+                        {
+                            auto &U = ui.getUse();
+                            llvm::User *user = U.getUser();
+                            affectedUnO.push_back(std::pair<llvm::User *, unsigned>(user,ui.getOperandNo()));
+#else
+                        for (auto &U: llvm::dyn_cast<llvm::Instruction>(curGI)->uses())
+                        {
+                            llvm::User *user = U.getUser();
+                            affectedUnO.push_back(std::pair<llvm::User *, unsigned>(user,U.getOperandNo()));
+#endif
+                        }
+                        for(auto &affected: affectedUnO)
+                            if (affected.first != postGep)// && std::find(replacement.begin(), replacement.end(), affected.first) == replacement.end())     //avoid 'use loop': a->b->a
+                                affected.first->setOperand(affected.second, postGep);
+                    }
+                    if (postGep)
+                        toMatchClone.insert(toMatchClone.begin() + pos + 1, postGep);
+                    if (preGep)
+                        toMatchClone.insert(toMatchClone.begin() + pos, preGep);
+                    llvm::Value * ptroprd = nullptr, *valoprd = nullptr;
+                    if (repl.second.size() == 2)
+                    {
+                        if (preGep)
+                            ptroprd = preGep;
+                        else
+                            ptroprd = llvm::dyn_cast<llvm::GetElementPointer>(toMatchClone[newPos])->getPointerOperand();
+                        if (repl.second[1] > llvmMutationOp::maxOprdNum)
+                            valoprd = constCreator (indxVal->getType(), repl.second[1]);
+                        else
+                            valoprd = indxVal;
+                    }
+                    else    //size is 1
+                    {
+                        if (repl.second[0] > llvmMutationOp::maxOprdNum)     
+                        {   //The replacor should be CONST_VALUE_OF
+                            ptroprd = constCreator (indxVal->getType(), repl.second[0]);
+                            ptroprd = builder.CreateIntToPtr(ptroprd, preGep? preGep->getType(): llvm::dyn_cast<llvm::GetElementPointer>(toMatchClone[newPos])->getPointerOperand()->getType());
+                            if (! llvm::isa<llvm::Constant>(ptroprd))
+                                toMatchClone.insert(toMatchClone.begin() + newPos + 1, ptroprd);    //insert right after the instruction to remove
+                        }
+                        else if (repl.second[0] == 1)   //non pointer
+                        {   //The replacor should be either KEEP_ONE_OPRD
+                            ptroprd = builder.CreateIntToPtr(indxVal, preGep? preGep->getType(): llvm::dyn_cast<llvm::GetElementPointer>(toMatchClone[newPos])->getPointerOperand()->getType());
+                            if (! llvm::isa<llvm::Constant>(ptroprd))
+                                toMatchClone.insert(toMatchClone.begin() + newPos + 1, ptroprd);    //insert right after the instruction to remove
+                        }
+                        else // pointer
+                        {
+                            if (preGep)
+                                ptroprd = preGep;
+                            else
+                                ptroprd = llvm::dyn_cast<llvm::GetElementPointer>(toMatchClone[newPos])->getPointerOperand();
+                        }
+                    }
+                    doReplacement (toMatch, resultMuts, repl, toMatchClone, posOfIRtoRemove, ptroprd, valoprd, toMatchClone[newPos], rmPTR);
+                }
+            }
+        }
+    }
+}
+
+//@ Pointer adding a value x: (p + x)
+void matchPADD (std::vector<llvm::Value *> &toMatch, llvmMutationOp &mutationOp, std::vector<std::vector<llvm::Value *>> &resultMuts) 
+{
+    matchPADD_SUB (toMatch, mutationOp, resultMuts);
+}
+
+//@ Pointer removing a value x: (p - x)
 void matchPSUB (std::vector<llvm::Value *> &toMatch, llvmMutationOp &mutationOp, std::vector<std::vector<llvm::Value *>> &resultMuts) 
 {
-    matchArithBinOp (toMatch, mutationOp, resultMuts, llvm::Instruction::GetElementPtr);
+    matchPADD_SUB (toMatch, mutationOp, resultMuts);
 }
 
 //@toMatch: the statement from where to match
@@ -1047,7 +1417,9 @@ void matchALLNEGS (std::vector<llvm::Value *> &toMatch, llvmMutationOp &mutation
                 }
                 else if (neg->getOpcode() == llvm::Instruction::Xor)
                 {
-                    if (mutationOp.matchOp != mBITNOT || !llvm::dyn_cast<llvm::ConstantInt>(theConst)->equalsInt(-1)) 
+                    if (mutationOp.matchOp != mBITNOT)
+                        continue;
+                    if (!llvm::dyn_cast<llvm::ConstantInt>(theConst)->equalsInt(-1)) 
                     {
                         if (llvm::isa<llvm::ConstantInt>(neg->getOperand(1)) && llvm::dyn_cast<llvm::ConstantInt>(neg->getOperand(1))->equalsInt(-1))
                             oprdId = 0;
@@ -1232,6 +1604,13 @@ void matchINC_DEC (std::vector<llvm::Value *> &toMatch, llvmMutationOp &mutation
                     else
                         continue;
                 }
+                else if (load->getNumUses() == 1 && modif->getNumUses() == 1)
+                {   //Here the increment-decrement do not return (this mutants will be duplicate for left and right)
+                    /// if (mutationOp.matchOp == mLEFTINC || mutationOp.matchOp == mFLEFTINC || mutationOp.matchOp == mLEFTDEC || mutationOp.matchOp == mFLEFTDEC)
+                        returningIR = nullptr;
+                    /// else
+                    ///    continue;
+                }
                 else
                 {
                     continue;
@@ -1240,6 +1619,8 @@ void matchINC_DEC (std::vector<llvm::Value *> &toMatch, llvmMutationOp &mutation
                 int loadpos = depPosofPos(toMatch, load, pos);
                 int modifpos = depPosofPos(toMatch, modif, pos);
                 int returningIRpos = (returningIR == load) ? loadpos: modifpos;
+                
+                assert ((pos > loadpos && pos > modifpos) && "problem in IR order");
                 
                 std::vector<unsigned> posOfIRtoRemove({pos, modifpos});
                 for (auto &repl: mutationOp.mutantReplacorsList)
@@ -1273,6 +1654,121 @@ void matchINC_DEC (std::vector<llvm::Value *> &toMatch, llvmMutationOp &mutation
     }
 }
 
+//@ Pointer increment-Decrement
+void matchPINC_DEC (std::vector<llvm::Value *> &toMatch, llvmMutationOp &mutationOp, std::vector<std::vector<llvm::Value *>> &resultMuts)
+{
+    std::vector<llvm::Value *> toMatchClone;
+    int pos = -1;
+    for (auto *val:toMatch)
+    {
+        pos++;
+        
+        ///MATCH
+        if (llvm::StoreInst *store = llvm::dyn_cast<llvm::StoreInst>(val))
+        {
+            llvm::Value *addr = store->getOperand(1);
+            
+            if (llvm::GetElementPtrInst *modif = llvm::dyn_cast<llvm::GetElementPtrInst>(store->getOperand(0)))
+            {
+                if (modif->getNumIndices() != 1)
+                    continue;
+                llvm::LoadInst *load = llvm::dyn_cast<llvm::LoadInst>(modif->getPointerOperand());
+                if (!load)
+                    continue;
+                int indx;
+                llvm::Value *indxVal = checkIsPointerIndexingAndGet(modif, indx);
+                if (! indxVal || ! llvm::isa<llvm::ConstantInt>(indxVal))
+                    continue;
+                llvm::ConstantInt *constpart = llvm::dyn_cast<llvm::ConstantInt>(indxVal);
+                if(constpart->equalsInt(1))
+                {
+                    if (mutationOp.matchOp != mPLEFTINC && mutationOp.matchOp != mPRIGHTINC)
+                        continue;
+                }
+                else if (constpart->equalsInt(-1))
+                {
+                    if (mutationOp.matchOp != mPLEFTDEC && mutationOp.matchOp != mPRIGHTDEC)
+                        continue;
+                }
+                else
+                    continue;
+                
+                llvm::Value * returningIR;
+                
+                //check wheter it is left or right inc-dec
+                if (load->getNumUses() == 2 && modif->getNumUses() == 1)
+                {
+                    if (mutationOp.matchOp == mPRIGHTINC || mutationOp.matchOp == mPRIGHTDEC)
+                        returningIR = load;
+                    else
+                        continue;
+                }
+                else if (load->getNumUses() == 1 && modif->getNumUses() == 2)
+                {
+                    if (mutationOp.matchOp == mPLEFTINC || mutationOp.matchOp == mPLEFTDEC)
+                        returningIR = modif;
+                    else
+                        continue;
+                }
+                else if (load->getNumUses() == 1 && modif->getNumUses() == 1)
+                {   //Here the increment-decrement do not return (this mutants will be duplicate for left and right)
+                    /// if (mutationOp.matchOp == mPRIGHTINC || mutationOp.matchOp == mPRIGHTDEC)
+                    returningIR = nullptr;
+                    /// else
+                    ///     continue;
+                }
+                else
+                {
+                    continue;
+                }
+                
+                int loadpos = depPosofPos(toMatch, load, pos);
+                int modifpos = depPosofPos(toMatch, modif, pos);
+                int returningIRpos = (returningIR == load) ? loadpos: modifpos;
+                
+                assert ((pos > loadpos && pos > modifpos) && "problem in IR order");
+                
+                std::vector<unsigned> posOfIRtoRemove({pos, modifpos});
+                for (auto &repl: mutationOp.mutantReplacorsList)
+                {
+                    toMatchClone.clear();
+                    if (repl.first == mDELSTMT)
+                    {
+                        doReplacement (toMatch, resultMuts, repl, toMatchClone, posOfIRtoRemove, nullptr, nullptr, nullptr, rmPTR);
+                    }
+                    else
+                    {
+                        assert ((repl.first != mKEEP_ONE_OPRD || (repl.second.size()==1 && repl.second[0] < 2)) && "Error in the replacor 'mKEEP_ONE_OPRD'");
+                        cloneStmtIR (toMatch, toMatchClone);
+                        llvm::Value * ptroprd = nullptr, *valoprd = nullptr;
+                        if (repl.second.size() == 2)    //size is 2
+                        {
+                            ptroprd = toMatchClone[loadpos];
+                            assert (repl.second[1] > llvmMutationOp::maxOprdNum && "Problem here, must be hard coded constant int here");
+                            valoprd = constCreator (indxVal->getType(), repl.second[1]);
+                        }
+                        else    //size is 1
+                        {
+                            if (repl.second[0] > llvmMutationOp::maxOprdNum)     
+                            {   //The replacor should be CONST_VALUE_OF
+                                ptroprd = constCreator (indxVal->getType(), repl.second[0]);
+                                ptroprd = builder.CreateIntToPtr(ptroprd, (toMatchClone[returningIRpos])->getType());
+                                if (! llvm::isa<llvm::Constant>(ptroprd))
+                                    toMatchClone.insert(toMatchClone.begin() + pos + 1, ptroprd);    //insert right after the instruction to remove
+                            }
+                            else // pointer
+                            {
+                                ptroprd = toMatchClone[loadpos];
+                            }
+                        }
+                        doReplacement (toMatch, resultMuts, repl, toMatchClone, posOfIRtoRemove, ptroprd, valoprd, toMatchClone[returningIRpos], rmPTR);
+                    }
+                }
+            }
+        }
+    }       
+}        
+        
 std::map<enum ExpElemKeys, llvm::CmpInst::Predicate> & getPredRelMap()
 {
     static std::map<enum ExpElemKeys, llvm::CmpInst::Predicate> mrel_IRrel_Map;
@@ -1389,7 +1885,7 @@ void matchRELATIONALS (std::vector<llvm::Value *> &toMatch, llvmMutationOp &muta
                             }
                         }
                         
-                        //Transform (x R y) to (Dumb != 0)
+                        //Transform (x R y) to (Dumb != 0)   //Use bitcast instruction for dumb instead
                         llvm::Instruction * dumb = llvm::BinaryOperator::Create(llvm::Instruction::Add, oprdptr[0], oprdptr[1]);
                         llvm::dyn_cast<llvm::User>(toMatchClone[pos])->setOperand(0, dumb);
                         llvm::dyn_cast<llvm::User>(toMatchClone[pos])->setOperand(1, zero);
@@ -1621,24 +2117,42 @@ void matchAND_OR (std::vector<llvm::Value *> &toMatch, llvmMutationOp &mutationO
     }    
 }
 
-int depPosofPos (std::vector<llvm::Value *> &toMatch, llvm::Value *irinst, int pos)
+int depPosofPos (std::vector<llvm::Value *> &toMatch, llvm::Value *irinst, int pos, firstCheckBefore=true)
 {
-    int findpos = pos-1;
-    for (; findpos>=0; findpos--)
-        if (toMatch[findpos] == irinst)
-            break;
-    if (findpos<0)
+    int findpos;
+    if (firstCheckBefore)
     {
-        for (findpos=pos+1; findpos<toMatch.size(); findpos++)
+        findpos = pos-1;
+        for (; findpos>=0; findpos--)
             if (toMatch[findpos] == irinst)
                 break;
-        assert (toMatch.size() > findpos && "Impossible error");
+        if (findpos<0)
+        {
+            for (findpos=pos+1; findpos<toMatch.size(); findpos++)
+                if (toMatch[findpos] == irinst)
+                    break;
+            assert (toMatch.size() > findpos && "Impossible error (before)");
+        }
+    else
+    {
+        findpos = pos+1;
+        for (; findpos<toMatch.size(); findpos++)
+            if (toMatch[findpos] == irinst)
+                break;
+        if (findpos>=toMatch.size())
+        {
+            for (findpos=pos-1; findpos>=0; findpos--)
+                if (toMatch[findpos] == irinst)
+                    break;
+            assert (findpos>=0 && "Impossible error (after)");
+        }
     }
     return findpos;
 }
 
 void doReplacement (std::vector<llvm::Value *> &toMatch, std::vector<std::vector<llvm::Value *>> &resultMuts, std::pair<enum ExpElemKeys, std::vector<unsigned>> &repl, 
-                    std::vector<llvm::Value *> &toMatchClone, std::vector<unsigned> &posOfIRtoRemove, llvm::Value *lhOprdptr, llvm::Value *rhOprdptr, llvm::Value *returningIR)
+                    std::vector<llvm::Value *> &toMatchClone, std::vector<unsigned> &posOfIRtoRemove, llvm::Value *lhOprdptr, llvm::Value *rhOprdptr, llvm::Value *returningIR,
+                    enum replacementModes repMode = rmNUMVAL)
 {
     ///REPLACE    
     if (repl.first == mDELSTMT)
@@ -1657,7 +2171,30 @@ void doReplacement (std::vector<llvm::Value *> &toMatch, std::vector<std::vector
         
         assert ((repl.first != mKEEP_ONE_OPRD || (repl.second.size()==1 && repl.second[0] < 2)) && "Error in the replacor 'mKEEP_ONE_OPRD'");
         
-        llvm::Value * createdRes = allCreators(repl.first, lhOprdptr, rhOprdptr, replacement);
+        llvm::Value * createdRes;
+        switch (repMode)
+        {
+            case rmNUMVAL:
+                createdRes = allCreators(repl.first, lhOprdptr, rhOprdptr, replacement);
+                break;
+            case rmPTR:
+#if (LLVM_VERSION_MAJOR <= 3) && (LLVM_VERSION_MINOR < 5)  
+                llvm::DataLayout DL(toMatch.back()->getParent()->getParent()->getParent());    //TODO: Optimize this with static (changing when toMatch changes)
+#else
+                llvm::DataLayout DL(toMatch.back()->getModule());
+#endif
+                createdRes = allPCreators(repl.first, lhOprdptr, rhOprdptr, replacement, DL);
+                break;
+            case rmDEREF:
+#if (LLVM_VERSION_MAJOR <= 3) && (LLVM_VERSION_MINOR < 5)
+                llvm::DataLayout DL(toMatch.back()->getParent()->getParent()->getParent());    //TODO: Optimize this with static (changing when toMatch changes)
+#else
+                llvm::DataLayout DL(toMatch.back()->getModule());
+#endif
+                createdRes = allPDerefCreators(repl.first, lhOprdptr, rhOprdptr, replacement, DL);
+                break;
+            default:
+                assert (false && "Unreachable (repMode)");
         
 #if (LLVM_VERSION_MAJOR <= 3) && (LLVM_VERSION_MINOR < 5)
             //IRFlags non existant for these verisons
@@ -1686,7 +2223,7 @@ void doReplacement (std::vector<llvm::Value *> &toMatch, std::vector<std::vector
         for (auto &U: llvm::dyn_cast<llvm::Instruction>(returningIR)->uses())
         {
             llvm::User *user = U.getUser();
-            affectedUnO.push_back(std::pair<llvm::User *, unsigned>(user,ui.getOperandNo()));
+            affectedUnO.push_back(std::pair<llvm::User *, unsigned>(user,U.getOperandNo()));
             //user->setOperand(U.getOperandNo(), createdRes);
 #endif
             //Avoid infinite loop because of setoperand ...
@@ -1770,7 +2307,7 @@ void matchCALL (std::vector<llvm::Value *> &toMatch, llvmMutationOp &mutationOp,
     }
 }
 
-//TODO TODO TODO
+//
 void matchRETURN_BREAK_CONTINUE (std::vector<llvm::Value *> &toMatch, llvmMutationOp &mutationOp, std::vector<std::vector<llvm::Value *>> &resultMuts)
 {
     static llvm::Function *prevFunc = nullptr;
@@ -1885,7 +2422,7 @@ void matchRETURN_BREAK_CONTINUE (std::vector<llvm::Value *> &toMatch, llvmMutati
 #if (LLVM_VERSION_MAJOR <= 3) && (LLVM_VERSION_MINOR < 5)
             llvm::DataLayout DL(ret->getParent()->getParent()->getParent());
 #else
-            llvm::DataLayout *DL(ret->getModule());
+            llvm::DataLayout DL(ret->getModule());
 #endif
             for (auto &repl: mutationOp.mutantReplacorsList)
             {
@@ -1906,6 +2443,277 @@ void matchRETURN_BREAK_CONTINUE (std::vector<llvm::Value *> &toMatch, llvmMutati
             }
         }
     }
+}
+
+void matchPADDSUB_DEREF (std::vector<llvm::Value *> &toMatch, llvmMutationOp &mutationOp, std::vector<std::vector<llvm::Value *>> &resultMuts)  // *(p+1)
+{
+    int pos = -1;
+    bool stmtDeleted = false;
+    for (auto *val:toMatch)
+    {
+        pos++;
+        
+        ///MATCH
+        if (auto *gep = llvm::dyn_cast<llvm::GetElementPtrInst>(val))
+        {
+            // check the pointer displacement index (0)'s value
+            int indx;
+            llvm::Value *indxVal = checkIsPointerIndexingAndGet(gep, indx);
+            if (! indxVal)
+                continue;
+            if (llvm::ConstantInt * constIndxVal = llvm::dyn_cast<llvm::ConstantInt>(indxVal))
+            {
+                if (constIndxVal->isZero())
+                    continue;
+                else if(constIndxVal->isNegative()) //Match PSUB
+                {
+                    if (mutationOp.matchOp != mPSUB_DEREF)
+                        continue
+                }
+                else    //Match PADD
+                {
+                    if (mutationOp.matchOp != mPADD_DEREF)
+                        continue
+                }
+            }
+            else    //it is a non constant
+            {   
+                llvm::Instruction *tmpI = llvm::dyn_cast<llvm::Instruction>(indxVal);
+                while (llvm::isa<llvm::CastInst>(tmpI))
+                    tmpI = llvm::dyn_cast<llvm::User>(tmpI)->getOperand(0)
+                if (llvm::isa<llvm::binaryOperator>(tmpI) && (tmpI->getOpcode() == llvm::Instruction::Sub || tmpI->getOpcode() == llvm::Instruction::FSub)) //match PSUB
+                {
+                    if (mutationOp.matchOp != mPSUB_DEREF)
+                        continue
+                }
+                else    //match PADD
+                {
+                    if (mutationOp.matchOp != mPADD_DEREF)
+                        continue
+                }
+            }
+            
+            std::vector<int> derefPosVect;
+#if (LLVM_VERSION_MAJOR <= 3) && (LLVM_VERSION_MINOR < 5)
+            for (llvm::Value::use_iterator ui=gep->use_begin(), ue=gep->use_end(); ui!=ue; ++ui)
+            {
+                auto &U = ui.getUse();
+#else
+            for (auto &U: llvm::dyn_cast<llvm::Instruction>(gep)->uses())
+            {
+#endif
+                llvm::LoadInst *loadDeref = llvm::dyn_cast<llvm::LoadInst>(U.getUser());
+                if (loadDeref)
+                {
+                    int derefPosTmp = depPosofPos (toMatch, loadDeref, pos, false /*search first after*/);
+                    derefPosVect.push_back(derefPosTmp); 
+                }
+            }
+            
+            for (int derefPos: derefPosVect)
+            {
+                
+                // Make sure the pointer is the right type  TODO: case where PADD (p,c), PADD(c,p), PADD(p,@)
+                if (! checkCPTypeInIR (mutationOp.getCPType(0), gep->getpointerOperand()))
+                    continue;
+                
+                assert (derefPos > pos && "use before definition ??");
+                        
+                int newPos = pos;
+                if (indx > 0)
+                    newPos++;
+                    derefPos++;
+                    
+                if (indx < gep->getNumIndices()-1)
+                    derefPos++;
+                
+                std::vector<unsigned> posOfIRtoRemove({newPos, derefPos});
+                for (auto &repl: mutationOp.mutantReplacorsList)
+                {
+                    toMatchClone.clear();
+                    if (repl.first == mDELSTMT)
+                    {
+                        doReplacement (toMatch, resultMuts, repl, toMatchClone, posOfIRtoRemove, nullptr, nullptr, nullptr);
+                    }
+                    else
+                    {
+                        assert ((repl.first != mKEEP_ONE_OPRD && repl.first != mCONST_VALUE_OF /*|| (repl.second.size()==1 && repl.second[0] < 2)*/) && "Repl can't be 'mKEEP_ONE_OPRD' or 'CONST_OF'");
+                        
+                        cloneStmtIR (toMatch, toMatchClone);
+                        std::vector<llvm::Value> extraIdx;
+                        llvm::GetElementPointer * preGep=nullptr, postGep=nullptr;
+                        llvm::IRBuilder<> builder(llvm::getGlobalContext());
+                        if (indx > 0)
+                        {
+                            llvm::GetElementPointer * curGI = llvm::dyn_cast<llvm::GetElementPointerInst>(toMatchClone[pos]);
+                            extraIdx.clear();
+                            for (auto i=0; i<indx;i++)
+                                extraIdx.push_back(*(curGI->idx_begin() + i));
+                            llvm::GetElementPointer * preGep = builder.CreateInBoundsGEP(nullptr, curGI->getPointerOperand(), extraIdx);
+                        }
+                        if (indx < gep->getNumIndices()-1)
+                        {
+                            llvm::GetElementPointer * curGI = llvm::dyn_cast<llvm::GetElementPointerInst>(toMatchClone[pos]);
+                            extraIdx.clear();
+                            for (auto i=indx+1; i<gep->getNumIndices();i++)
+                                extraIdx.push_back(*(curGI->idx_begin() + i));
+                            llvm::GetElementPointer * postGep = builder.CreateInBoundsGEP(nullptr, curGI, extraIdx);
+                            std::vector<std::pair<llvm::User *, unsigned>> affectedUnO;
+                            //set uses of the matched IR to corresponding OPRD
+#if (LLVM_VERSION_MAJOR <= 3) && (LLVM_VERSION_MINOR < 5)
+                            for (llvm::Value::use_iterator ui=curGI->use_begin(), ue=curGI->use_end(); ui!=ue; ++ui)
+                            {
+                                auto &U = ui.getUse();
+                                llvm::User *user = U.getUser();
+                                affectedUnO.push_back(std::pair<llvm::User *, unsigned>(user,ui.getOperandNo()));
+#else
+                            for (auto &U: llvm::dyn_cast<llvm::Instruction>(curGI)->uses())
+                            {
+                                llvm::User *user = U.getUser();
+                                affectedUnO.push_back(std::pair<llvm::User *, unsigned>(user,U.getOperandNo()));
+#endif
+                            }
+                            for(auto &affected: affectedUnO)
+                                if (affected.first != postGep)// && std::find(replacement.begin(), replacement.end(), affected.first) == replacement.end())     //avoid 'use loop': a->b->a
+                                    affected.first->setOperand(affected.second, postGep);
+                        }
+                        if (postGep)
+                            toMatchClone.insert(toMatchClone.begin() + pos + 1, postGep);
+                        if (preGep)
+                            toMatchClone.insert(toMatchClone.begin() + pos, preGep);
+                        llvm::Value * ptroprd = nullptr, *valoprd = nullptr;
+                        if (repl.second.size() == 2)
+                        {
+                            if (preGep)
+                                ptroprd = preGep;
+                            else
+                                ptroprd = llvm::dyn_cast<llvm::GetElementPointer>(toMatchClone[newPos])->getPointerOperand();
+                            if (repl.second[1] > llvmMutationOp::maxOprdNum)
+                                valoprd = constCreator (indxVal->getType(), repl.second[1]);
+                            else
+                                valoprd = indxVal;
+                        }
+                        else    //size is 1
+                        {
+                            /*if (repl.second[0] > llvmMutationOp::maxOprdNum)     
+                            {   //The replacor should be CONST_VALUE_OF
+                                ptroprd = constCreator (indxVal->getType(), repl.second[0]);
+                                ptroprd = builder.CreateIntToPtr(ptroprd, preGep? preGep->getType(): llvm::dyn_cast<llvm::GetElementPointer>(toMatchClone[newPos])->getPointerOperand()->getType());
+                                if (! llvm::isa<llvm::Constant>(ptroprd))
+                                    toMatchClone.insert(toMatchClone.begin() + newPos + 1, ptroprd);    //insert right after the instruction to remove
+                            }
+                            else if (repl.second[0] == 1)   //non pointer
+                            {   //The replacor should be either KEEP_ONE_OPRD
+                                ptroprd = builder.CreateIntToPtr(indxVal, preGep? preGep->getType(): llvm::dyn_cast<llvm::GetElementPointer>(toMatchClone[newPos])->getPointerOperand()->getType());
+                                if (! llvm::isa<llvm::Constant>(ptroprd))
+                                    toMatchClone.insert(toMatchClone.begin() + newPos + 1, ptroprd);    //insert right after the instruction to remove
+                            }
+                            else // pointer
+                            {
+                                if (preGep)
+                                    ptroprd = preGep;
+                                else
+                                    ptroprd = llvm::dyn_cast<llvm::GetElementPointer>(toMatchClone[newPos])->getPointerOperand();
+                            }*/
+                            assert (false && "No KEEP_ONE_OPRD ot CONST_OF here");
+                        }
+                        doReplacement (toMatch, resultMuts, repl, toMatchClone, posOfIRtoRemove, ptroprd, valoprd, toMatchClone[derefPos], rmPTR);
+                    }
+                }
+            }
+        }
+    }
+}
+
+
+?//TODO TODO : Unfinished...
+void matchPDEREF_ADDSUB (std::vector<llvm::Value *> &toMatch, llvmMutationOp &mutationOp, std::vector<std::vector<llvm::Value *>> &resultMuts)  // *(p)+1
+{
+    int pos = -1;
+    for (auto *val:toMatch)
+    {
+        pos++;
+        
+        ///MATCH
+        
+        if (auto *deref = llvm::dyn_cast<llvm::LoadInst>(val))
+        {
+            if (llvm::isa<llvm::AllocaInst>(deref->getPointeroperand()))     //The pointer oprd should not be AllocaInst
+                continue;
+            
+            
+            if (llvm::isa<llvm::PointerType>(deref))
+            {
+#if (LLVM_VERSION_MAJOR <= 3) && (LLVM_VERSION_MINOR < 5)
+                for (llvm::Value::use_iterator ui=deref->use_begin(), ue=deref->use_end(); ui!=ue; ++ui)
+                {
+                    auto &U = ui.getUse();
+#else
+                for (auto &U: llvm::dyn_cast<llvm::Instruction>(deref)->uses())
+                {
+#endif
+                    llvm::LoadInst *loadDeref = llvm::dyn_cast<llvm::LoadInst>(U.getUser());
+                    if (loadDeref)
+                        addsubPos = depPosofPos (toMatch, loadDeref, pos, false /*search first after*/);
+                }
+            }
+            else
+            {
+#if (LLVM_VERSION_MAJOR <= 3) && (LLVM_VERSION_MINOR < 5)
+                for (llvm::Value::use_iterator ui=deref->use_begin(), ue=deref->use_end(); ui!=ue; ++ui)
+                {
+                    auto &U = ui.getUse();
+#else
+                for (auto &U: llvm::dyn_cast<llvm::Instruction>(deref)->uses())
+                {
+#endif
+                    int addsubPos = -1;
+                    llvm::BinaryOperator *addsub = llvm::dyn_cast<llvm::BinaryOperator>(U.getUser());
+                    if (addsub)
+                        addsubPos = depPosofPos (toMatch, addsub, pos, false /*search first after*/);
+                }
+            }
+            //TODO check the use of Load (they should be add/sub or gep...)
+            //Assume that val has to be of Instruction type
+            if (mutationOp.matchOp == mPDEREF_ADD && llvm::dyn_cast<llvm::Instruction>(val)->getOpcode() != llvm::Instruction::Add)
+                continue;
+            if (mutationOp.matchOp == mPDEREF_SUB && llvm::dyn_cast<llvm::Instruction>(val)->getOpcode() != llvm::Instruction::Sub)
+                continue;
+                    
+            llvm::Instruction *addsub = llvm::dyn_cast<llvm::Instruction>(val);
+            
+            bool opCPMismatch = false;
+            bool atLeastOneLoadorGep = false;
+            
+            for (auto oprdID=0; oprdID < addsub->getNumOperands(); oprdID++)
+            {
+                llvm::Value *oprdi = addsub->getOperand(oprdID);
+                if (! checkCPTypeInIR (mutationOp.getCPType(oprdID), oprdi))
+                {
+                    opCPMismatch = true;
+                    break;
+                }
+                while (llvm::isa<llvm::CastInst>(oprdi))
+                {
+                    oprdi = llvm::dyn_cast<llvm::User>(oprdi)->getOperand(0);
+                }
+                if (auto * xxload = llvm::dyn_cast<llvm::LoadInst>(oprdi))
+                    if (! llvm::isa<llvm::AllocaInst>(xxload->getPointeroperand()))
+                        atLeastOneLoadorGep = true;
+            }
+            if (opCPMismatch || !atLeastOneLoadorGep)
+                continue;
+        }
+    }
+}
+
+void matchPINCDEC_DEREF (std::vector<llvm::Value *> &toMatch, llvmMutationOp &mutationOp, std::vector<std::vector<llvm::Value *>> &resultMuts)  // *(++p)
+{
+    
+}
+void matchPDEREF_INCDEC (std::vector<llvm::Value *> &toMatch, llvmMutationOp &mutationOp, std::vector<std::vector<llvm::Value *>> &resultMuts)  // ++(*p)
+{
+    
 }
 
 /**** ADD HERE ****/

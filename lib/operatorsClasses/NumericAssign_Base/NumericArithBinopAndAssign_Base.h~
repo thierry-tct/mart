@@ -1,0 +1,94 @@
+#ifndef __KLEE_SEMU_GENMU_operatorClasses__NumericArithBinopAndAssign_Base__
+#define __KLEE_SEMU_GENMU_operatorClasses__NumericArithBinopAndAssign_Base__
+
+/**
+ * -==== NumericArithBinopAndAssign_Base.h
+ *
+ *                LLGenMu LLVM Mutation Tool
+ *
+ * This file is distributed under the University of Illinois Open Source
+ * License. See LICENSE.TXT for details. 
+ *  
+ * \brief     Generic abstract base class for all non-pointer arithmetic binary and assignement mutation operator.
+ * \details   This abstract class define is extended from the Generic base class. 
+ */
+ 
+#include "../GenericMuOpBase.h"
+
+class NumericArithBinopAndAssign_Base: public GenericMuOpBase
+{
+    protected:
+    /**
+     * \brief This method is to be implemented by each numeric binop and assign matching-mutating operator
+     * \detail takes a value and check wheter it matches with the type that the mutation operator matcher can handle.
+     * @param valInst is the value to check
+     * @param mutationOp
+     * @return if the value matches, otherwise, return false.
+     */
+    inline virtual bool checkOperandCPTypes(llvm::Instruction *valInst, llvmMutationOp const &mutationOp)
+    {
+        for (auto oprdID=0; oprdID < valInst->getNumOperands(); oprdID++)
+        {
+            if (! checkCPTypeInIR (mutationOp.getCPType(oprdID), valInst->getOperand(oprdID)))
+                return false;
+        }
+        return true;
+    }
+    
+    /**
+     * \brief This method is to be implemented by each numeric Expression matching-mutating operator
+     * @return the llvm op code of the instruction to match.
+     */
+    inline virtual unsigned getMyInstructionIROpCode() = 0;
+    
+    /**
+     * \brief return true for assignements
+     */
+    inline bool isReverseOprds() = 0;   
+    
+    
+  public:
+    virtual bool matchIRs (std::vector<llvm::Value *> const &toMatch, llvmMutationOp const &mutationOp, unsigned pos, MatchUseful &MU, ModuleUserInfos const &MI) 
+    {
+        llvm::Instruction *val = toMatch.at(pos);
+        if (valInst->getOpcode() != getMyInstructionIROpCode())
+            return false;
+            
+        if (checkOperandCPTypes(val, mutationOp))
+        {
+            int revOprd = isReverseOprds();
+            MatchUseful *ptr_mu = MU.getNew();
+            if (llvm::isa<llvm::Constant>(val->getOperand(revOprd)))    //first oprd
+                ptr_mu->appendHLOprdsSource(pos, revOprd);
+            else
+                ptr_mu->appendHLOprdsSource(depPosofPos(toMatch, val->getOperand(revOprd)));
+            if (llvm::isa<llvm::Constant>(val->getOperand(1-revOprd)))  //second oprd
+                ptr_mu->appendHLOprdsSource(pos, 1-revOprd);
+            else
+                ptr_mu->appendHLOprdsSource(depPosofPos(toMatch, val->getOperand(1-revOprd)));
+            ptr_mu->appendRelevantIRPos(pos);
+            ptr_mu->setHLReturningIRPos(pos);
+        }
+        return (MU.first() != MU.end());
+    }
+    
+    void prepareCloneIRs (std::vector<llvm::Value *> const &toMatch, unsigned pos,  MatchUseful const &MU, llvmMutationOp::MutantReplacors const &repl, DoReplaceUseful &DRU, ModuleUserInfos const &MI)
+    {
+        cloneStmtIR (toMatch, DRU.toMatchClone);
+        llvm::Value * oprdptr[]={nullptr, nullptr};
+        for (int i=0; i < repl.getOprdIndexList().size(); i++)
+        {
+            if (!(oprdptr[i] = createIfConst (MU.getHLOperandSource(0, DRU.toMatchClone)->getType(), repl.getOprdIndexList()[i])))
+            {
+                oprdptr[i] = MU.getHLOperandSource(0, DRU.toMatchClone);
+            }
+        }
+        
+        DRU.appendHLOprds(oprdptr[0]);
+        DRU.appendHLOprds(oprdptr[1]);
+        DRU.setOrigRelevantIRPos(MU.getRelevantIRPos());
+        DRU.setHLReturningIRPos(MU.getHLReturningIRPos());
+    }
+};
+
+#endif //__KLEE_SEMU_GENMU_operatorClasses__NumericArithBinopAndAssign_Base__

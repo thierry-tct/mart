@@ -3,391 +3,213 @@
 #define __KLEE_SEMU_GENMU_typesops__
 
 #include <sstream>
+#include <vector>
+#include <set>
 
 #include "llvm/IR/Value.h"
 #include "llvm/ADT/StringMap.h"
 #include "llvm/ADT/DenseMap.h"
 
+#include "llvm/IR/LLVMContext.h"    //context
+
 #include "llvm/Support/raw_ostream.h"
 
-char * G_MAIN_FUNCTION_NAME = "main";
+#include "llvm/IR/DataLayout.h"     //datalayout
 
-enum codeParts {cpEXPR=0, cpCONSTNUM, cpVAR, cpADDRESS, cpPOINTER};
-
-//enum typeOP {Arithetical, Relational, Logical, Bitwise, Assignement, Misc, Call, DelStmt};
-//enum modeOP {Unary, Binary, None};	//None for DelStmt
-enum ExpElemKeys {mALLSTMT=0, mALLFEXPR, mALLIEXPR, mANYFVAR, mANYIVAR, mANYFCONST, mANYICONST, mDELSTMT, mKEEP_ONE_OPRD, mCONST_VALUE_OF, //special, Delete stmt
-            mIASSIGN, mFASSIGN, mADD, mFADD, mPADD, mSUB, mFSUB, mPSUB, mMUL, mFMUL, mSDIV, mUDIV, mFDIV, mSMOD, mUMOD, mFMOD,  //Arithmetic Binary
-            mNEG, mFNEG, mLEFTINC, mFLEFTINC, mRIGHTINC, mFRIGHTINC, mLEFTDEC, mFLEFTDEC, mRIGHTDEC, mFRIGHTDEC, mABS, mFABS,    //Arithmetic Unary
-            mBITAND, mBITOR, mBITXOR, mBITSHIFTLEFT, mABITSHIFTRIGHT, mLBITSHIFTRIGHT,    //Bitwise Binary
-            mBITNOT,                                             //Bitwise Unary
-            mFCMP_FALSE, mFCMP_OEQ, mFCMP_OGT, mFCMP_OGE, mFCMP_OLT, mFCMP_OLE, mFCMP_ONE, mFCMP_ORD, mFCMP_UNO, mFCMP_UEQ, mFCMP_UGT, mFCMP_UGE, mFCMP_ULT, mFCMP_ULE, mFCMP_UNE, mFCMP_TRUE, //Relational FP
-            mICMP_EQ, mICMP_NE, mICMP_UGT, mICMP_UGE, mICMP_ULT, mICMP_ULE, mICMP_SGT, mICMP_SGE, mICMP_SLT, mICMP_SLE,   //Relational Int or ptr
-            mAND, mOR,                              //Logical Binary
-            mNOT,                                    //Logical Unary
-            
-            mCALL, mNEWCALLEE,              // called function
-            mRETURN_BREAK_CONTINUE,         // delete them by replacing unconditional 'br' target. for the final return with argument, set it to 0
-            /**** ADD HERE ****/
-            
-            
-            /******************/
-            mFORBIDEN_TYPE,   //Says that we cannot use an op for the type (float or int)
-            enumExpElemKeysSIZE     //Number of elements in this enum
-          };
-
-class llvmMutationOp;
-
-void matchANYFEXPR (std::vector<llvm::Value *> &toMatch, llvmMutationOp &mutationOp, std::vector<std::vector<llvm::Value *>> &resultMuts);
-void matchANYIEXPR (std::vector<llvm::Value *> &toMatch, llvmMutationOp &mutationOp, std::vector<std::vector<llvm::Value *>> &resultMuts);
-void matchANYFVAR (std::vector<llvm::Value *> &toMatch, llvmMutationOp &mutationOp, std::vector<std::vector<llvm::Value *>> &resultMuts);
-void matchANYIVAR (std::vector<llvm::Value *> &toMatch, llvmMutationOp &mutationOp, std::vector<std::vector<llvm::Value *>> &resultMuts);
-void matchANYFCONST (std::vector<llvm::Value *> &toMatch, llvmMutationOp &mutationOp, std::vector<std::vector<llvm::Value *>> &resultMuts);
-void matchANYICONST (std::vector<llvm::Value *> &toMatch, llvmMutationOp &mutationOp, std::vector<std::vector<llvm::Value *>> &resultMuts);
-void matchASSIGN (std::vector<llvm::Value *> &toMatch, llvmMutationOp &mutationOp, std::vector<std::vector<llvm::Value *>> &resultMuts);
-void matchADD (std::vector<llvm::Value *> &toMatch, llvmMutationOp &mutationOp, std::vector<std::vector<llvm::Value *>> &resultMuts);
-void matchFADD (std::vector<llvm::Value *> &toMatch, llvmMutationOp &mutationOp, std::vector<std::vector<llvm::Value *>> &resultMuts);
-void matchPADD (std::vector<llvm::Value *> &toMatch, llvmMutationOp &mutationOp, std::vector<std::vector<llvm::Value *>> &resultMuts);
-void matchSUB (std::vector<llvm::Value *> &toMatch, llvmMutationOp &mutationOp, std::vector<std::vector<llvm::Value *>> &resultMuts);
-void matchFSUB (std::vector<llvm::Value *> &toMatch, llvmMutationOp &mutationOp, std::vector<std::vector<llvm::Value *>> &resultMuts);
-void matchPSUB (std::vector<llvm::Value *> &toMatch, llvmMutationOp &mutationOp, std::vector<std::vector<llvm::Value *>> &resultMuts);
-void matchMUL (std::vector<llvm::Value *> &toMatch, llvmMutationOp &mutationOp, std::vector<std::vector<llvm::Value *>> &resultMuts);
-void matchFMUL (std::vector<llvm::Value *> &toMatch, llvmMutationOp &mutationOp, std::vector<std::vector<llvm::Value *>> &resultMuts);
-void matchSDIV (std::vector<llvm::Value *> &toMatch, llvmMutationOp &mutationOp, std::vector<std::vector<llvm::Value *>> &resultMuts);
-void matchUDIV (std::vector<llvm::Value *> &toMatch, llvmMutationOp &mutationOp, std::vector<std::vector<llvm::Value *>> &resultMuts);
-void matchFDIV (std::vector<llvm::Value *> &toMatch, llvmMutationOp &mutationOp, std::vector<std::vector<llvm::Value *>> &resultMuts);
-void matchSMOD (std::vector<llvm::Value *> &toMatch, llvmMutationOp &mutationOp, std::vector<std::vector<llvm::Value *>> &resultMuts);
-void matchUMOD (std::vector<llvm::Value *> &toMatch, llvmMutationOp &mutationOp, std::vector<std::vector<llvm::Value *>> &resultMuts);
-void matchFMOD (std::vector<llvm::Value *> &toMatch, llvmMutationOp &mutationOp, std::vector<std::vector<llvm::Value *>> &resultMuts);
-void matchBITAND (std::vector<llvm::Value *> &toMatch, llvmMutationOp &mutationOp, std::vector<std::vector<llvm::Value *>> &resultMuts);
-void matchBITOR (std::vector<llvm::Value *> &toMatch, llvmMutationOp &mutationOp, std::vector<std::vector<llvm::Value *>> &resultMuts);
-void matchBITXOR (std::vector<llvm::Value *> &toMatch, llvmMutationOp &mutationOp, std::vector<std::vector<llvm::Value *>> &resultMuts);
-void matchBITSHIFTLEFT (std::vector<llvm::Value *> &toMatch, llvmMutationOp &mutationOp, std::vector<std::vector<llvm::Value *>> &resultMuts);
-void matchABITSHIFTRIGHT (std::vector<llvm::Value *> &toMatch, llvmMutationOp &mutationOp, std::vector<std::vector<llvm::Value *>> &resultMuts);
-void matchLBITSHIFTRIGHT (std::vector<llvm::Value *> &toMatch, llvmMutationOp &mutationOp, std::vector<std::vector<llvm::Value *>> &resultMuts);
-void matchALLNEGS (std::vector<llvm::Value *> &toMatch, llvmMutationOp &mutationOp, std::vector<std::vector<llvm::Value *>> &resultMuts);
-void matchINC_DEC (std::vector<llvm::Value *> &toMatch, llvmMutationOp &mutationOp, std::vector<std::vector<llvm::Value *>> &resultMuts);
-void matchRELATIONALS (std::vector<llvm::Value *> &toMatch, llvmMutationOp &mutationOp, std::vector<std::vector<llvm::Value *>> &resultMuts);
-
-void matchAND_OR (std::vector<llvm::Value *> &toMatch, llvmMutationOp &mutationOp, std::vector<std::vector<llvm::Value *>> &resultMuts);
-
-void matchCALL (std::vector<llvm::Value *> &toMatch, llvmMutationOp &mutationOp, std::vector<std::vector<llvm::Value *>> &resultMuts);
-
-void matchRETURN_BREAK_CONTINUE (std::vector<llvm::Value *> &toMatch, llvmMutationOp &mutationOp, std::vector<std::vector<llvm::Value *>> &resultMuts);
-
-/**** ADD HERE ****/
-
-class UserMaps
-{
-public:   
-    using MatcherFuncType = void (*)(std::vector<llvm::Value *>&, llvmMutationOp &, std::vector<std::vector<llvm::Value *>>&);
-private:
-    llvm::DenseMap<unsigned/*enum ExpElemKeys*/, MatcherFuncType> mapOperationMatcher;
 #if (LLVM_VERSION_MAJOR <= 3) && (LLVM_VERSION_MINOR < 5)
-    std::map<std::string, std::vector<enum ExpElemKeys>> mapConfnameOperations;
-#else
-    llvm::StringMap<std::vector<enum ExpElemKeys>> mapConfnameOperations;
+#include "llvm/DebugInfo.h"     //DIScope
 #endif
-    
-    void addOpMatchFuncPair (enum ExpElemKeys op, MatcherFuncType func)
+
+#include "usermaps.h"
+
+#include "third-parties/JsonBox/include/JsonBox.h"      //https://github.com/anhero/JsonBox
+
+class UtilsFunctions
+{
+    /**
+     * \brief Print src location into the string stream. @note: better use getSrcLoc() to access src loc info of an instruction
+     */
+    static void printLoc (llvm::DebugLoc const & Loc, llvm::raw_string_ostream & ross)
     {
-        const std::pair<enum ExpElemKeys, MatcherFuncType> val(op, func);
-        if (! mapOperationMatcher.insert(val).second)
-        {   
-            llvm::errs() << "ERROR: Mutation operation matcher appears multiple times (op = " << op << ").\n";
-            assert (false && "");
-        }
-    }
-    
-    void addConfNameOpPair (llvm::StringRef cname, std::vector<enum ExpElemKeys> ops)
-    {
-        const std::pair<std::string, std::vector<enum ExpElemKeys>> val(cname.upper(), ops);
-        if (! mapConfnameOperations.insert(val).second)
-        {   
-            llvm::errs() << "ERROR: config operation name appears multiple times (" << cname.upper() << ").\n";
-            assert (false && "");
-        }
-        
-        /*auto val_iter = mapConfnameOperations.find(cname.upper());
-        if (val_iter == mapConfnameOperations.end())
+#if (LLVM_VERSION_MAJOR <= 3) && (LLVM_VERSION_MINOR < 5)
+        if (! Loc.isUnknown()) 
         {
-            llvm::errs() << "ERROR: XXXXXXXXXXXXXXXXXXXXX: '" <<"')!!\n";
-            assert (false && "");
-        }*/
-    }
-public:
-    inline bool isConstValOPRD(llvm::StringRef oprd)
-    {
-        if (oprd.startswith_lower("@") || oprd.startswith_lower("C") || oprd.startswith_lower("V") || oprd.startswith_lower("A") || oprd.startswith_lower("P"))
-            return true;
-        return false;
-    }
-    
-    void validateNonConstValOPRD(llvm::StringRef oprd, unsigned lno)
-    {
-        if (! isConstValOPRD(oprd))
-        {   
-            llvm::errs() << "ERROR: Invalid operand in config file: line " << lno << ".\n";
-            assert (false && "");
+            llvm::DIScope Scope(Loc.getScope(llvm::getGlobalContext()));
+            ross << Scope.getFilename();
+            ross << ':' << Loc.getLine();
+            if (Loc.getCol() != 0)
+                ross << ':' << Loc.getCol();
+            
+            llvm::MDNode * inlineMN =  Loc.getInlinedAt(llvm::getGlobalContext());
+            if (inlineMN)
+            {
+                llvm::DebugLoc InlinedAtDL = llvm::DebugLoc::getFromDILocation(inlineMN);
+                if (! InlinedAtDL.isUnknown()) 
+                {
+                    ross << " @[ ";
+                    printLoc (InlinedAtDL, ross);
+                    ross << " ]";
+                }
+            }
         }
+#else
+        if (Loc) 
+        {
+            auto *Scope = llvm::cast<llvm::DIScope>(Loc.getScope());
+            ross << Scope.getFilename();
+            ross << ':' << Loc.getLine();
+            if (Loc.getCol() != 0)
+                ross << ':' << Loc.getCol();
+            
+            if (llvm::DebugLoc InlinedAtDL = Loc.getInlinedAt()) 
+            {
+                ross << " @[ ";
+                printLoc (InlinedAtDL, ross);
+                ross << " ]";
+            }
+        }
+#endif
+    }
+  
+  public:
+    /**
+     * \bief get the src location of the instruction and return it as a string, if do not exist, return the empty string
+     */
+    static std::string getSrcLoc (llvm::Instruction const *inst)
+    {
+         const llvm::DebugLoc& Loc = inst->getDebugLoc();
+         std::string tstr;
+         llvm::raw_string_ostream ross(tstr);
+         printLoc (Loc, ross);
+         return ross.str();
+    }
+};
+
+/**
+ * \bref This class define the information about the current modules, that can be useful for the mutation operator 
+ */     
+struct ModuleUserInfos
+{
+  private:
+    // \bref Current Module
+    llvm::Module * curModule;
+    
+    // \bref Data Layout of the current module (useful to get information like pointer size...)
+    llvm::DataLayout *DL;
+    
+    // \bref The current context
+    llvm::LLVMContext *curContext;
+    
+    // \bref The 
+    UserMaps * usermaps;
+    
+  public:
+    const char * G_MAIN_FUNCTION_NAME = "main";
+    
+    ModuleUserInfos (llvm::Module *module, UserMaps *umaps)
+    {
+        DL = nullptr;
+        setModule(module);
+        setUserMaps(umaps);
+    }
+    ~ModuleUserInfos ()
+    {
+        delete DL;
     }
     
-    static enum codeParts getCodePartType (llvm::StringRef oprd)
+    inline void setModule (llvm::Module *module)
     {
-        if (oprd.startswith_lower("@"))
-            return cpEXPR;
-        else if (oprd.startswith_lower("C"))
-            return cpCONSTNUM;
-        else if (oprd.startswith_lower("V"))
-            return cpVAR;
-        else if (oprd.startswith_lower("A"))
-            return cpADDRESS;
-        else if (oprd.startswith_lower("P"))
-            return cpPOINTER;
+        curModule = module;
+        if (DL)
+        {
+#if (LLVM_VERSION_MAJOR <= 3) && (LLVM_VERSION_MINOR < 5)
+            DL->init(module->getDataLayout());   //here 'module->getDataLayout()' returns a string
+#else
+            DL->init(module);
+#endif
+        }
         else
         {
-            llvm::errs() << "Error: Invalid codepart: '" << oprd.str() << "'.\n";
-            assert (false && "");
+            DL = new llvm::DataLayout(curModule);
         }
+        curContext = &(llvm::getGlobalContext());
     }
+    inline void setUserMaps (UserMaps * umaps) {usermaps = umaps;}
     
-    bool isDeleteStmtConfName(llvm::StringRef s) 
-    {
-        return s.equals_lower("delstmt");
-    }
-    
-    MatcherFuncType getMatcherFunc(enum ExpElemKeys opKey)
-    {
-        auto val_iter = mapOperationMatcher.find(opKey);
-        if (val_iter == mapOperationMatcher.end())
-        {
-            llvm::errs() << "ERROR: Invalid matchop (" << opKey << "); not present in the mutants config matches.\n";
-            assert (false && "");
-        }
-        
-        return (val_iter->second);
-    }
-    std::vector<enum ExpElemKeys> * getExpElemKeys(llvm::StringRef operation, std::string &confexp, unsigned confline)
-    {
-        auto val_iter = mapConfnameOperations.find(operation.upper());
-        if (val_iter == mapConfnameOperations.end())
-        {
-            llvm::errs() << "ERROR: Invalid operation in configuration: '" << operation.upper() << "' at config Line " <<confline<<" ('" <<confexp<<"')!!\n";
-            assert (false && "");
-        }
-        
-        return &(val_iter->second);
-    }
-    
-    UserMaps()
-    {
-        mapOperationMatcher.clear();
-        mapConfnameOperations.clear();
-        
-        //#Init mapConfnameOperations: addConfNameOpPair (<Name in conf>, {FPOrdered, FPUnordered, IntSigned, IntUnsigned})
-        //#Init mapOperationMatcher
-        
-        addConfNameOpPair ("STMT", {mALLSTMT, mALLSTMT, mALLSTMT, mALLSTMT});
-        //Match anything Have no match function (not needed, always matched)
-        
-        addConfNameOpPair ("@", {mALLFEXPR, mALLFEXPR, mALLIEXPR, mALLIEXPR});
-        addOpMatchFuncPair (mALLFEXPR, matchANYFEXPR);
-        addOpMatchFuncPair (mALLIEXPR, matchANYIEXPR);    //TODO: do this one as the const one
-        
-        addConfNameOpPair ("V", {mANYFVAR, mANYFVAR,/**/ mANYIVAR, mANYIVAR});
-        addOpMatchFuncPair (mANYFVAR, matchANYFVAR);
-        addOpMatchFuncPair (mANYIVAR, matchANYIVAR);
-        
-        addConfNameOpPair ("C", {mANYFCONST, mANYFCONST,/**/ mANYICONST, mANYICONST});
-        addOpMatchFuncPair (mANYFCONST, matchANYFCONST);
-        addOpMatchFuncPair (mANYICONST, matchANYICONST);
-        
-        addConfNameOpPair ("CONSTVAL", {mCONST_VALUE_OF, mCONST_VALUE_OF, mCONST_VALUE_OF, mCONST_VALUE_OF});
-        //CONSTVAL Have no match function (cannot be a match -- something we want to mutate)
-        
-        addConfNameOpPair ("DELSTMT", {mDELSTMT, mDELSTMT, mDELSTMT, mDELSTMT});
-        //DELSTMT Have no match function (cannot be a match -- something we want to mutate)
-        
-        addConfNameOpPair ("OPERAND", {mKEEP_ONE_OPRD, mKEEP_ONE_OPRD, mKEEP_ONE_OPRD, mKEEP_ONE_OPRD});
-        //OPERAND Have no match function (cannot be a match -- something we want to mutate)
-        
-        addConfNameOpPair ("ASSIGN", {mFASSIGN, mFASSIGN, mIASSIGN, mIASSIGN});
-        addOpMatchFuncPair (mFASSIGN, matchASSIGN);
-        addOpMatchFuncPair (mIASSIGN, matchASSIGN);
-        
-        addConfNameOpPair ("ADD", {mFADD, mFADD,/**/ mADD, mADD});
-        addOpMatchFuncPair (mFADD, matchFADD);
-        addOpMatchFuncPair (mADD, matchADD);
-        
-        addConfNameOpPair ("PADD", {mPADD});        //Pointer
-        addOpMatchFuncPair (mPADD, matchPADD);
-        
-        addConfNameOpPair ("SUB", {mFSUB, mFSUB, mSUB, mSUB});
-        addOpMatchFuncPair (mFSUB, matchFSUB);
-        addOpMatchFuncPair (mSUB, matchSUB);
-        
-        addConfNameOpPair ("PSUB", {mPSUB});        //Pointer
-        addOpMatchFuncPair (mPSUB, matchPSUB);
-        
-        addConfNameOpPair ("MUL", {mFMUL, mFMUL, mMUL, mMUL});
-        addOpMatchFuncPair (mFMUL, matchFMUL);
-        addOpMatchFuncPair (mMUL, matchMUL);
-        
-        addConfNameOpPair ("DIV", {mFDIV, mFDIV, mSDIV, mUDIV});
-        addOpMatchFuncPair (mFDIV, matchFDIV);
-        addOpMatchFuncPair (mSDIV, matchSDIV);
-        addOpMatchFuncPair (mUDIV, matchUDIV);
-        
-        addConfNameOpPair ("MOD", {mFMOD, mFMOD, mSMOD, mUMOD});
-        addOpMatchFuncPair (mFMOD, matchFMOD);
-        addOpMatchFuncPair (mSMOD, matchSMOD);
-        addOpMatchFuncPair (mUMOD, matchUMOD);
-        
-        addConfNameOpPair ("BITAND", {mFORBIDEN_TYPE, mFORBIDEN_TYPE, mBITAND, mBITAND});
-        addOpMatchFuncPair (mBITAND, matchBITAND);
-        
-        addConfNameOpPair ("BITOR", {mFORBIDEN_TYPE, mFORBIDEN_TYPE, mBITOR, mBITOR});
-        addOpMatchFuncPair (mBITOR, matchBITOR);
-        
-        addConfNameOpPair ("BITXOR", {mFORBIDEN_TYPE, mFORBIDEN_TYPE, mBITXOR, mBITXOR});
-        addOpMatchFuncPair (mBITXOR, matchBITXOR);
-        
-        addConfNameOpPair ("BITSHL", {mFORBIDEN_TYPE, mFORBIDEN_TYPE, mBITSHIFTLEFT, mBITSHIFTLEFT});
-        addOpMatchFuncPair (mBITSHIFTLEFT, matchBITSHIFTLEFT);
-        
-        addConfNameOpPair ("BITSHR", {mFORBIDEN_TYPE, mFORBIDEN_TYPE, mABITSHIFTRIGHT, mLBITSHIFTRIGHT});
-        addOpMatchFuncPair (mABITSHIFTRIGHT, matchABITSHIFTRIGHT);
-        addOpMatchFuncPair (mLBITSHIFTRIGHT, matchLBITSHIFTRIGHT);
-        
-        addConfNameOpPair ("BITNOT", {mFORBIDEN_TYPE, mFORBIDEN_TYPE, mBITNOT, mBITNOT});
-        addOpMatchFuncPair (mBITNOT, matchALLNEGS);
-        
-        addConfNameOpPair ("NEG", {mFNEG, mFNEG, mNEG, mNEG});
-        addOpMatchFuncPair (mFNEG, matchALLNEGS);
-        addOpMatchFuncPair (mNEG, matchALLNEGS);
-        
-        addConfNameOpPair ("ABS", {mFABS, mFABS, mABS, mABS});  //ABS only replaced (not matched)
-        
-        addConfNameOpPair ("LEFTINC", {mFLEFTINC, mFLEFTINC, mLEFTINC, mLEFTINC});
-        addOpMatchFuncPair (mFLEFTINC, matchINC_DEC);
-        addOpMatchFuncPair (mLEFTINC, matchINC_DEC);
-        
-        addConfNameOpPair ("RIGHTINC", {mFRIGHTINC, mFRIGHTINC, mRIGHTINC, mRIGHTINC});
-        addOpMatchFuncPair (mFRIGHTINC, matchINC_DEC);
-        addOpMatchFuncPair (mRIGHTINC, matchINC_DEC);
-        
-        addConfNameOpPair ("LEFTDEC", {mFLEFTDEC, mFLEFTDEC, mLEFTDEC, mLEFTDEC});
-        addOpMatchFuncPair (mFLEFTDEC, matchINC_DEC);
-        addOpMatchFuncPair (mLEFTDEC, matchINC_DEC);
-        
-        addConfNameOpPair ("RIGHTDEC", {mFRIGHTDEC, mFRIGHTDEC, mRIGHTDEC, mRIGHTDEC});
-        addOpMatchFuncPair (mFRIGHTDEC, matchINC_DEC);
-        addOpMatchFuncPair (mRIGHTDEC, matchINC_DEC);
-        
-        addConfNameOpPair ("EQ", {mFCMP_OEQ, mFCMP_UEQ, mICMP_EQ, mICMP_EQ});
-        addOpMatchFuncPair (mFCMP_OEQ, matchRELATIONALS);
-        addOpMatchFuncPair (mFCMP_UEQ, matchRELATIONALS);
-        addOpMatchFuncPair (mICMP_EQ, matchRELATIONALS);
-        
-        addConfNameOpPair ("NEQ", {mFCMP_ONE, mFCMP_UNE, mICMP_NE, mICMP_NE});
-        addOpMatchFuncPair (mFCMP_ONE, matchRELATIONALS);
-        addOpMatchFuncPair (mFCMP_UNE, matchRELATIONALS);
-        addOpMatchFuncPair (mICMP_NE, matchRELATIONALS);
-        
-        addConfNameOpPair ("GT", {mFCMP_OGT, mFCMP_UGT, mICMP_SGT, mICMP_UGT});
-        addOpMatchFuncPair (mFCMP_OGT, matchRELATIONALS);
-        addOpMatchFuncPair (mFCMP_UGT, matchRELATIONALS);
-        addOpMatchFuncPair (mICMP_SGT, matchRELATIONALS);
-        addOpMatchFuncPair (mICMP_UGT, matchRELATIONALS);
-        
-        addConfNameOpPair ("GE", {mFCMP_OGE, mFCMP_UGE, mICMP_SGE, mICMP_UGE});
-        addOpMatchFuncPair (mFCMP_OGE, matchRELATIONALS);
-        addOpMatchFuncPair (mFCMP_UGE, matchRELATIONALS);
-        addOpMatchFuncPair (mICMP_SGE, matchRELATIONALS);
-        addOpMatchFuncPair (mICMP_UGE, matchRELATIONALS);
-        
-        addConfNameOpPair ("LT", {mFCMP_OLT, mFCMP_ULT, mICMP_SLT, mICMP_ULT});
-        addOpMatchFuncPair (mFCMP_OLT, matchRELATIONALS);
-        addOpMatchFuncPair (mFCMP_ULT, matchRELATIONALS);
-        addOpMatchFuncPair (mICMP_SLT, matchRELATIONALS);
-        addOpMatchFuncPair (mICMP_ULT, matchRELATIONALS);
-        
-        addConfNameOpPair ("LE", {mFCMP_OLE, mFCMP_ULE, mICMP_SLE, mICMP_ULE});
-        addOpMatchFuncPair (mFCMP_OLE, matchRELATIONALS);
-        addOpMatchFuncPair (mFCMP_ULE, matchRELATIONALS);
-        addOpMatchFuncPair (mICMP_SLE, matchRELATIONALS);
-        addOpMatchFuncPair (mICMP_ULE, matchRELATIONALS);
-        
-        addConfNameOpPair ("AND", {mAND, mAND, mAND, mAND});
-        addOpMatchFuncPair (mAND, matchAND_OR);
-        
-        addConfNameOpPair ("OR", {mOR, mOR, mOR, mOR});
-        addOpMatchFuncPair (mOR, matchAND_OR);
-        
-        // Called function replacement: The two functions should have the same prototype
-        addConfNameOpPair ("CALL", {mCALL, mCALL, mCALL, mCALL});
-        addOpMatchFuncPair (mCALL, matchCALL);
-        
-        // define what function should be changed to what when CALL is matched: 1st=matched callee; 2nd,3rd...=replacing callees
-        addConfNameOpPair ("NEWCALLEE", {mNEWCALLEE, mNEWCALLEE, mNEWCALLEE, mNEWCALLEE});
-        
-        // to delete the return, break and continue (actually replace the target od unconditional br, or replace the return value of ret by 0). Should be replcaed only by delstmt
-        addConfNameOpPair ("RETURN_BREAK_CONTINUE", {mRETURN_BREAK_CONTINUE,  mRETURN_BREAK_CONTINUE,  mRETURN_BREAK_CONTINUE,  mRETURN_BREAK_CONTINUE});
-        
-        /**** ADD HERE ****/
-        
-    }
+    inline llvm::Module *getModule() const {return curModule;}
+    inline llvm::DataLayout const &getDataLayout() const {return *DL;}
+    inline llvm::LLVMContext &getContext() const {return *curContext;}
+    inline UserMaps *getUserMaps() const {return usermaps;}
 };
 
 
 // Each statement is a string where elements are separated by spaces
 class llvmMutationOp
 {
-
 public:
+    struct MutantReplacors
+    {
+      private:
+        enum ExpElemKeys expElemKey;
+        std::vector<unsigned> oprdIndexes;
+        std::string mutOpName;
+      public:
+        MutantReplacors (enum ExpElemKeys e, std::vector<unsigned> o, std::string mn): expElemKey(e), oprdIndexes(o), mutOpName(mn) {}
+        inline enum ExpElemKeys getExpElemKey() const {return expElemKey;}     //first
+        inline const std::vector<unsigned> & getOprdIndexList() const {return oprdIndexes;}   //second
+        inline const std::string & getMutOpName() const {return mutOpName;}
+        inline const std::string * getMutOpNamePtr() const {return &mutOpName;}
+    };
+    
+private:
     enum ExpElemKeys matchOp;
-    std::vector<std::pair<enum ExpElemKeys, std::vector<unsigned>>> mutantReplacorsList;
-    
-    std::vector<std::string> mutOpNameList; 
-    
+    std::vector<MutantReplacors> mutantReplacorsList;
     std::vector<enum codeParts> oprdCPType;
 
+public:    
     llvmMutationOp(){};
     ~llvmMutationOp (){};
-    void setMatchOp (enum ExpElemKeys m, std::vector<std::string> &oprdsStr, unsigned fromPos=0)
+    void setMatchOp (enum ExpElemKeys m, std::vector<std::string> const &oprdsStr, unsigned fromPos=0)
     {
         matchOp = m;
-        for (std::vector<std::string>::iterator it=oprdsStr.begin()+fromPos, ie=oprdsStr.end(); it != ie; ++it)
+        for (std::vector<std::string>::const_iterator it=oprdsStr.begin()+fromPos, ie=oprdsStr.end(); it != ie; ++it)
             oprdCPType.push_back(UserMaps::getCodePartType(*it));
     }
-    void addReplacor (const enum ExpElemKeys repop, std::vector<unsigned> &oprdpos, std::string name)
+    void addReplacor (const enum ExpElemKeys repop, std::vector<unsigned> const &oprdpos, std::string const &name)
     {
-        mutantReplacorsList.push_back(std::pair<enum ExpElemKeys, std::vector<unsigned>>(repop, oprdpos));
-        mutOpNameList.push_back(name);
+        mutantReplacorsList.push_back(MutantReplacors(repop, oprdpos, name));
     }
-    inline unsigned getNumReplacor()
-    {
-        return mutantReplacorsList.size();
-    }
-    enum codeParts getCPType (unsigned pos)
-    {
-        return oprdCPType.at(pos);
-    }
+    inline std::vector<MutantReplacors> const & getMutantReplacorsList() const {return mutantReplacorsList;}
+    inline const MutantReplacors & getReplacor(unsigned ind) const {return mutantReplacorsList.at(ind);}
+    inline unsigned getNumReplacor() const {return mutantReplacorsList.size();}
+    inline enum ExpElemKeys getMatchOp() const {return matchOp;}
+    inline enum codeParts getCPType (unsigned pos) const {return oprdCPType.at(pos);}
     
-    //These static fields are used to manage constant values
+    ////////////////                          //////////////////
+    /// These static fields are used to manage constant values /
+    ////////////////////////////////////////////////////////////
+private:
     static std::map<unsigned, std::string> posConstValueMap;
     static const unsigned maxOprdNum = 1000;
+
+public:
+    /// Check whether the index (pos) represent the index in the ConstValue Map of a user specified constant or an operand index.
+    inline static bool isSpecifiedConstIndex(unsigned pos) {return (pos > maxOprdNum);}
+    
+    /**
+     * \brief This method 
+     */
     static unsigned insertConstValue (std::string val, bool numeric=true)
     {
         //check that the string represent a Number (Int(radix 10 or 16) or FP(normal or exponential))
-        if (numeric && ! isNumeric(llvm::StringRef(val).lower().c_str(), 10))   // 10 only for now
+        if (numeric && ! isNumeric(llvm::StringRef(val).lower().c_str(), 10))   /// radix 10 only for now. \todo implement others (8, 16) @see ifConstCreate
         {
             //return a value <= maxOprdNum
             return 0;
         }
         
-        static unsigned pos = maxOprdNum;
-        pos ++;
+        static unsigned curPos = maxOprdNum;        //static, keep value of previous call
+        curPos ++;
         
         for (std::map<unsigned, std::string>::iterator it = posConstValueMap.begin(), 
                 ie = posConstValueMap.end(); it != ie; ++it)
@@ -395,9 +217,9 @@ public:
             if (! val.compare(it->second))
                 return it->first;
         }
-        if (! posConstValueMap.insert(std::pair<unsigned, std::string>(pos, val)).second)
+        if (! posConstValueMap.insert(std::pair<unsigned, std::string>(curPos, val)).second)
             assert (false && "Error: inserting an already existing key in map posConstValueMap");
-        return pos;
+        return curPos;
     }
     static std::string &getConstValueStr (unsigned pos) 
     {
@@ -439,8 +261,8 @@ public:
         std::string ret(std::to_string(matchOp) + " --> ");
         for (auto &v: mutantReplacorsList)
         {
-            ret+=std::to_string(v.first)+"(";
-            for (unsigned pos: v.second)
+            ret+=std::to_string(v.getExpElemKey())+"(";
+            for (unsigned pos: v.getOprdIndexList())
             {
                 ret+="@"+std::to_string(pos)+",";
             }
@@ -453,7 +275,319 @@ public:
     }
 };
 
-std::map<unsigned, std::string> llvmMutationOp::posConstValueMap;
+//std::map<unsigned, std::string> llvmMutationOp::posConstValueMap;     //To avoid linking error (double def), this is moved into usermaps.cpp
+
+
+/**
+ * \brief Define the scope of the mutation (Which source file's code to mutate, which function to mutate, should we mutate function call parameters? array indexing?)
+ */
+class MutationScope
+{
+  private:
+    bool mutateAllFuncs;
+    std::vector<llvm::Function *> funcsToMutate;
+  public:
+    void Initialize (llvm::Module &module, std::string inJsonFilename="")
+    {
+        // No scope data was given, use everything
+        if (inJsonFilename.empty())
+        {
+            mutateAllFuncs = true;
+            funcsToMutate.clear();
+            return;
+        }
+        
+        std::set<std::string> specSrcFiles;
+        std::set<std::string> specFuncs;
+        
+        std::set<std::string> seenSrcs;
+        
+        JsonBox::Value inScope;
+	    inScope.loadFromFile(inJsonFilename);
+	    if (! inScope.isNull())
+	    {
+	        assert (inScope.isObject() && "The JSON file data of mutation scope must be a JSON object");
+	        if (! inScope["Source-Files"].isNull())     //If "Source-Files" is not absent (select some)
+	        {
+	            assert (inScope["Source-Files"].isArray() && "The list of Source-File to mutate, if present, must be a JSON array of string");
+	            JsonBox::Array const &srcList = inScope["Source-Files"].getArray();
+	            if (srcList.size() > 0)     //If there are some srcs specified
+	            {
+	                for (auto &val: srcList)
+	                {
+	                    assert (val.isString() && "An element of the JSON array Source-Files is not a string. source file name must be string.");
+	                    if (! specSrcFiles.insert(val.getString()).second)
+	                    {
+	                        llvm::errs() << "Failed to insert the source " << val.getString() << " into set of srcs. Probably specified twice.";
+	                        assert (false);
+	                    }
+	                }
+	            }
+	        }
+	        if (! inScope["Functions"].isNull())
+	        {
+	            //Check if no function is specified, mutate all (from the selected sources), else only mutate those specified
+	            assert (inScope["Functions"].isArray() && "The list of Functions to mutate, if present, must be a JSON array of string");
+	            JsonBox::Array const &funcList = inScope["Functions"].getArray();
+	            if (funcList.size() > 0)     //If there are some srcs specified
+	            {
+	                for (auto &val: funcList)
+	                {
+	                    assert (val.isString() && "An element of the JSON array Functions is not a string. Functions name must be string.");
+	                    if (! specFuncs.insert(val.getString()).second)
+	                    {
+	                        llvm::errs() << "Failed to insert the source " << val.getString() << " into set of Funcs. Probably specified twice.";
+	                        assert (false);
+	                    }
+	                }
+	            }
+	        }
+	        
+	        /*if (! inScope[""].isNull())
+	        {
+	        
+	        }*/
+	        
+	        bool hasDbgIfSrc = (specSrcFiles.empty());      //When no source is specified, no need to check existance of dbg info
+	        for (auto &Func: module)
+	        {
+	            if (Func.isDeclaration())
+                    continue;
+                
+                bool canMutThisFunc = true;
+                if (!specSrcFiles.empty())
+                {
+                    std::string srcOfF;
+                    for (auto &BB: Func)
+                    {
+                        for (auto &Inst: BB)
+                        {
+                            ///Get Src level LOC
+                            std::string tmpSrc = UtilsFunctions::getSrcLoc(&Inst);
+                            if (! tmpSrc.empty())
+                            {
+                                srcOfF.assign(tmpSrc);
+                                assert (srcOfF.length() > 0 && "LOC in source is empty string");
+                                break;
+                            }
+                        }
+                        if (srcOfF.length() > 0)
+                        {
+                            hasDbgIfSrc = true;
+                            std::size_t found = srcOfF.find(":");
+                            assert (found!=std::string::npos && "Problem with the src loc info");
+                            if (specSrcFiles.count(srcOfF.substr(0, found+1)))
+                            {
+                                canMutThisFunc = false;
+                                seenSrcs.insert(srcOfF.substr(0, found+1));
+                            }
+                            break;
+                        }
+                    }
+                }
+                if (!specFuncs.empty())
+                {
+                    if (specFuncs.count(Func.getName()))
+                    {
+                        assert (canMutThisFunc && "Error in input file: Function selected to be mutated but corresponding source file not selected.");
+                        funcsToMutate.push_back(&Func);
+                    }
+                }
+                else if (canMutThisFunc)
+                {
+                    funcsToMutate.push_back(&Func);
+                }
+	        }
+	        assert (hasDbgIfSrc && "No debug information in the module, but mutation source file scope given");
+	        if (specFuncs.empty())
+	            assert (specFuncs.size() == funcsToMutate.size() && "Error: Either some specified function do not exist or Bug (non specified function is added).");
+	        assert (seenSrcs.size() == specSrcFiles.size() && "Some specified sources file are not found in the module.");
+	    }
+	    mutateAllFuncs = funcsToMutate.empty();
+    }
+};
+
+
+/**
+ * \brief This class represent the list of mutants of a statement, generated by mutation op, these are not yet attached to the module. Once attached, update @see MutantList
+ */
+struct MutantsOfStmt
+{
+    struct RawMutantStmt
+    {
+        std::vector<llvm::Value *> mutantStmtIR;
+        
+        //Mutant type
+        std::string typeName;
+        
+        // Location infos
+        std::vector<unsigned> irRelevantPos;  /// The statement mutation operation object sets this to the position in the original's (toMatch) vector (can use @seeDoReplaceUseful 's relevantIRPos)
+        
+        RawMutantStmt(std::vector<llvm::Value *> const & toMatch, std::vector<llvm::Value *> const &toMatchClone, llvmMutationOp::MutantReplacors const &repl, std::vector<unsigned> const &relevantPos)
+        {
+            mutantStmtIR = toMatchClone;
+            typeName = repl.getMutOpName();
+            irRelevantPos = relevantPos;
+        }
+    };
+    std::vector<RawMutantStmt> results;
+    
+    /**
+     * \brief This method add a new mutant statement.
+     * \detail It computes the corresponding Weak mutation using difference between @param toMatch and @param toMatchClone
+     * @param toMatch is the original Stmt (list of IRs)
+     * @param toMatchClone is the mutant Stmt (list of IRs)
+     * @param repl is the mutation replacer that was used to tranform @param toMatch and obtain @param toMatchClone  (list of IRs)
+     * @param relevantPos is the list of indices in @param toMatch of the IRs modified by the mutation (relevant to mutation)
+     */
+    inline void add (std::vector<llvm::Value *> const & toMatch, std::vector<llvm::Value *> const &toMatchClone, llvmMutationOp::MutantReplacors const &repl, std::vector<unsigned> const &relevantPos)
+    {
+        results.emplace_back(toMatch, toMatchClone, repl, relevantPos);
+    }
+    
+    inline void clear() {results.clear();}
+    
+    inline unsigned getNumMuts() {return results.size();}
+    
+    inline const std::vector<llvm::Value *> & getMutantStmtIR(unsigned index) {return results[index].mutantStmtIR;}
+    inline const std::string & getTypeName(unsigned index) {return results[index].typeName;}
+    inline const std::vector<unsigned> & getIRRelevantPos(unsigned index) {return results[index].irRelevantPos;}
+};
+
+/**
+ * \brief This class define the final list of all mutant and their informations. @Note: This is increased after each statement mutation and modifed (reduced) during TCE equivalent mutant removal
+ */
+struct MutantInfoList  
+{
+    struct MutantInfo
+    {
+        //Mutant id
+        unsigned id;
+        
+        //Mutant type
+        std::string typeName;
+        
+        // Location infos
+        std::string locFuncName;
+        std::vector<unsigned> irLeveLocInFunc;
+        std::string srcLevelLoc;
+        
+        MutantInfo (unsigned mid, std::vector<llvm::Value *> const &toMatch, std::string const &mName, std::vector<unsigned> const &relpos, llvm::Function *curFunc, std::vector<unsigned> const & absPos)//:
+            //typeName (mName)
+        {
+            id = mid;
+            typeName = mName;
+            locFuncName = curFunc->getName();
+            for (auto ind:relpos)
+                irLeveLocInFunc.push_back(absPos[ind]);
+            
+            /// Get SRC level LOC    
+            for (auto * val: toMatch)
+            {
+                if (const llvm::Instruction *I = llvm::dyn_cast<llvm::Instruction>(val)) 
+                {
+                    std::string tmpSrc = UtilsFunctions::getSrcLoc(I);
+                    if (!tmpSrc.empty())
+                    {
+                        assert ((srcLevelLoc.empty() || srcLevelLoc == tmpSrc) && "A stmt spawn more than 1 src level line of code");
+                        if (srcLevelLoc.empty())
+                        {
+                            srcLevelLoc.assign(tmpSrc);
+                            //break;
+                        }
+                    }
+                }
+            }
+        }
+    };
+    
+    std::vector<MutantInfo> mutants;
+    
+    /**
+     * \brief This method add a new mutant's info.
+     * \detail It computes the corresponding location using @param relpos and @param curFunc
+     * @param toMatch is the original Stmt (list of IRs). Needed to obtain metadata for src level location
+     * @param mid is the id of the mutant
+     * @param name is the name type of this mutant (as given by the user)
+     * @param relpos is the list of indices in toMatch of the mutants IRs
+     * @param curFunc is the function containing @param toMatch
+     * @param toMatchIRPosInFunc is the list of positions of each IR in toMatch in the function @param curFunc
+     */
+    void add (unsigned mid, std::vector<llvm::Value *> const &toMatch, std::string const &mName, std::vector<unsigned> const &relpos, llvm::Function *curFunc, std::vector<unsigned> const &  toMatchIRPosInFunc)
+    {
+        mutants.emplace_back(mid, toMatch, mName, relpos, curFunc, toMatchIRPosInFunc);
+    }
+    
+    /**
+     *  \brief remove the TCE's equivalent and duplicate mutants
+     */
+    void postTCEUpdate(std::map<unsigned, std::vector<unsigned>> const & duplicateMap)
+    {
+        std::vector<unsigned> posToDel;
+        unsigned pos = 0;
+        for (auto &mut: mutants)
+        {
+            if (duplicateMap.count(mut.id) == 0)
+                posToDel.push_back(pos);
+            else
+            {
+                assert (duplicateMap.at(mut.id).size() == 1 && "(CHECK) The number of element in second vector must be one here (containing the new mutant ID)");
+                mut.id = duplicateMap.at(mut.id).back();
+            }
+            pos++;
+        }
+        std::sort(posToDel.begin(), posToDel.end());
+        for (auto it = posToDel.rbegin(), ie = posToDel.rend(); it != ie; ++it)
+        {
+            assert (mutants.at(*it).id == (1 + (*it)) && "Problem with the order of mutants, or should delete last element first");
+            mutants.erase (mutants.begin() + (*it));
+        }
+    }
+    
+    void printToStdout () 
+    {
+        llvm::errs() << "\n~~~~~~~~~ MUTANTS INFOS ~~~~~~~~~\n\nID, Name, Location\n-------------------\n";
+        for (auto &info: mutants)
+        {
+            llvm::errs() << info.id << "," << info.typeName << "," << info.srcLevelLoc << "\n";
+        }
+        //JsonBox::Object outJSON;
+        //getJson (outJSON);
+        //outJSON.writeToStream(std::cout, true, true);
+    }
+    
+    void printToJsonFile (std::string filename)
+    {
+        JsonBox::Object outJSON;
+        getJson (outJSON);
+        JsonBox::Value vout(outJSON);
+	    vout.writeToFile(filename, false, false);
+    }
+    
+    void getJson (JsonBox::Object &outJ)
+    {
+        for (auto &info: mutants)
+        {
+            std::string mid(std::to_string(info.id));
+            //add a mutant field 
+            outJ[mid] = JsonBox::Object();
+            
+            //Fill in the mutant infos
+            outJ[mid]["Type"] = JsonBox::Value(info.typeName);
+            outJ[mid]["SrcLoc"] = JsonBox::Value(info.srcLevelLoc);
+            outJ[mid]["FuncName"] = JsonBox::Value(info.locFuncName);
+            JsonBox::Array tmparr;
+            for (auto pos: info.irLeveLocInFunc)
+                tmparr.push_back(JsonBox::Value((int)pos));
+            outJ[mid]["IRPosInFunc"] = tmparr;
+        }
+    }
+    
+    void loadFromJsonFile (std::string filename)
+    {
+        assert (false && "To Be Implemented");
+    }
+};
 
 #endif  //__KLEE_SEMU_GENMU_typesops__
 

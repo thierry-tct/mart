@@ -1,0 +1,24 @@
+#ifndef __KLEE_SEMU_GENMU_operatorClasses__DerefPointerArithBinop_Base__
+#define __KLEE_SEMU_GENMU_operatorClasses__DerefPointerArithBinop_Base__
+
+/**
+ * -==== DerefPointerArithBinop_Base.h
+ *
+ *                LLGenMu LLVM Mutation Tool
+ *
+ * This file is distributed under the University of Illinois Open Source
+ * License. See LICENSE.TXT for details. 
+ *  
+ * \brief     Generic abstract base class for all mutation operator that match and replace a combination of binary arithmetic operation and pointer dereference.
+ * \details   This abstract class define is extended from the Generic base class. 
+ */
+ 
+#include "../GenericMuOpBase.h"
+
+class DerefPointerArithBinop_Base: public GenericMuOpBase
+{
+     virtual bool matchIRs (std::vector<llvm::Value *> const &toMatch, unsigned pos, MatchUseful &MU) = 0;
+     virtual void prepareCloneIRs (std::vector<llvm::Value *> const &toMatch, unsigned pos,  MatchUseful const &MU, DoReplaceUseful &DRU) = 0
+};
+
+#endif //__KLEE_SEMU_GENMU_operatorClasses__DerefPointerArithBinop_Base__
