@@ -8,7 +8,7 @@
 
 static FILE* llGenMu_WM_Log_file = (void*) 0;
 
-void llGenMu_WM_Log_Function(unsigned id, int cond) 
+void llGenMu_WM_Log_Function(unsigned id, char cond) 
 {
     if (!llGenMu_WM_Log_file) 
     {

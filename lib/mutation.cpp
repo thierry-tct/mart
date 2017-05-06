@@ -803,7 +803,8 @@ llvm::Value * Mutation::getWMCondition (llvm::BasicBlock *orig, llvm::BasicBlock
     // Look for difference
     
     //TODO: Put the real condition here (original != Mutant)
-    return llvm::ConstantInt::getTrue(moduleInfo.getContext());
+    //return llvm::ConstantInt::getTrue(moduleInfo.getContext());
+    return llvm::ConstantInt::get(moduleInfo.getContext(), llvm::APInt(8, 1, true)); 
 }
 
 /**
@@ -837,6 +838,7 @@ void Mutation::computeWeakMutation(llvm::Module * cmodule, llvm::Module &modWMLo
             continue;
         for (auto &BB: Func)
         {
+            std::vector<llvm::BasicBlock *> toBeRemovedBB;
             for (llvm::BasicBlock::iterator Iit = BB.begin(), Iie = BB.end(); Iit != Iie;)
             {
                 llvm::Instruction &Inst = *Iit++;   //we increment here so that 'eraseFromParent' bellow do not cause crash
@@ -863,6 +865,8 @@ void Mutation::computeWeakMutation(llvm::Module * cmodule, llvm::Module &modWMLo
                                 /// Now create the call to weak mutation log func.
                                 auto *caseiBB = i.getCaseSuccessor();   //mutant
                                 
+                                toBeRemovedBB.push_back(caseiBB);
+                                
                                 llvm::Value *condVal = getWMCondition (defaultBB, caseiBB, sw);
                                 llvm::IRBuilder<> sbuilder(sw);
                                 std::vector<llvm::Value*> argsv;
@@ -879,9 +883,29 @@ void Mutation::computeWeakMutation(llvm::Module * cmodule, llvm::Module &modWMLo
                     }
                 }
             }
+            for (auto *bbrm: toBeRemovedBB)
+                bbrm->eraseFromParent();
         }
     }
+    if (forKLEESEMu)
+    {
+        llvm::Function *funcForKS = cmodule->getFunction(mutantIDSelectorName_Func);
+        funcForKS->eraseFromParent();
+    }
+    llvm::GlobalVariable *mutantIDSelGlob = cmodule->getNamedGlobal(mutantIDSelectorName);
+    //mutantIDSelGlob->setInitializer(llvm::ConstantInt::get(moduleInfo.getContext(), llvm::APInt(32, (uint64_t)0, false)));    //Not needed because there is no case anyway, only default
+    mutantIDSelGlob->setConstant(true); // only original...
     
+    //verify WM module
+#if (LLVM_VERSION_MAJOR <= 3) && (LLVM_VERSION_MINOR < 5)
+    if (llvm::verifyModule (*cmodule, llvm::AbortProcessAction))
+#else
+    if (llvm::verifyModule (*cmodule, &llvm::errs()))
+#endif
+    {
+        llvm::errs() << "ERROR: Misformed WM Module!\n"; 
+        assert(false); 
+    }
 }//~Mutation::computeWeakMutation
 
 void Mutation::doTCE (bool writeMuts, llvm::Module *modWMLog)
@@ -938,7 +962,7 @@ void Mutation::doTCE (bool writeMuts, llvm::Module *modWMLog)
     }*/
     
     //re-assign the ids of mutants
-    duplicateMap.erase(0);      //Remmore original
+    duplicateMap.erase(0);      //Remove original
     unsigned newmutIDs = 1;
     
     //The keys of duplicateMap are (must be) sorted in increasing order: helpful when enabled 'forKLEESEMu'
@@ -955,6 +979,7 @@ void Mutation::doTCE (bool writeMuts, llvm::Module *modWMLog)
     {
         for (auto &BB: Func)
         {
+            std::vector<llvm::BasicBlock *> toBeRemovedBB;
             for (llvm::BasicBlock::iterator Iit = BB.begin(), Iie = BB.end(); Iit != Iie;)
             {
                 llvm::Instruction &Inst = *Iit++;   //we increment here so that 'eraseFromParent' bellow do not cause crash
@@ -1005,15 +1030,21 @@ void Mutation::doTCE (bool writeMuts, llvm::Module *modWMLog)
                             {
                                 llvm::SwitchInst::CaseIt cit = sw->findCaseValue(llvm::ConstantInt::get(moduleInfo.getContext(), llvm::APInt(32, (uint64_t)(i), false)));
                                 if (duplicateMap.count(i) == 0)
+                                {
+                                    toBeRemovedBB.push_back(cit.getCaseSuccessor());
                                     sw->removeCase (cit);
+                                }
                                 else
+                                {
                                     cit.setValue(llvm::ConstantInt::get(moduleInfo.getContext(), llvm::APInt(32, (uint64_t)(duplicateMap.at(i).front()), false)));
-                                
+                                }
                             }
                         }
                     }
                 }
             }
+            for (auto *bbrm: toBeRemovedBB)
+                bbrm->eraseFromParent();
         }
     }
     
@@ -1031,7 +1062,7 @@ void Mutation::doTCE (bool writeMuts, llvm::Module *modWMLog)
     }
     
     // Write mutants files and weak mutation file
-    if (writeMuts)
+    if (writeMuts || modWMLog)
     {
         llvm::Module *wmModule = nullptr;
         if (modWMLog)
@@ -1043,7 +1074,7 @@ void Mutation::doTCE (bool writeMuts, llvm::Module *modWMLog)
 #endif
             computeWeakMutation(wmModule, *modWMLog);
         }
-        assert (writeMutantsCallback(duplicateMap, mutModules, wmModule) && "Failed to dump mutants IRs");
+        assert (writeMutantsCallback((writeMuts ? &duplicateMap : nullptr), (writeMuts ? &mutModules : nullptr), wmModule) && "Failed to dump mutants IRs");
     }
     
     //create the final version of the meta-mutant file
@@ -1051,18 +1082,28 @@ void Mutation::doTCE (bool writeMuts, llvm::Module *modWMLog)
     {
         llvm::Function *funcForKS = module.getFunction(mutantIDSelectorName_Func);
         funcForKS->deleteBody();
-        tce.optimize(module);
+        //tce.optimize(module);
         
         if (highestMutID > 0)   //if There are mutants
             createGlobalMutIDSelector_Func(module, true);
         
-        //reduce consecutive range (of selector func) into one //TODO
+        ///reduce consecutive range (of selector func) into one //TODO
     }
     else
     {
-        tce.optimize(module);
+        //tce.optimize(module);
     }
     
+    //verify post TCE Meta-module
+#if (LLVM_VERSION_MAJOR <= 3) && (LLVM_VERSION_MINOR < 5)
+    if (llvm::verifyModule (module, llvm::AbortProcessAction))
+#else
+    if (llvm::verifyModule (module, &llvm::errs()))
+#endif
+    {
+        llvm::errs() << "ERROR: Misformed post-TCE Meta-Module!\n"; 
+        assert(false); //return false;
+    }
 }
 
 bool Mutation::getMutant (llvm::Module &module, unsigned mutantID)

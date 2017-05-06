@@ -22,44 +22,48 @@ void insertMutSelectGetenv(llvm::Module *mod)
 }
 
 //print all the modules of mutants, sorted from mutant 0(original) to mutant max
-bool dumpMutantsCallback (std::map<unsigned, std::vector<unsigned>> &poss, std::vector<llvm::Module *> &mods, llvm::Module *wmModule=nullptr)
+bool dumpMutantsCallback (std::map<unsigned, std::vector<unsigned>> *poss, std::vector<llvm::Module *> *mods, llvm::Module *wmModule/*=nullptr*/)
 {
-    std::string mutantsDir = outputDir+"//"+mutantsFolder;
-    std::string wmFilePath = outputDir+"//"+"wm-"+outFile+".bc";
-    if (mkdir(mutantsDir.c_str(), 0777) != 0)
-        assert (false && "Failed to create mutants output directory");
-    
-    llvm::Module *formutsModule = mods.at(0);
-    unsigned mid = 0;
-    
-    //weak mutation
+  //weak mutation
     if (wmModule)
     {
+        std::string wmFilePath = outputDir+"//"+outFile+".WM.bc";
         if (! writeIRObj::writeIR (wmModule, wmFilePath))
         {
             assert (false && "Failed to output weak mutation IR file");
         }
     }
     
-    //original
-    if (mkdir((mutantsDir+"//0").c_str(), 0777) != 0)
-        assert (false && "Failed to create output directory for original (0)");
-    if (! writeIRObj::writeIR (formutsModule, mutantsDir+"//0//"+outFile+".bc"))
+  //Strong Mutants  
+    if (poss && mods)
     {
-        assert (false && "Failed to output post-TCE original IR file");
-    }
-    
-    //mutants
-    for (auto &m: poss)
-    {
-        formutsModule = mods.at(m.first);
-        mid = m.second.front();
-        if (mkdir((mutantsDir+"/"+std::to_string(mid)).c_str(), 0777) != 0)
-            assert (false && "Failed to create output directory for mutant");
-        if (! writeIRObj::writeIR (formutsModule, mutantsDir+"//"+std::to_string(mid)+"//"+outFile+".bc"))
+        std::string mutantsDir = outputDir+"//"+mutantsFolder;
+        if (mkdir(mutantsDir.c_str(), 0777) != 0)
+            assert (false && "Failed to create mutants output directory");
+        
+        llvm::Module *formutsModule = mods->at(0);
+        unsigned mid = 0;
+        
+        //original
+        if (mkdir((mutantsDir+"//0").c_str(), 0777) != 0)
+            assert (false && "Failed to create output directory for original (0)");
+        if (! writeIRObj::writeIR (formutsModule, mutantsDir+"//0//"+outFile+".bc"))
         {
-            llvm::errs() << "Mutant " << mid << "...\n";
-            assert (false && "Failed to output post-TCE mutant IR file");
+            assert (false && "Failed to output post-TCE original IR file");
+        }
+        
+        //mutants
+        for (auto &m: *poss)   
+        {
+            formutsModule = mods->at(m.first);
+            mid = m.second.front();
+            if (mkdir((mutantsDir+"/"+std::to_string(mid)).c_str(), 0777) != 0)
+                assert (false && "Failed to create output directory for mutant");
+            if (! writeIRObj::writeIR (formutsModule, mutantsDir+"//"+std::to_string(mid)+"//"+outFile+".bc"))
+            {
+                llvm::errs() << "Mutant " << mid << "...\n";
+                assert (false && "Failed to output post-TCE mutant IR file");
+            }
         }
     }
     return true;
@@ -69,16 +73,19 @@ int main (int argc, char ** argv)
 {
     char * inputIRfile = nullptr;
     char * mutantConfigfile = nullptr;
+    char * mutantScopeJsonfile = nullptr;
     const char * wmLogFuncinputIRfileName="useful/wmlog-driver.bc";
     
     bool dumpPreTCEMeta = false;
     bool dumpMetaIRbc = true; 
     bool dumpMutants = false;
-    bool enabledWeakMutation = false;
+    bool enabledWeakMutation = true;
     bool dumpMutantInfos = true;
 #ifdef KLEE_SEMU_GENMU_OBJECTFILE
     bool dumpMetaObj = false; 
 #endif  //#ifdef KLEE_SEMU_GENMU_OBJECTFILE
+    
+    char *  tmpStr = nullptr;
     
     for (int i=1; i < argc; i++)
     {
@@ -90,13 +97,17 @@ int main (int argc, char ** argv)
         {
             dumpMutants = true;
         }
-        else if (strcmp(argv[i], "-WM") == 0)
+        else if (strcmp(argv[i], "-noWM") == 0)
         {
-            enabledWeakMutation = true;
+            enabledWeakMutation = false;
         }
         else if (strcmp(argv[i], "-mutant-config") == 0)
         {
             mutantConfigfile = argv[++i];
+        }
+        else if (strcmp(argv[i], "-mutant-scope") == 0)
+        {
+            mutantScopeJsonfile = argv[++i];
         }
         else
         {
@@ -137,7 +148,10 @@ int main (int argc, char ** argv)
     /// Weak mutation 
     if (enabledWeakMutation)
     {
-        std::string wmLogFuncinputIRfile(dirname(inputIRfile));
+        tmpStr = new char[1+std::strlen(argv[0])]; //Alocate tmpStr1
+        std::strcpy(tmpStr, argv[0]);   
+        std::string wmLogFuncinputIRfile(dirname(tmpStr));      //TODO: check this for install, where to put useful. (see klee's)
+        delete [] tmpStr; tmpStr = nullptr;  //del tmpStr1
         wmLogFuncinputIRfile = wmLogFuncinputIRfile + "//"+wmLogFuncinputIRfileName; 
         // get the module containing the function to log WM info. to be linked with WMModule
 #if (LLVM_VERSION_MAJOR <= 3) && (LLVM_VERSION_MINOR < 5)
@@ -188,7 +202,7 @@ int main (int argc, char ** argv)
     //std::string mutconffile;
     
     // @Mutation
-    Mutation mut(*moduleM, mutantConfigfile, dumpMutantsCallback);
+    Mutation mut(*moduleM, mutantConfigfile, dumpMutantsCallback, mutantScopeJsonfile ? mutantScopeJsonfile : "");
     if (! mut.doMutate())
     {
         llvm::errs() << "\nMUTATION FAILED!!\n\n";
@@ -207,14 +221,18 @@ int main (int argc, char ** argv)
         assert (false && "Failed to create output directory");
     
     //@ Output file name root
-    outFile.assign(basename(inputIRfile));
+    
+    tmpStr = new char[1+std::strlen(inputIRfile)]; //Alocate tmpStr2
+    std::strcpy(tmpStr, inputIRfile);
+    outFile.assign(basename(tmpStr));   //basename changes the contain of its parameter
+    delete [] tmpStr; tmpStr = nullptr;  //del tmpStr2
     if (!outFile.substr(outFile.length()-3, 3).compare(".ll") || !outFile.substr(outFile.length()-3, 3).compare(".bc"))
         outFile.replace(outFile.length()-3, 3, "");
     
     //@ Print pre-TCE meta-mutant
     if (dumpPreTCEMeta)
     {
-        if (! writeIRObj::writeIR (moduleM, outputDir+"/MetaMu_"+outFile+"_preTCE.bc"))
+        if (! writeIRObj::writeIR (moduleM, outputDir+"/"+outFile+".preTCE.MetaMu.bc"))
             assert (false && "Failed to output pre-TCE meta-mutatant IR file");
        // mut.dumpMutantInfos (outputDir+"//"+outFile+"mutantLocs-preTCE.json");
     }
@@ -229,7 +247,7 @@ int main (int argc, char ** argv)
     //@ Print post-TCE meta-mutant
     if (dumpMetaIRbc) 
     {   
-        if (! writeIRObj::writeIR (moduleM, outputDir+"/MetaMu_"+outFile+".bc"))
+        if (! writeIRObj::writeIR (moduleM, outputDir+"/"+outFile+".MetaMu.bc"))
             assert (false && "Failed to output post-TCE meta-mutatant IR file");
     }
     
@@ -271,11 +289,18 @@ int main (int argc, char ** argv)
         llvm::Module *forObjModule = llvm::CloneModule(moduleM).get();
 #endif
         //TODO: insert mutant selection code into the cloned module
-        if (! writeIRObj::writeObj (forObjModule, outputDir+"/MetaMu_"+outFile+".o"))
+        if (! writeIRObj::writeObj (forObjModule, outputDir+"/"+outFile+".MetaMu.o"))
             assert (false && "Failed to output meta-mutatant object file");
     }
 #endif  //#ifdef KLEE_SEMU_GENMU_OBJECTFILE
     //llvm::errs() << "@After Mutation->TCE\n"; moduleM->dump(); llvm::errs() << "\n";
     
+    llvm::errs() << " @progress: Compiling Mutants ...\n";
+    tmpStr = new char[1+std::strlen(argv[0])]; //Alocate tmpStr3
+    std::strcpy(tmpStr, argv[0]); 
+    std::string compileMutsScript(dirname(tmpStr));  //dirname change the contain of its parameter
+    delete [] tmpStr; tmpStr = nullptr;  //del tmpStr3
+    //llvm::errs() << "bash " + compileMutsScript+"/useful/CompileAllMuts.sh "+outputDir+" yes" <<"\n";
+    assert(!system(("bash " + compileMutsScript+"/useful/CompileAllMuts.sh "+outputDir+" yes").c_str()) && "Mutants Compile script failed");
     return 0;
 }

@@ -46,7 +46,7 @@ class Mutation
     const char * wmLogFuncName = "llGenMu_WM_Log_Function"; //This fuction take the mutant ID and the condition and print the mutant ID if the condition is true.
     
 public:
-    typedef bool (* DumpMutFunc_t)(std::map<unsigned, std::vector<unsigned>>&, std::vector<llvm::Module *>&, llvm::Module *);
+    typedef bool (* DumpMutFunc_t)(std::map<unsigned, std::vector<unsigned>>*, std::vector<llvm::Module *>*, llvm::Module *);
     Mutation (llvm::Module &module, std::string mutConfFile, DumpMutFunc_t writeMutsF, std::string scopeJsonFile="");
     ~Mutation ();
     bool doMutate ();   //Transforms module

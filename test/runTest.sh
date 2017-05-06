@@ -53,11 +53,13 @@ do
     $CLANGC -g -c -emit-llvm -o $filep.bc $src || error_exit "Failed to compile $src"
     echo -n "mutation...   "
     
-    $buildDir/../tools/ks-genMutants -print-preTCE-Meta -mutant-config ../operator/mutconf.conf $filep.bc 2>$filep.info > $filep.info || { printf "\n---\n"; cat $filep.info; echo "---"; error_exit "mutation Failed for $src. cmd: `readlink -f  $buildDir/../tools/ks-genMutants` -mutant-config $(readlink -f ../operator/mutconf.conf) $(readlink -f $filep.bc) 2>&1"; }
+    options="-print-preTCE-Meta -gen-mutants"
+    $buildDir/../tools/ks-genMutants $options -mutant-config ../operator/mutconf.conf $filep.bc 2>$filep.info > $filep.info || { printf "\n---\n"; cat $filep.info; echo "---"; error_exit "mutation Failed for $src. cmd: `readlink -f  $buildDir/../tools/ks-genMutants` -mutant-config $(readlink -f ../operator/mutconf.conf) $(readlink -f $filep.bc) 2>&1"; }
     mv KS-GenMu-out-0 $filep-out || error_exit "Failed to store output"
     mv $filep.info $filep-out || error_exit "Failed to move info to output"
     echo "llvm-dis..."
-    $LLVM_DIS -o $filep-out/MetaMu_$filep.ll $filep-out/MetaMu_$filep.bc || error_exit "llvm-dis failed on $filep-out/MetaMu_$filep.bc"
-    $LLVM_DIS -o $filep-out/MetaMu_$filep\_preTCE.ll $filep-out/MetaMu_$filep\_preTCE.bc || error_exit "llvm-dis failed on $filep-out/MetaMu_$filep\_preTCE.bc"
+    $LLVM_DIS -o $filep-out/$filep.MetaMu.ll $filep-out/$filep.MetaMu.bc || error_exit "llvm-dis failed on $filep-out/$filep.MetaMu.bc"
+    $LLVM_DIS -o $filep-out/$filep.preTCE.MetaMu.ll $filep-out/$filep.preTCE.MetaMu.bc || error_exit "llvm-dis failed on $filep-out/$filep.preTCE.MetaMu.bc"
+    test -f $filep-out/$filep.WM.bc && { $LLVM_DIS -o $filep-out/$filep.WM.ll $filep-out/$filep.WM.bc || error_exit "llvm-dis failed on $filep-out/wm-$filep.bc" ; }
 done  
 
