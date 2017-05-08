@@ -1,3 +1,3 @@
 # KLEE-SEMu-GenMu
 
-Gnerate mutatnts according to specification
+Gnerate mutants according to specification

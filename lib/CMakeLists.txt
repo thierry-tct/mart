@@ -40,5 +40,7 @@ if (KLEE_SEMU_GENMU)
     add_subdirectory(third-parties/JsonBox)     #Add JsonBox build dir
     set(CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS__BACKUP})
     
+    add_subdirectory(third-parties/dg)     #Add dg build dir
+    
 endif (KLEE_SEMU_GENMU)
 
