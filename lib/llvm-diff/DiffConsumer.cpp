@@ -196,7 +196,7 @@ void DiffConsumer::logd(const DiffLogBuilder &Log) {
     case DC_match:
       out << "  ";
 #ifdef KLEE_SEMu_GenMu_PRINTDIFF
-      /Log.getLeft(I)->dump();
+      Log.getLeft(I)->dump();
 #endif
       //printValue(Log.getLeft(I), true);
       break;

@@ -34,7 +34,11 @@ if (KLEE_SEMU_GENMU)
             readwriteIR.h
             DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/klee-semu-genmu/)
     
+    #Add JsonBox build dir
+    set(CMAKE_CXX_FLAGS__BACKUP ${CMAKE_CXX_FLAGS})
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fPIC")
     add_subdirectory(third-parties/JsonBox)     #Add JsonBox build dir
+    set(CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS__BACKUP})
     
 endif (KLEE_SEMU_GENMU)
 
