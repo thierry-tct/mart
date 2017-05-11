@@ -50,10 +50,10 @@ else
 fi
 
 #Remove existing out Dirs
-rm -rf KS-GenMu-out-* klee-out-*
+rm -rf mull-out-* klee-out-*
 
 ## ### SET TOOLS
-ks_GenMu=$TOPDIR/../../build/tools/ks-genMutants
+ks_GenMu=$TOPDIR/../../build/tools/mull
 test -f $ks_GenMu || error_exit "Mutation tool non existent"
 
 llc=llc-3.4
@@ -70,7 +70,7 @@ fi
 $ks_GenMu -gen-mutants -mutant-config $mutConf $inputBC 2>&1
 
 #Compile the generated mutants
-for m in `find KS-GenMu-out-0/mutants -type f -name "*.bc"`
+for m in `find mull-out-0/mutants -type f -name "*.bc"`
 do
     $llc -filetype=obj -o ${m%.bc}.o $m || error_exit "Failed to compile mutant $m to object"
     gcc -o ${m%.bc} ${m%.bc}.o $cflags || error_exit "Failed to compile mutant $m to executable"
@@ -103,22 +103,22 @@ removeDupTests()
     cd $curDir
 }
 
-statSemu=KS-GenMu-out-0/semu.ksstat
-statKlee=KS-GenMu-out-0/klee.ksstat
+statSemu=mull-out-0/semu.ksstat
+statKlee=mull-out-0/klee.ksstat
 
 Semu=/media/thierry/TestMutants/KLEE/klee-semu/build/bin/klee-semu
 klee=/media/thierry/TestMutants/KLEE/klee-semu/build/bin/klee
 ktest_tool=$(dirname $klee)/ktest-tool
 
-$Semu --libc=uclibc --posix-runtime --allow-external-sym-calls -search bfs KS-GenMu-out-0/MetaMu_$(basename $inputBC) 2>&1 || error_exit "SEMu failed"
-mv KS-GenMu-out-0/klee-out-0 KS-GenMu-out-0/klee-semu-out || error_exit "Failed to store semu output"
+$Semu --libc=uclibc --posix-runtime --allow-external-sym-calls -search bfs mull-out-0/MetaMu_$(basename $inputBC) 2>&1 || error_exit "SEMu failed"
+mv mull-out-0/klee-out-0 mull-out-0/klee-semu-out || error_exit "Failed to store semu output"
 $klee --libc=uclibc --posix-runtime --allow-external-sym-calls -search bfs $inputBC 2>&1 || error_exit "KLEE failed"
 
-echo "Num Gen Tests: "$(find KS-GenMu-out-0/klee-semu-out -type f -name '*.ktest' | wc -l) > $statSemu
-removeDupTests KS-GenMu-out-0/klee-semu-out
-echo "Num different Tests: "$(find KS-GenMu-out-0/klee-semu-out -type f -name '*.ktest' | wc -l) >> $statSemu
-printf "\nMut/Test $(find KS-GenMu-out-0/klee-semu-out -type f -name '*.ktest' | tr '\n' ' ')\n" >> $statSemu
-semuTests=$(find KS-GenMu-out-0/klee-semu-out -type f -name '*.ktest' | tr '\n' ' ')
+echo "Num Gen Tests: "$(find mull-out-0/klee-semu-out -type f -name '*.ktest' | wc -l) > $statSemu
+removeDupTests mull-out-0/klee-semu-out
+echo "Num different Tests: "$(find mull-out-0/klee-semu-out -type f -name '*.ktest' | wc -l) >> $statSemu
+printf "\nMut/Test $(find mull-out-0/klee-semu-out -type f -name '*.ktest' | tr '\n' ' ')\n" >> $statSemu
+semuTests=$(find mull-out-0/klee-semu-out -type f -name '*.ktest' | tr '\n' ' ')
 
 echo "Num Gen Tests: "$(find klee-out-0 -type f -name '*.ktest' | wc -l) > $statKlee
 removeDupTests klee-out-0
@@ -130,18 +130,18 @@ kleeTests=$(find klee-out-0 -type f -name '*.ktest' | tr '\n' ' ')
 # Original first
 for tc in $semuTests $kleeTests
 do
-    exe0=$(find ./KS-GenMu-out-0/mutants/0/ -type f | grep -v ".bc$")
+    exe0=$(find ./mull-out-0/mutants/0/ -type f | grep -v ".bc$")
     KTEST_FILE=$tc $exe0 > $tc.mut0
     echo "EXIT CODE: $?" >> $tc.mut0
 done
 
 #mutants
-for m in `ls KS-GenMu-out-0/mutants | grep -v "^0$" | sort -h`
+for m in `ls mull-out-0/mutants | grep -v "^0$" | sort -h`
 do
     for tc in $semuTests $kleeTests
     do
         rm -f $tc.muti
-        exei=$(find ./KS-GenMu-out-0/mutants/$m/ -type f | grep -v ".bc$")
+        exei=$(find ./mull-out-0/mutants/$m/ -type f | grep -v ".bc$")
         KTEST_FILE=$tc timeout 2s $exei > $tc.muti$m
         echo "EXIT CODE: $?" >> $tc.muti$m
     done

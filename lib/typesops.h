@@ -18,6 +18,8 @@
 
 #if (LLVM_VERSION_MAJOR <= 3) && (LLVM_VERSION_MINOR < 5)
 #include "llvm/DebugInfo.h"     //DIScope
+#else
+#include "llvm/IR/DebugInfoMetadata.h"  //DIScope
 #endif
 
 #include "usermaps.h"
@@ -56,7 +58,7 @@ class UtilsFunctions
         if (Loc) 
         {
             auto *Scope = llvm::cast<llvm::DIScope>(Loc.getScope());
-            ross << Scope.getFilename();
+            ross << Scope->getFilename();
             ross << ':' << Loc.getLine();
             if (Loc.getCol() != 0)
                 ross << ':' << Loc.getCol();

@@ -811,17 +811,18 @@ llvm::Value * Mutation::getWMCondition (llvm::BasicBlock *orig, llvm::BasicBlock
  * \brief transform non optimized meta-mutant module into weak mutation module. 
  * @param cmodule is the meta mutant module. @note: it will be transformed into WM module, so clone module before this call
  */
-void Mutation::computeWeakMutation(llvm::Module * cmodule, llvm::Module &modWMLog)
+void Mutation::computeWeakMutation(std::unique_ptr<llvm::Module> &cmodule, std::unique_ptr<llvm::Module> &modWMLog)
 {
     /// Link cmodule with the corresponding driver module (actually only need c module)
 #if (LLVM_VERSION_MAJOR <= 3) && (LLVM_VERSION_MINOR < 5)
-    llvm::Linker linker(cmodule);
+    llvm::Linker linker(cmodule.get());
     std::string ErrorMsg;
-    if (linker.linkInModule(&modWMLog, &ErrorMsg))
+    if (linker.linkInModule(modWMLog.get(), &ErrorMsg))
     {
         llvm::errs() << "Failed to link weak mutation module with log function module: " << ErrorMsg << "\n";
         assert (false);
     }
+    modWMLog.reset(nullptr);
 #else
     llvm::Linker linker(*cmodule);
     if (linker.linkInModule (std::move(modWMLog)))
@@ -908,7 +909,7 @@ void Mutation::computeWeakMutation(llvm::Module * cmodule, llvm::Module &modWMLo
     }
 }//~Mutation::computeWeakMutation
 
-void Mutation::doTCE (bool writeMuts, llvm::Module *modWMLog)
+void Mutation::doTCE (std::unique_ptr<llvm::Module> &modWMLog, bool writeMuts)
 {
     assert (currentMetaMutantModule && "Running TCE before mutation");
     llvm::Module &module = *currentMetaMutantModule;    
@@ -927,7 +928,7 @@ void Mutation::doTCE (bool writeMuts, llvm::Module *modWMLog)
 #if (LLVM_VERSION_MAJOR <= 3) && (LLVM_VERSION_MINOR < 5)
         llvm::Module *clonedM = llvm::CloneModule(&module);
 #else
-        llvm::Module *clonedM = llvm::CloneModule(&module).get();
+        llvm::Module *clonedM = llvm::CloneModule(&module).release();
 #endif
         mutModules.push_back(clonedM);  
         mutantIDSelGlob = clonedM->getNamedGlobal(mutantIDSelectorName);
@@ -1064,17 +1065,17 @@ void Mutation::doTCE (bool writeMuts, llvm::Module *modWMLog)
     // Write mutants files and weak mutation file
     if (writeMuts || modWMLog)
     {
-        llvm::Module *wmModule = nullptr;
+        std::unique_ptr<llvm::Module> wmModule(nullptr);
         if (modWMLog)
         {
 #if (LLVM_VERSION_MAJOR <= 3) && (LLVM_VERSION_MINOR < 5)
-            wmModule = llvm::CloneModule(&module);
+            wmModule.reset (llvm::CloneModule(&module));
 #else
-            wmModule = llvm::CloneModule(&module).get();
+            wmModule = llvm::CloneModule(&module);
 #endif
-            computeWeakMutation(wmModule, *modWMLog);
+            computeWeakMutation(wmModule, modWMLog);
         }
-        assert (writeMutantsCallback((writeMuts ? &duplicateMap : nullptr), (writeMuts ? &mutModules : nullptr), wmModule) && "Failed to dump mutants IRs");
+        assert (writeMutantsCallback((writeMuts ? &duplicateMap : nullptr), (writeMuts ? &mutModules : nullptr), wmModule.get()) && "Failed to dump mutants IRs");
     }
     
     //create the final version of the meta-mutant file
@@ -1104,6 +1105,10 @@ void Mutation::doTCE (bool writeMuts, llvm::Module *modWMLog)
         llvm::errs() << "ERROR: Misformed post-TCE Meta-Module!\n"; 
         assert(false); //return false;
     }
+    
+    // free mutModules' cloned modules.
+    for (auto *mm: mutModules)
+        delete mm;
 }
 
 bool Mutation::getMutant (llvm::Module &module, unsigned mutantID)

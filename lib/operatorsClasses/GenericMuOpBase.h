@@ -4,7 +4,7 @@
 /**
  * -==== GenericMuOpBase.h
  *
- *                LLGenMu LLVM Mutation Tool
+ *                MuLL Multi-Language LLVM Mutation Framework
  *
  * This file is distributed under the University of Illinois Open Source
  * License. See LICENSE.TXT for details. 
@@ -352,7 +352,7 @@ class GenericMuOpBase
 #if (LLVM_VERSION_MAJOR <= 3) && (LLVM_VERSION_MINOR < 5)
                 if (!(llvm::PointerType::isValidElementType(val->getType()) && !val->getType()->isFunctionTy()))
 #else
-                if (!llvm::PointerType::isLoadableorStorableType(val->getType()))
+                if (!llvm::PointerType::isLoadableOrStorableType(val->getType()))
 #endif
                     return false;
                 if (! (llvm::isa<llvm::CompositeType>(val->getType()) || llvm::isa<llvm::FunctionType>(val->getType())))
@@ -689,19 +689,19 @@ class GenericMuOpBase
         
         llvm::Value * createdRes = MI.getUserMaps()->getMatcherObject(repl.getExpElemKey())->createReplacement (oprd1_addrOprd, oprd2_intValOprd, replacement, MI);
         
-#if (LLVM_VERSION_MAJOR <= 3) && (LLVM_VERSION_MINOR < 5)
+//#if (LLVM_VERSION_MAJOR <= 3) && (LLVM_VERSION_MINOR < 5)
             //IRFlags non existant for these verisons
-#else
+//#else
         //Copy Flags if binop
-        if (posOfIRtoRemove.size()==1 && toMatchClone[posOfIRtoRemove.front()] && llvm::isa<llvm::BinaryOperator>(toMatchClone[posOfIRtoRemove.front()]))
-        {
-            for (auto rinst: replacement)
-            {
-                if (auto * risbinop = llvm::dyn_cast<llvm::BinaryOperator>(rinst))
-                    risbinop->copyIRFlags(toMatchClone[posOfIRtoRemove.front()]);
-            }
-        }
-#endif
+//        if (posOfIRtoRemove.size()==1 && toMatchClone[posOfIRtoRemove.front()] && llvm::isa<llvm::BinaryOperator>(toMatchClone[posOfIRtoRemove.front()]))
+//        {
+//            for (auto rinst: replacement)
+//            {
+//                if (auto * risbinop = llvm::dyn_cast<llvm::BinaryOperator>(rinst))
+//                    risbinop->copyIRFlags(toMatchClone[posOfIRtoRemove.front()]);
+//            }
+//        }
+//#endif
         
         if (returningIRPos >= 0)
         {
@@ -744,11 +744,14 @@ class GenericMuOpBase
             //Check, if createRes and the operand are contants, whether they are equal and abort this mutant
             if (constAndEquals (llvm::dyn_cast<llvm::User>(returnIntoIR)->getOperand(retIntoOprdIndex), createdRes))
             {
-                for (auto *ir: toMatchClone)
-                    delete ir;
-                for (auto *ir: replacement)
-                    delete ir;
-                return;             //XXX: cancel this mutation because the resulting mutant is equivalent
+                if (replacement.empty())
+                {
+                    for (auto *ir: toMatchClone)
+                        llvm::dyn_cast<llvm::User>(ir)->dropAllReferences();
+                    for (auto *ir: toMatchClone)
+                        delete ir;
+                    return;             //XXX: cancel this mutation because the resulting mutant is equivalent
+                }
             }
              
             llvm::dyn_cast<llvm::User>(returnIntoIR)->setOperand(retIntoOprdIndex, createdRes);

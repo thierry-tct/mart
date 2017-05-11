@@ -32,8 +32,12 @@ cp -r $TOPDIR/operator "test" || error_exit "Failed to copy $TOPDIR/operator int
 #enter
 cd test/tmpRunDir
 
+#-----------------------------------
 CLANGC=clang
 LLVM_DIS=llvm-dis-3.4  #llvm-dis
+#CLANGC=/media/thierry/TestMutants/DG-dependency/llvm-3.8.0/build/bin/clang
+#LLVM_DIS=/media/thierry/TestMutants/DG-dependency/llvm-3.8.0/build/bin/llvm-dis
+#------------------------------------
 
 ## compile
 if [ "$testSrcs" = "" ]; then
@@ -47,15 +51,15 @@ do
     filep=$(basename $src)
     filep=${filep%.c}
     
-    trap "echo 'cmd: ../../tools/ks-genMutants -mutant-config ../operator/mutconf.conf $filep.bc 2>&1'" INT
+    trap "echo 'cmd: ../../tools/mull -mutant-config ../operator/mutconf.conf $filep.bc 2>&1'" INT
     
     echo -n "> $filep...  compiling...   "
     $CLANGC -g -c -emit-llvm -o $filep.bc $src || error_exit "Failed to compile $src"
     echo -n "mutation...   "
     
     options="-print-preTCE-Meta -gen-mutants"
-    $buildDir/../tools/ks-genMutants $options -mutant-config ../operator/mutconf.conf $filep.bc 2>$filep.info > $filep.info || { printf "\n---\n"; cat $filep.info; echo "---"; error_exit "mutation Failed for $src. cmd: `readlink -f  $buildDir/../tools/ks-genMutants` -mutant-config $(readlink -f ../operator/mutconf.conf) $(readlink -f $filep.bc) 2>&1"; }
-    mv KS-GenMu-out-0 $filep-out || error_exit "Failed to store output"
+    $buildDir/../tools/mull $options -mutant-config ../operator/mutconf.conf $filep.bc 2>$filep.info > $filep.info || { printf "\n---\n"; cat $filep.info; echo "---"; error_exit "mutation Failed for $src. cmd: `readlink -f  $buildDir/../tools/mull` -mutant-config $(readlink -f ../operator/mutconf.conf) $(readlink -f $filep.bc) 2>&1"; }
+    mv mull-out-0 $filep-out || error_exit "Failed to store output"
     mv $filep.info $filep-out || error_exit "Failed to move info to output"
     echo "llvm-dis..."
     $LLVM_DIS -o $filep-out/$filep.MetaMu.ll $filep-out/$filep.MetaMu.bc || error_exit "llvm-dis failed on $filep-out/$filep.MetaMu.bc"

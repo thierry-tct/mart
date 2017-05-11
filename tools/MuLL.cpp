@@ -12,7 +12,7 @@
 //#include "llvm/Support/raw_ostream.h"
 
 
-static std::string outputDir("KS-GenMu-out-"); 
+static std::string outputDir("mull-out-"); 
 static const std::string mutantsFolder("mutants");
 static std::string outFile;
     
@@ -124,7 +124,7 @@ int main (int argc, char ** argv)
     assert (inputIRfile && "Error: No input llvm IR file passed!");
     
     llvm::Module *moduleM;
-    llvm::Module *modWMLog = nullptr;
+    std::unique_ptr<llvm::Module> modWMLog (nullptr);
     
     // Read IR into moduleM
     ///llvm::LLVMContext context;
@@ -155,11 +155,11 @@ int main (int argc, char ** argv)
         wmLogFuncinputIRfile = wmLogFuncinputIRfile + "//"+wmLogFuncinputIRfileName; 
         // get the module containing the function to log WM info. to be linked with WMModule
 #if (LLVM_VERSION_MAJOR <= 3) && (LLVM_VERSION_MINOR < 5)
-        modWMLog = llvm::ParseIRFile(wmLogFuncinputIRfile, SMD, llvm::getGlobalContext());
+        modWMLog.reset (llvm::ParseIRFile(wmLogFuncinputIRfile, SMD, llvm::getGlobalContext()));
 #else
-        auto _M = llvm::parseIRFile(wmLogFuncinputIRfile, SMD, llvm::getGlobalContext());
+        modWMLog = llvm::parseIRFile(wmLogFuncinputIRfile, SMD, llvm::getGlobalContext());
         // _M is unique pointer, we need to get Module *
-        modWMLog = _M.get();
+        //modWMLog = _M.release();
 #endif
         if (!modWMLog) 
         {
@@ -238,7 +238,7 @@ int main (int argc, char ** argv)
     }
     
     //@ Remove equivalent mutants and //@ print mutants in case on
-    mut.doTCE(dumpMutants, modWMLog);
+    mut.doTCE(modWMLog, dumpMutants);
     
     /// Mutants Infos into json
     if (dumpMutantInfos)
@@ -284,12 +284,12 @@ int main (int argc, char ** argv)
     if (dumpMetaObj)
     {
 #if (LLVM_VERSION_MAJOR <= 3) && (LLVM_VERSION_MINOR < 5)
-        llvm::Module *forObjModule = llvm::CloneModule(moduleM);
+        std::unique_ptr<llvm::Module> forObjModule (llvm::CloneModule(moduleM));
 #else
-        llvm::Module *forObjModule = llvm::CloneModule(moduleM).get();
+        std::unique_ptr<llvm::Module> forObjModule = llvm::CloneModule(moduleM);
 #endif
         //TODO: insert mutant selection code into the cloned module
-        if (! writeIRObj::writeObj (forObjModule, outputDir+"/"+outFile+".MetaMu.o"))
+        if (! writeIRObj::writeObj (forObjModule.get(), outputDir+"/"+outFile+".MetaMu.o"))
             assert (false && "Failed to output meta-mutatant object file");
     }
 #endif  //#ifdef KLEE_SEMU_GENMU_OBJECTFILE

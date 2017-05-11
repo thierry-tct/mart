@@ -4,7 +4,7 @@
 /**
  * -==== UnsignedIntegerMod.h
  *
- *                LLGenMu LLVM Mutation Tool
+ *                MuLL Multi-Language LLVM Mutation Framework
  *
  * This file is distributed under the University of Illinois Open Source
  * License. See LICENSE.TXT for details. 

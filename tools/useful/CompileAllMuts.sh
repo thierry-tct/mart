@@ -14,11 +14,12 @@ error_exit()
 TOPDIR=$(dirname $(readlink -f $0))
 
 ##### CONFIGURATION #####
-llc=llc-3.4
+#llc=llc-3.4
+llc=/media/thierry/TestMutants/DG-dependency/llvm-3.8.0/build/bin/llc
 CC=gcc
 #########################
 
-[ $# = 2 ] || error_exit "Expected 2 parameters, $# passed: $0 <directory (KS-GenMu-out-0)> <remove mutants' \".bc\"? yes/no>"
+[ $# = 2 ] || error_exit "Expected 2 parameters, $# passed: $0 <directory (mull-out-0)> <remove mutants' \".bc\"? yes/no>"
 
 Dir=$(readlink -f $1)
 removeMutsBCs=$2

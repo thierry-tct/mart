@@ -4,7 +4,7 @@
 /**
  * -==== ReturnBreakContinue.h
  *
- *                LLGenMu LLVM Mutation Tool
+ *                MuLL Multi-Language LLVM Mutation Framework
  *
  * This file is distributed under the University of Illinois Open Source
  * License. See LICENSE.TXT for details. 
@@ -93,8 +93,7 @@ class ReturnBreakContinue: public MatchOnly_Base
             {
     #else
             llvm::Function::iterator FI = br->getParent()->getIterator();
-            FI++;
-            if (FI != br->getFunction()->end() && FI )
+            if (++FI != br->getFunction()->end())
             {
     #endif
                 llvm::BasicBlock *followBB = &*FI;

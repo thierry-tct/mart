@@ -5,10 +5,10 @@ if (KLEE_SEMU_GENMU)
 	string(REGEX REPLACE "\n$" "" GITVERSION "${GITVERSION}")
 	add_definitions(-DGIT_VERSION="${GITVERSION}")
 
-	add_executable(ks-genMutants ks-genMutants.cpp)
-	target_link_libraries(ks-genMutants KLEE-SEMu-GenMu)
+	add_executable(mull MuLL.cpp)
+	target_link_libraries(mull KLEE-SEMu-GenMu)
 
-	install(TARGETS ks-genMutants
+	install(TARGETS mull
 		RUNTIME DESTINATION bin)
 		
 	# WM Log Driver

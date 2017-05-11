@@ -43,15 +43,15 @@ class Mutation
     
     ModuleUserInfos moduleInfo;
     
-    const char * wmLogFuncName = "llGenMu_WM_Log_Function"; //This fuction take the mutant ID and the condition and print the mutant ID if the condition is true.
+    const char * wmLogFuncName = "muLLVM_WM_Log_Function"; //This fuction take the mutant ID and the condition and print the mutant ID if the condition is true.
     
 public:
     typedef bool (* DumpMutFunc_t)(std::map<unsigned, std::vector<unsigned>>*, std::vector<llvm::Module *>*, llvm::Module *);
     Mutation (llvm::Module &module, std::string mutConfFile, DumpMutFunc_t writeMutsF, std::string scopeJsonFile="");
     ~Mutation ();
     bool doMutate ();   //Transforms module
-    void doTCE (bool writeMuts=false, llvm::Module *modWMLog=nullptr);      //Transforms module
-    void computeWeakMutation(llvm::Module * cmodule, llvm::Module &modWMLog);     //Compute WM of the module passed (pass a cloned module)
+    void doTCE (std::unique_ptr<llvm::Module> &modWMLog, bool writeMuts=false);      //Transforms module
+    void computeWeakMutation(std::unique_ptr<llvm::Module> &cmodule, std::unique_ptr<llvm::Module> &modWMLog);     //Compute WM of the module passed (pass a cloned module)
     bool getMutant (llvm::Module &module, unsigned mutanatID);
     unsigned getHighestMutantID (llvm::Module &module);
     
