@@ -25,9 +25,9 @@ class NumericArithBinop_Base: public GenericMuOpBase
     inline virtual unsigned getMyInstructionIROpCode() = 0;
     
   public:
-    bool matchIRs (std::vector<llvm::Value *> const &toMatch, llvmMutationOp const &mutationOp, unsigned pos, MatchUseful &MU, ModuleUserInfos const &MI) 
+    bool matchIRs (MatchStmtIR const &toMatch, llvmMutationOp const &mutationOp, unsigned pos, MatchUseful &MU, ModuleUserInfos const &MI) 
     {
-        llvm::Value *val = toMatch.at(pos);
+        llvm::Value *val = toMatch.getIRAt(pos);
         if (auto *binop = llvm::dyn_cast<llvm::BinaryOperator>(val))
         {
             if (binop->getOpcode() != getMyInstructionIROpCode())
@@ -43,26 +43,26 @@ class NumericArithBinop_Base: public GenericMuOpBase
             if (llvm::isa<llvm::Constant>(binop->getOperand(0)))    //first oprd
                 ptr_mu->appendHLOprdsSource(pos, 0);
             else
-                ptr_mu->appendHLOprdsSource(depPosofPos(toMatch, binop->getOperand(0), pos, true));
+                ptr_mu->appendHLOprdsSource(toMatch.depPosofPos(binop->getOperand(0), pos, true));
             if (llvm::isa<llvm::Constant>(binop->getOperand(1)))  //second oprd
                 ptr_mu->appendHLOprdsSource(pos, 1);
             else
-                ptr_mu->appendHLOprdsSource(depPosofPos(toMatch, binop->getOperand(1), pos,true));
+                ptr_mu->appendHLOprdsSource(toMatch.depPosofPos(binop->getOperand(1), pos,true));
             ptr_mu->appendRelevantIRPos(pos);
             ptr_mu->setHLReturningIRPos(pos);
         }
         return (MU.first() != MU.end());
     }
     
-    void prepareCloneIRs (std::vector<llvm::Value *> const &toMatch, unsigned pos,  MatchUseful const &MU, llvmMutationOp::MutantReplacors const &repl, DoReplaceUseful &DRU, ModuleUserInfos const &MI)
+    void prepareCloneIRs (MatchStmtIR const &toMatch, unsigned pos,  MatchUseful const &MU, llvmMutationOp::MutantReplacors const &repl, DoReplaceUseful &DRU, ModuleUserInfos const &MI)
     {
-        cloneStmtIR (toMatch, DRU.toMatchClone);
+        DRU.toMatchMutant.setToCloneStmtIROf(toMatch, MI);
         llvm::Value * oprdptr[]={nullptr, nullptr};
         for (int i=0; i < repl.getOprdIndexList().size(); i++)
         {
-            if (!(oprdptr[i] = createIfConst (MU.getHLOperandSource(i, DRU.toMatchClone)->getType(), repl.getOprdIndexList()[i])))
+            if (!(oprdptr[i] = createIfConst (MU.getHLOperandSource(i, DRU.toMatchMutant)->getType(), repl.getOprdIndexList()[i])))
             {
-                oprdptr[i] = MU.getHLOperandSource(repl.getOprdIndexList()[i], DRU.toMatchClone);
+                oprdptr[i] = MU.getHLOperandSource(repl.getOprdIndexList()[i], DRU.toMatchMutant);
             }
         }
         

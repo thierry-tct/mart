@@ -37,9 +37,9 @@ class NumericAndPointerRelational_Base: public GenericMuOpBase
     inline virtual llvm::CmpInst::Predicate getNeqPred() = 0;
     
   public:
-    bool matchIRs (std::vector<llvm::Value *> const &toMatch, llvmMutationOp const &mutationOp, unsigned pos, MatchUseful &MU, ModuleUserInfos const &MI) 
+    bool matchIRs (MatchStmtIR const &toMatch, llvmMutationOp const &mutationOp, unsigned pos, MatchUseful &MU, ModuleUserInfos const &MI) 
     {
-        llvm::Value *val = toMatch.at(pos);
+        llvm::Value *val = toMatch.getIRAt(pos);
         if (llvm::CmpInst *cmp = llvm::dyn_cast<llvm::CmpInst>(val))
         {
             if (!(checkCPTypeInIR (mutationOp.getCPType(0), cmp->getOperand(0)) && checkCPTypeInIR (mutationOp.getCPType(1), cmp->getOperand(1))))
@@ -52,48 +52,48 @@ class NumericAndPointerRelational_Base: public GenericMuOpBase
             if (llvm::isa<llvm::Constant>(cmp->getOperand(0)))    //first oprd
                 ptr_mu->appendHLOprdsSource(pos, 0);
             else
-                ptr_mu->appendHLOprdsSource(depPosofPos(toMatch, cmp->getOperand(0), pos, true));
+                ptr_mu->appendHLOprdsSource(toMatch.depPosofPos(cmp->getOperand(0), pos, true));
             if (llvm::isa<llvm::Constant>(cmp->getOperand(1)))  //second oprd
                 ptr_mu->appendHLOprdsSource(pos, 1);
             else
-                ptr_mu->appendHLOprdsSource(depPosofPos(toMatch, cmp->getOperand(1), pos,true));
+                ptr_mu->appendHLOprdsSource(toMatch.depPosofPos(cmp->getOperand(1), pos,true));
             ptr_mu->appendRelevantIRPos(pos);
             ptr_mu->setHLReturningIRPos(pos);
         }
         return (MU.first() != MU.end());
     }
     
-    void prepareCloneIRs (std::vector<llvm::Value *> const &toMatch, unsigned pos,  MatchUseful const &MU, llvmMutationOp::MutantReplacors const &repl, DoReplaceUseful &DRU, ModuleUserInfos const &MI)
+    void prepareCloneIRs (MatchStmtIR const &toMatch, unsigned pos,  MatchUseful const &MU, llvmMutationOp::MutantReplacors const &repl, DoReplaceUseful &DRU, ModuleUserInfos const &MI)
     {
         const std::map<enum ExpElemKeys, llvm::CmpInst::Predicate> *mrel_IRrel_Map = getPredRelMap();
-        cloneStmtIR (toMatch, DRU.toMatchClone);
+        DRU.toMatchMutant.setToCloneStmtIROf(toMatch, MI);
         unsigned cmpPos = MU.getRelevantIRPosOf(0);
         std::map<enum ExpElemKeys, llvm::CmpInst::Predicate>::const_iterator map_it = mrel_IRrel_Map->find(repl.getExpElemKey());
         if (map_it != mrel_IRrel_Map->end())
         {   //directly replace the Predicate in case the replacor is also a CMP instruction
             // NO CALL TO doReplacement HERE
-            llvm::dyn_cast<llvm::CmpInst>(DRU.toMatchClone[cmpPos])->setPredicate(map_it->second);
+            llvm::dyn_cast<llvm::CmpInst>(DRU.toMatchMutant.getIRAt(cmpPos))->setPredicate(map_it->second);
             llvm::Value *oprdptr[2];
-            oprdptr[0] = llvm::dyn_cast<llvm::User>(DRU.toMatchClone[cmpPos])->getOperand(0);
-            oprdptr[1] = llvm::dyn_cast<llvm::User>(DRU.toMatchClone[cmpPos])->getOperand(1);
-            llvm::dyn_cast<llvm::User>(DRU.toMatchClone[cmpPos])->setOperand(0, oprdptr[repl.getOprdIndexList()[0]]);
-            llvm::dyn_cast<llvm::User>(DRU.toMatchClone[cmpPos])->setOperand(1, oprdptr[repl.getOprdIndexList()[1]]);
+            oprdptr[0] = llvm::dyn_cast<llvm::User>(DRU.toMatchMutant.getIRAt(cmpPos))->getOperand(0);
+            oprdptr[1] = llvm::dyn_cast<llvm::User>(DRU.toMatchMutant.getIRAt(cmpPos))->getOperand(1);
+            llvm::dyn_cast<llvm::User>(DRU.toMatchMutant.getIRAt(cmpPos))->setOperand(0, oprdptr[repl.getOprdIndexList()[0]]);
+            llvm::dyn_cast<llvm::User>(DRU.toMatchMutant.getIRAt(cmpPos))->setOperand(1, oprdptr[repl.getOprdIndexList()[1]]);
             
             DRU.setOrigRelevantIRPos(MU.getRelevantIRPos());
-            //\\\\resultMuts.push_back(DRU.toMatchClone); 
+            //\\\\resultMuts.push_back(DRU.toMatchMutant); 
         }
         else
         {
             llvm::Value * oprdptr[]={nullptr, nullptr};
             for (int i=0; i < repl.getOprdIndexList().size(); i++)
             {
-                if (!(oprdptr[i] = createIfConst (MU.getHLOperandSource(i/*either 0 or 1*/, DRU.toMatchClone)->getType(), repl.getOprdIndexList()[i])))
+                if (!(oprdptr[i] = createIfConst (MU.getHLOperandSource(i/*either 0 or 1*/, DRU.toMatchMutant)->getType(), repl.getOprdIndexList()[i])))
                 {
-                    oprdptr[i] = MU.getHLOperandSource(repl.getOprdIndexList()[i], DRU.toMatchClone);
+                    oprdptr[i] = MU.getHLOperandSource(repl.getOprdIndexList()[i], DRU.toMatchMutant);
                 }
             }
             
-            llvm::Constant *zero = getZero(MU.getHLOperandSource(1, DRU.toMatchClone));
+            llvm::Constant *zero = getZero(MU.getHLOperandSource(1, DRU.toMatchMutant));
             llvm::CmpInst::Predicate neqPredHere = getNeqPred();
             DRU.appendHLOprds(oprdptr[0]);
             DRU.appendHLOprds(oprdptr[1]);
@@ -101,19 +101,19 @@ class NumericAndPointerRelational_Base: public GenericMuOpBase
             DRU.setHLReturnIntoIRPos(cmpPos);
             DRU.setHLReturnIntoOprdIndex(0);
             
-            llvm::dyn_cast<llvm::User>(DRU.toMatchClone[cmpPos])->setOperand(1, zero);
-            llvm::dyn_cast<llvm::CmpInst>(DRU.toMatchClone[cmpPos])->setPredicate(neqPredHere);
-            //\\\\doReplacement (toMatch, resultMuts, repl, DRU.toMatchClone, posOfIRtoRemove, oprdptr[0], oprdptr[1], dumb);
+            llvm::dyn_cast<llvm::User>(DRU.toMatchMutant.getIRAt(cmpPos))->setOperand(1, zero);
+            llvm::dyn_cast<llvm::CmpInst>(DRU.toMatchMutant.getIRAt(cmpPos))->setPredicate(neqPredHere);
+            //\\\\doReplacement (toMatch, resultMuts, repl, DRU.toMatchMutant, posOfIRtoRemove, oprdptr[0], oprdptr[1], dumb);
         }
     }
     
-    void matchAndReplace (std::vector<llvm::Value *> const &toMatch, llvmMutationOp const &mutationOp, MutantsOfStmt &resultMuts, bool &isDeleted, ModuleUserInfos const &MI)
+    void matchAndReplace (MatchStmtIR const &toMatch, llvmMutationOp const &mutationOp, MutantsOfStmt &resultMuts, bool &isDeleted, ModuleUserInfos const &MI)
     {
         MatchUseful mu;
         DoReplaceUseful dru;
         int pos = -1;
         bool stmtDeleted = false;
-        for (auto *val:toMatch)
+        for (auto *val:toMatch.getIRList())
         {
             pos++;
             if (matchIRs (toMatch, mutationOp, pos, mu, MI))
@@ -138,10 +138,10 @@ class NumericAndPointerRelational_Base: public GenericMuOpBase
                                 llvm::errs() << "didn't set 'OrigRelevantIRPos': " << e.what();
                             }
                             
-                            if (dru.getHLReturnIntoIRPos() < 0)   //the replacer is also reational: already mutated into toMatchClone
-                                resultMuts.add(toMatch, dru.toMatchClone, repl, dru.getOrigRelevantIRPos()); 
+                            if (dru.getHLReturnIntoIRPos() < 0)   //the replacer is also reational: already mutated into toMatchMutant
+                                resultMuts.add(/*toMatch, */dru.toMatchMutant, repl, dru.getOrigRelevantIRPos()); 
                             else
-                                doReplacement (toMatch, resultMuts, repl, dru.toMatchClone, dru.posOfIRtoRemove, dru.getHLOprdOrNull(0), dru.getHLOprdOrNull(1), 
+                                doReplacement (toMatch, resultMuts, repl, dru.toMatchMutant, dru.posOfIRtoRemove, dru.getHLOprdOrNull(0), dru.getHLOprdOrNull(1), 
                                                 dru.getHLReturningIRPos(), dru.getOrigRelevantIRPos(), MI, dru.getHLReturnIntoIRPos(), dru.getHLReturnIntoOprdIndex());
                             
                             //make sure to clear 'dru' for the next replcement

@@ -34,9 +34,9 @@ class NumericConstant_Base: public MatchOnly_Base
     }*/
     
   public:
-    bool matchIRs (std::vector<llvm::Value *> const &toMatch, llvmMutationOp const &mutationOp, unsigned pos, MatchUseful &MU, ModuleUserInfos const &MI) 
+    bool matchIRs (MatchStmtIR const &toMatch, llvmMutationOp const &mutationOp, unsigned pos, MatchUseful &MU, ModuleUserInfos const &MI) 
     {
-        llvm::Value *val = toMatch.at(pos);
+        llvm::Value *val = toMatch.getIRAt(pos);
         for (auto oprdvIt = 0; oprdvIt < llvm::dyn_cast<llvm::User>(val)->getNumOperands(); oprdvIt++) 
         {
             if (llvm::Constant *constval = constMatched(llvm::dyn_cast<llvm::User>(val)->getOperand(oprdvIt)))
@@ -51,19 +51,19 @@ class NumericConstant_Base: public MatchOnly_Base
         return (MU.first() != MU.end());
     }
     
-    void prepareCloneIRs (std::vector<llvm::Value *> const &toMatch, unsigned pos,  MatchUseful const &MU, llvmMutationOp::MutantReplacors const &repl, DoReplaceUseful &DRU, ModuleUserInfos const &MI)
+    void prepareCloneIRs (MatchStmtIR const &toMatch, unsigned pos,  MatchUseful const &MU, llvmMutationOp::MutantReplacors const &repl, DoReplaceUseful &DRU, ModuleUserInfos const &MI)
     {
-        cloneStmtIR (toMatch, DRU.toMatchClone);
+        DRU.toMatchMutant.setToCloneStmtIROf(toMatch, MI);
         llvm::Value * oprdptr[]={nullptr, nullptr};
         for (int i=0; i < repl.getOprdIndexList().size(); i++)
         {
             if (repl.getOprdIndexList()[i] == 0)
             {
-                oprdptr[i] = llvm::dyn_cast<llvm::User>(DRU.toMatchClone[MU.getHLReturnIntoIRPos()])->getOperand(MU.getHLReturnIntoOprdIndex());
+                oprdptr[i] = llvm::dyn_cast<llvm::User>(DRU.toMatchMutant.getIRAt(MU.getHLReturnIntoIRPos()))->getOperand(MU.getHLReturnIntoOprdIndex());
             }
             else 
             {
-                oprdptr[i] = createIfConst (MU.getHLOperandSource(0, DRU.toMatchClone)->getType(), repl.getOprdIndexList()[i]);  //it is a given constant value (ex: 2, 5, ...)
+                oprdptr[i] = createIfConst (MU.getHLOperandSource(0, DRU.toMatchMutant)->getType(), repl.getOprdIndexList()[i]);  //it is a given constant value (ex: 2, 5, ...)
                 assert (oprdptr[i] && "unreachable, invalid operand id");
             }
         }

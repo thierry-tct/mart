@@ -5,8 +5,13 @@
 #include <sstream>
 #include <vector>
 #include <set>
+#include <unordered_set>
+#include <unordered_map>
 
 #include "llvm/IR/Value.h"
+#include "llvm/IR/Instructions.h"
+#include "llvm/IR/InstrTypes.h"     //TerminatorInst
+
 #include "llvm/ADT/StringMap.h"
 #include "llvm/ADT/DenseMap.h"
 
@@ -299,10 +304,10 @@ class MutationScope
             return;
         }
         
-        std::set<std::string> specSrcFiles;
-        std::set<std::string> specFuncs;
+        std::unordered_set<std::string> specSrcFiles;
+        std::unordered_set<std::string> specFuncs;
         
-        std::set<std::string> seenSrcs;
+        std::unordered_set<std::string> seenSrcs;
         
         JsonBox::Value inScope;
 	    inScope.loadFromFile(inJsonFilename);
@@ -409,15 +414,341 @@ class MutationScope
     }
 };
 
+/**
+ *  \brief This class define ano original statement
+ */
+struct MatchStmtIR
+{
+    std::vector<llvm::Value *> toMatchIRs;
+    std::vector<std::pair<unsigned/*BB startPos in IR vector*/, llvm::BasicBlock *>> bbStartPosToOrigBB;        // must be ordered
+    std::vector<unsigned> posIRsInOrigFunc;  //Alway go together with toMatchIRs (same modifications - push, pop,...)
+    
+    friend void setToCloneStmtIROf (MatchStmtIR const &toMatch);
+    
+    void clear() 
+    {
+        toMatchIRs.clear(); 
+        bbStartPosToOrigBB.clear(); 
+        posIRsInOrigFunc.clear();
+    }
+    inline int getNumBB() const {return bbStartPosToOrigBB.size();}
+    inline llvm::BasicBlock * getBBAt(int i) const {return bbStartPosToOrigBB[i].second;}
+    inline unsigned getTotNumIRs () const {return toMatchIRs.size();}
+    inline const std::vector<llvm::Value *> &getIRList() const {return toMatchIRs;}
+    inline llvm::Value * getIRAt (unsigned ind) const {return toMatchIRs[ind];}
+    void getFirstAndLastIR (llvm::BasicBlock *selBB, llvm::Instruction *&firstIR, llvm::Instruction *&lastIR) const
+    {
+        auto it=bbStartPosToOrigBB.begin(), ie=bbStartPosToOrigBB.end();
+        for (; it!=ie; ++it)
+        {
+            if (it->second == selBB)
+                break;
+        }
+        assert (it != ie && "basic block absent");
+        firstIR = llvm::dyn_cast<llvm::Instruction>(toMatchIRs.at(it->first));
+        ++it; 
+        lastIR = llvm::dyn_cast<llvm::Instruction>(toMatchIRs.at((it != ie)? it->first - 1: toMatchIRs.size() - 1));
+    }
+    bool wholeStmtHasTerminators () const 
+    {
+        int instpos = toMatchIRs.size()-1;
+        int bbind=bbStartPosToOrigBB.size()-1;
+        do
+        {
+            if (auto *term = llvm::dyn_cast<llvm::TerminatorInst>(toMatchIRs[instpos]))
+            {
+                if (term->getNumSuccessors() == 0)  // case for return and unreachable...
+                    return true;
+                for (auto i=0; i<term->getNumSuccessors();i++)
+                {
+                    llvm::BasicBlock *bb = term->getSuccessor(i);
+                    bool notfound = true;
+                    for (auto &pit: bbStartPosToOrigBB)
+                        if (bb == pit.second)
+                            notfound = false;
+                    if (notfound)
+                        return true;
+                }
+            }
+            instpos = bbStartPosToOrigBB[bbind--].first - 1;    //Index of last instruction of basic block before that at position bbind
+        } while (bbind>=0);
+        return false;
+    }
+    
+    
+    /**
+     * \brief Finds the position of an IR instruction in a list of IRs through sequential search from a starting position
+     * @param pos is the starting point of the search
+     * @param firstCheckBefore is the flag to decide whether we first search before (true) @param pos or after (false)
+     * @return the position of the searched IR instruction
+     */
+    int depPosofPos (llvm::Value *irinst, int pos, bool firstCheckBefore=true) const
+    {
+        int findpos;
+        if (firstCheckBefore)
+        {
+            findpos = pos-1;
+            for (; findpos>=0; findpos--)
+                if (toMatchIRs[findpos] == irinst)
+                    break;
+            if (findpos<0)
+            {
+                for (findpos=pos+1; findpos<toMatchIRs.size(); findpos++)
+                    if (toMatchIRs[findpos] == irinst)
+                        break;
+                if (! (toMatchIRs.size() > findpos))
+                {
+                    for (auto *tmpins: toMatchIRs)
+                        llvm::dyn_cast<llvm::Instruction>(tmpins)->dump();
+                    llvm::errs() << "Pos = " << pos << "\n";
+                    assert (false/*toMatchIRs.size() > findpos*/ && "Impossible error (before)");
+                }
+            }
+        }
+        else
+        {
+            findpos = pos+1;
+            for (; findpos<toMatchIRs.size(); findpos++)
+                if (toMatchIRs[findpos] == irinst)
+                    break;
+            if (findpos>=toMatchIRs.size())
+            {
+                for (findpos=pos-1; findpos>=0; findpos--)
+                    if (toMatchIRs[findpos] == irinst)
+                        break;
+                if (! (findpos>=0))
+                {
+                    for (auto *tmpins: toMatchIRs)
+                        llvm::dyn_cast<llvm::Instruction>(tmpins)->dump();
+                    llvm::errs() << "Pos = " << pos << "\n";
+                    assert (false/*findpos>=0*/ && "Impossible error (after)");
+                }
+            }
+        }
+        return findpos;
+    }
+};  //~ struct MatchStmtIR
+
 
 /**
  * \brief This class represent the list of mutants of a statement, generated by mutation op, these are not yet attached to the module. Once attached, update @see MutantList
  */
 struct MutantsOfStmt
 {
+    /// This tsruct represent the toMatchMutant (Irs BB for the mutants and the corresponding BB in original)
+    struct MutantStmtIR
+    {
+        std::unordered_map<llvm::BasicBlock *, std::vector<llvm::BasicBlock *>> origBBToMutBB;    // No need for ordered      //Vector for muBB because an IR in orig can be give a mutant having many BB in mutant (ex: a&b --> a&&b)
+        std::vector<llvm::Value *> toMatchIRsMutClone;  //Help for fast element access by position
+        
+        //delete the basic block of the mutant (mutant is equivalent)
+        void deleteContainedMutant()
+        {
+            for (auto it: origBBToMutBB)
+                for (auto *bb: it.second)
+                    delete bb;
+            clear();
+        }
+        inline void clear() {origBBToMutBB.clear(); toMatchIRsMutClone.clear();}
+        inline bool empty() {return origBBToMutBB.empty() && toMatchIRsMutClone.empty();}
+        inline void add(llvm::BasicBlock *orig, std::vector<llvm::BasicBlock *> mut)
+        {
+            assert (origBBToMutBB.count(orig) == 0 && "orig already inserted");
+            origBBToMutBB[orig] = mut;
+        }
+        inline std::vector<llvm::BasicBlock *> &getMut(llvm::BasicBlock *orig)
+        {
+            return origBBToMutBB[orig];
+        }
+        inline llvm::Value * getIRAt (unsigned ind/*0,1,...*/) const
+        {
+            return toMatchIRsMutClone.at(ind);
+        }
+        inline void insertIRAt (unsigned ind, llvm::Value *irVal)      //TODO: fix for the case of empty middle block
+        {
+            llvm::Instruction *instAtInd = nullptr;
+            if (toMatchIRsMutClone.size() > ind) 
+            {
+                instAtInd = llvm::dyn_cast<llvm::Instruction>(toMatchIRsMutClone[ind]);
+                // XXX: Make Sure that the middle basic block is never empty (according to 'toMatchIRsMutClone'). Else can't know where to insert. Only delete stmt can have it empty;
+                llvm::dyn_cast<llvm::Instruction>(irVal)->insertBefore(instAtInd);
+            }
+            else
+            {   //last position of toMatchIRsMutClone, which cannot be empty since it is cloned from original
+                assert (origBBToMutBB.size() >= 1 && "must have at least one BB here");
+                llvm::BasicBlock *bb;
+                if (toMatchIRsMutClone.empty())
+                    bb = origBBToMutBB.begin()->second.front();
+                else
+                    bb = llvm::dyn_cast<llvm::Instruction>(toMatchIRsMutClone.back())->getParent();   //origBBToMutBB.begin()->second.front();
+                    
+                bb->getInstList().push_back(llvm::dyn_cast<llvm::Instruction>(irVal));
+            }
+            
+            toMatchIRsMutClone.insert(toMatchIRsMutClone.begin() + ind, irVal);
+        }
+        inline void insertIRAt (unsigned ind, std::vector<llvm::Value *> const &irVals)  //TODO: fix for the case of empty middle block
+        {
+            llvm::Instruction *instAtInd = nullptr;
+            if (toMatchIRsMutClone.size() > ind) 
+            {
+                instAtInd = llvm::dyn_cast<llvm::Instruction>(toMatchIRsMutClone[ind]);
+                // XXX: Make Sure that the middle basic block is never empty (according to 'toMatchIRsMutClone'). Else can't know where to insert. Only delete stmt can have it empty;
+                for (auto *inst: irVals)
+                    llvm::dyn_cast<llvm::Instruction>(inst)->insertBefore(instAtInd);
+            }
+            else
+            {   //last position of toMatchIRsMutClone, which cannot be empty since it is cloned from original
+                assert (origBBToMutBB.size() >= 1 && "must have at least one BB here");
+                llvm::BasicBlock *bb;
+                if (toMatchIRsMutClone.empty())
+                    bb = origBBToMutBB.begin()->second.front();
+                else
+                    bb = llvm::dyn_cast<llvm::Instruction>(toMatchIRsMutClone.back())->getParent();   //origBBToMutBB.begin()->second.front();
+                    
+                for (auto *inst: irVals)
+                   bb->getInstList().push_back(llvm::dyn_cast<llvm::Instruction>(inst));
+            }
+            
+            toMatchIRsMutClone.insert(toMatchIRsMutClone.begin() + ind, irVals.begin(), irVals.end());
+        }
+        inline void eraseIRAt (unsigned ind) 
+        {
+            if (!llvm::isa<llvm::Constant>(toMatchIRsMutClone[ind]))
+                llvm::dyn_cast<llvm::Instruction>(toMatchIRsMutClone[ind])->eraseFromParent();
+            toMatchIRsMutClone.erase(toMatchIRsMutClone.begin() + ind);;
+        }
+        void setToEmptyStmtOf(MatchStmtIR const &toMatch, ModuleUserInfos const &MI)
+        {
+            assert (empty() && "already have some data, first clear it");
+            for (auto i=0;i<toMatch.getNumBB();i++)
+                origBBToMutBB[toMatch.getBBAt(i)] = std::vector<llvm::BasicBlock *>({llvm::BasicBlock::Create(MI.getContext())});
+        }
+        
+        /**
+         * \brief Clone a statement into a new one. The structural relation betwenn IRs in original is kept
+         * \detail Assumes that the IRs instructions in stmtIR have same order as the initial original IR code
+         * @param toMatch is the list of IRs representing the statement to clone.
+         */
+        void setToCloneStmtIROf (MatchStmtIR const &toMatch, ModuleUserInfos const &MI)
+        {
+            assert (empty() && "already have some data, first clear it before cloning into");
+            llvm::SmallDenseMap<llvm::Value *, llvm::Value *> pointerMap;
+            for (llvm::Value * I: toMatch.toMatchIRs)
+            { 
+                //clone instruction
+                llvm::Value * newI = llvm::dyn_cast<llvm::Instruction>(I)->clone();
+                
+                //set name
+                //if (I->hasName())
+                //    newI->setName((I->getName()).str()+"_Mut0");
+                
+                if (! pointerMap.insert(std::pair<llvm::Value *, llvm::Value *>(I, newI)).second)
+                {
+                    assert(false && "Error (Mutation::getOriginalStmtBB): inserting an element already in the map\n");
+                }
+            };
+            for (llvm::Value * I: toMatch.toMatchIRs)
+            {
+                for(unsigned opos = 0; opos < llvm::dyn_cast<llvm::User>(I)->getNumOperands(); opos++)
+                {
+                    auto oprd = llvm::dyn_cast<llvm::User>(I)->getOperand(opos);
+                    if (llvm::isa<llvm::Instruction>(oprd))
+                    {
+                        if (auto newoprd = pointerMap.lookup(oprd))    //TODO:Double check the use of lookup for this map
+                        {
+                            llvm::dyn_cast<llvm::User>(pointerMap.lookup(I))->setOperand(opos, newoprd);  //TODO:Double check the use of lookup for this map
+                        }
+                        else
+                        {
+                            bool fail = false;
+                            switch (opos)
+                            {
+                                case 0:
+                                    {
+                                        if (llvm::isa<llvm::StoreInst>(I))
+                                            fail = true;
+                                        break;
+                                    }
+                                case 1:
+                                    {
+                                        if (llvm::isa<llvm::LoadInst>(I))
+                                            fail = true;
+                                        break;
+                                    }
+                                default:
+                                    fail = true;
+                            }
+                            
+                            if (fail)
+                            {
+                                llvm::errs() << "Error (Mutation::getOriginalStmtBB): lookup an element not in the map -- "; 
+                                llvm::dyn_cast<llvm::Instruction>(I)->dump();
+                                assert(false && "");
+                            }
+                        }
+                    }
+                }
+                toMatchIRsMutClone.push_back(llvm::dyn_cast<llvm::Instruction>(pointerMap.lookup(I)));   //TODO:Double check the use of lookup for this map
+            }
+            
+            //Now fix the basic block successors and create mutant BBs
+            ///Create basic blocks
+            for (auto &spbbP: toMatch.bbStartPosToOrigBB)
+                origBBToMutBB[spbbP.second] = std::vector<llvm::BasicBlock *>({llvm::BasicBlock::Create(MI.getContext())});
+
+            int instpos = toMatchIRsMutClone.size()-1;
+            int bbind=toMatch.bbStartPosToOrigBB.size()-1;
+            do
+            {
+                if (auto *term = llvm::dyn_cast<llvm::TerminatorInst>(toMatchIRsMutClone[instpos]))
+                {
+                    for (auto i=0; i<term->getNumSuccessors();i++)
+                    {
+                        llvm::BasicBlock *bb = term->getSuccessor(i);
+                        if (origBBToMutBB.count(bb) > 0)
+                        {
+                            term->setSuccessor(i, origBBToMutBB[bb].front());
+                        }
+                    }
+                }
+                
+                //Insert the instructions
+                llvm::BasicBlock *workBB = origBBToMutBB[toMatch.bbStartPosToOrigBB[bbind].second].front();
+                for (auto ipos = toMatch.bbStartPosToOrigBB[bbind].first; ipos <= instpos; ipos++)
+                {
+                    workBB->getInstList().push_back(llvm::dyn_cast<llvm::Instruction>(toMatchIRsMutClone[ipos]));  
+                }
+                instpos = toMatch.bbStartPosToOrigBB[bbind--].first - 1;    //Index of last instruction of basic block before that at position bbind
+            } while (bbind>=0);
+            
+            /*// Fix Phi Nodes with non-constant incoming values (those with constant incoming values are handled with proxy BBs). @note: PHI Node are always the first appearing instruction of their contained Basic Block
+            for (auto ind=0; ind<toMatch.bbStartPosToOrigBB.size(); ind++)
+            {
+                llvm::PHINode *phiCand;
+                auto ii = toMatch.bbStartPosToOrigBB[ind].first;  //first inst of this stmt in the BB at ind
+                auto ilast = (ind+1 == toMatch.bbStartPosToOrigBB.size())? toMatchIRsMutClone.size(): toMatch.bbStartPosToOrigBB[ind+1].first;
+                while (ii<ilast && (phiCand = llvm::dyn_cast<llvm::PHINode>(toMatchIRsMutClone[ii])))
+                {
+                    for (auto pind=0; pind < phiCand->getNumIncomingValues(); ++pind)
+                    {
+                        if (! llvm::isa<llvm::Constant>(phiCand->getIncomingValue(pind)))
+                        {
+                            llvm::BasicBlock *bb = phiCand->getIncomingBlock(pind);
+                            assert (origBBToMutBB.count(bb) > 0 && "Error: Incoming Basic Block of PHI Node for non-constant value is not in toMatch (but must be)!");
+                            phiCand->setIncomingBlock(pind, origBBToMutBB[bb].front());
+                        }
+                    }
+                    ii++;
+                }
+            }*/
+            
+        }   //~setToCloneStmtIROf
+    };
+    
     struct RawMutantStmt
     {
-        std::vector<llvm::Value *> mutantStmtIR;
+        MutantStmtIR mutantStmtIR;
         
         //Mutant type
         std::string typeName;
@@ -425,36 +756,132 @@ struct MutantsOfStmt
         // Location infos
         std::vector<unsigned> irRelevantPos;  /// The statement mutation operation object sets this to the position in the original's (toMatch) vector (can use @seeDoReplaceUseful 's relevantIRPos)
         
-        RawMutantStmt(std::vector<llvm::Value *> const & toMatch, std::vector<llvm::Value *> const &toMatchClone, llvmMutationOp::MutantReplacors const &repl, std::vector<unsigned> const &relevantPos)
+        //Mutant id
+        unsigned id;
+        
+        RawMutantStmt(/*std::vector<llvm::Value *> const & toMatch, */MutantStmtIR const &toMatchMutant, llvmMutationOp::MutantReplacors const &repl, std::vector<unsigned> const &relevantPos)
         {
-            mutantStmtIR = toMatchClone;
+            mutantStmtIR = toMatchMutant;
             typeName = repl.getMutOpName();
             irRelevantPos = relevantPos;
+            id = 0;     //initialize to invalid mutant id value. will be modified during merging mutant into Module
         }
     };
     std::vector<RawMutantStmt> results;
     
     /**
      * \brief This method add a new mutant statement.
-     * \detail It computes the corresponding Weak mutation using difference between @param toMatch and @param toMatchClone
+     * \detail It computes the corresponding Weak mutation using difference between @param toMatch and @param toMatchMutant
      * @param toMatch is the original Stmt (list of IRs)
-     * @param toMatchClone is the mutant Stmt (list of IRs)
-     * @param repl is the mutation replacer that was used to tranform @param toMatch and obtain @param toMatchClone  (list of IRs)
+     * @param toMatchMutant is the mutant Stmt (list of IRs)
+     * @param repl is the mutation replacer that was used to tranform @param toMatch and obtain @param toMatchMutant  (list of IRs)
      * @param relevantPos is the list of indices in @param toMatch of the IRs modified by the mutation (relevant to mutation)
      */
-    inline void add (std::vector<llvm::Value *> const & toMatch, std::vector<llvm::Value *> const &toMatchClone, llvmMutationOp::MutantReplacors const &repl, std::vector<unsigned> const &relevantPos)
+    inline void add (/*std::vector<llvm::Value *> const & toMatch, */MutantStmtIR const &toMatchMutant, llvmMutationOp::MutantReplacors const &repl, std::vector<unsigned> const &relevantPos)
     {
-        results.emplace_back(toMatch, toMatchClone, repl, relevantPos);
+        results.emplace_back(/*toMatch, */toMatchMutant, repl, relevantPos);
     }
     
     inline void clear() {results.clear();}
     
     inline unsigned getNumMuts() {return results.size();}
     
-    inline const std::vector<llvm::Value *> & getMutantStmtIR(unsigned index) {return results[index].mutantStmtIR;}
+    inline MutantStmtIR & getMutantStmtIR(unsigned index) {return results[index].mutantStmtIR;}
     inline const std::string & getTypeName(unsigned index) {return results[index].typeName;}
     inline const std::vector<unsigned> & getIRRelevantPos(unsigned index) {return results[index].irRelevantPos;}
-};
+    inline void setMutID (unsigned index, unsigned id) {assert(results[index].id == 0 && "setting ID twice"); results[index].id = id;}
+    inline unsigned getMutID (unsigned index) {assert(results[index].id != 0 && "getting invalid ID"); return results[index].id;}
+    inline bool isEmpty() {return (getNumMuts() == 0);}
+}; //~struct MutantsOfStmt
+
+
+/**
+ * \brief This class represent a finest src level statement (all connected user- uses on the registers level)
+ */
+struct StatementSearch
+{
+    
+#if (LLVM_VERSION_MAJOR <= 3) && (LLVM_VERSION_MINOR < 5)
+    std::unordered_set<llvm::Value *> visited;        // No need for ordered
+#else
+    llvm::SmallPtrSet<llvm::Value *, 5> visited;            // No need for ordered
+#endif
+    //Used to maintain same order of instruction as originally when extracting source statement
+    int stmtIRcount;
+    
+    MatchStmtIR matchStmtIR;
+    
+    /// \brief will contain the mutants BBs generated for this stmt
+    MutantsOfStmt mutantStmt_list;
+    
+    /// \brief Help to check for otomicity of the IRs for this stm in a basic block. using @checkAtomicity()
+    llvm::BasicBlock *atomicityInBB;
+    
+    llvm::BasicBlock *lastBB;
+    
+    void countInc() {stmtIRcount++;}
+    void countDec() {stmtIRcount--;}
+    void checkCountLogic()
+    {
+        if (stmtIRcount <= 0)
+        {
+            if (stmtIRcount < 0)
+                llvm::errs() << "Error (Mutation::doMutate): 'stmtIRcount' should never be less than 0; Possibly bug in the porgram.\n";
+            else
+                llvm::errs() << "Error (Mutation::doMutate): Instruction appearing multiple times.\n";
+            assert(false);
+        }
+    }
+    
+    inline bool isCompleted ()
+    {
+        return (stmtIRcount == 0 && !matchStmtIR.toMatchIRs.empty());
+    }
+    
+    void checkAtomicityInBB (llvm::BasicBlock *curBB)
+    {
+        if (atomicityInBB == curBB)
+        {
+            llvm::errs() << "Error (Mutation::doMutate): Problem with IR - statements are not atomic (" << stmtIRcount << ").\n";
+            for(auto * rr:matchStmtIR.toMatchIRs) //DEBUG
+                llvm::dyn_cast<llvm::Instruction>(rr)->dump(); //DEBUG
+            assert (false);
+        }
+    }
+    
+    StatementSearch() {clear();}
+    void clear()
+    {
+        matchStmtIR.clear();
+        visited.clear();
+        stmtIRcount=0;
+        atomicityInBB = lastBB = nullptr;
+    }
+    
+    bool isVisited(llvm::Value *v) {return (visited.count(v) > 0);}
+    bool visit (llvm::Value *v) {return visited.insert(v).second;} //if not yet visited, insert into 'visited' set and return true. else return false.
+    
+    void appendIRToStmt (llvm::BasicBlock *bb, llvm::Value *ir, unsigned posInFunc)
+    {
+        matchStmtIR.toMatchIRs.push_back(ir);
+        matchStmtIR.posIRsInOrigFunc.push_back(posInFunc);
+        if (lastBB != bb)
+        {
+            //assert ()
+            matchStmtIR.bbStartPosToOrigBB.emplace_back(matchStmtIR.toMatchIRs.size() - 1, bb);     // -1 because we just appendend and inst and it should be its pos
+            lastBB = bb;
+        }
+    }
+    
+    ///When switchingto a statement for search, make sure it is atomic
+    static StatementSearch * switchFromTo(llvm::BasicBlock *curBB, StatementSearch *stmtFrom, StatementSearch *stmtTo)
+    {
+        if (stmtFrom)
+            stmtFrom->atomicityInBB = curBB;
+        assert (! stmtTo->isCompleted() && "Switching to a completed (searching) statement. Should not");
+        return stmtTo;
+    }
+}; //~ struct StatementSearch
 
 /**
  * \brief This class define the final list of all mutant and their informations. @Note: This is increased after each statement mutation and modifed (reduced) during TCE equivalent mutant removal
@@ -491,7 +918,11 @@ struct MutantInfoList
                     std::string tmpSrc = UtilsFunctions::getSrcLoc(I);
                     if (!tmpSrc.empty())
                     {
-                        assert ((srcLevelLoc.empty() || srcLevelLoc == tmpSrc) && "A stmt spawn more than 1 src level line of code");
+                        if (! (srcLevelLoc.empty() || srcLevelLoc.substr(0,srcLevelLoc.rfind(":")-1) == tmpSrc.substr(0,tmpSrc.rfind(":")-1))) //rfind to remove the column info
+                        {
+                            llvm::errs() << srcLevelLoc << " --- " << tmpSrc <<"\n";
+                            assert (false && "A stmt spawn more than 1 src level line of code");
+                        }
                         if (srcLevelLoc.empty())
                         {
                             srcLevelLoc.assign(tmpSrc);
@@ -504,6 +935,7 @@ struct MutantInfoList
     };
     
     std::vector<MutantInfo> mutants;
+    std::unordered_set<unsigned> containedMutsIDs;
     
     /**
      * \brief This method add a new mutant's info.
@@ -517,8 +949,13 @@ struct MutantInfoList
      */
     void add (unsigned mid, std::vector<llvm::Value *> const &toMatch, std::string const &mName, std::vector<unsigned> const &relpos, llvm::Function *curFunc, std::vector<unsigned> const &  toMatchIRPosInFunc)
     {
+        if (wasAdded(mid))
+            return;
         mutants.emplace_back(mid, toMatch, mName, relpos, curFunc, toMatchIRPosInFunc);
+        containedMutsIDs.insert(mid);
     }
+    
+    bool wasAdded (unsigned mid) {return (containedMutsIDs.count(mid) > 0);}
     
     /**
      *  \brief remove the TCE's equivalent and duplicate mutants
@@ -542,6 +979,7 @@ struct MutantInfoList
         for (auto it = posToDel.rbegin(), ie = posToDel.rend(); it != ie; ++it)
         {
             assert (mutants.at(*it).id == (1 + (*it)) && "Problem with the order of mutants, or should delete last element first");
+            containedMutsIDs.erase(mutants.at(*it).id);
             mutants.erase (mutants.begin() + (*it));
         }
     }

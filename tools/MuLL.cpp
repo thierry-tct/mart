@@ -203,6 +203,15 @@ int main (int argc, char ** argv)
     
     // @Mutation
     Mutation mut(*moduleM, mutantConfigfile, dumpMutantsCallback, mutantScopeJsonfile ? mutantScopeJsonfile : "");
+    
+    // Keep Phi2Mem-preprocessed module
+#if (LLVM_VERSION_MAJOR <= 3) && (LLVM_VERSION_MINOR < 5)
+    std::unique_ptr<llvm::Module> preProPhi2MemModule (llvm::CloneModule(moduleM));
+#else
+    std::unique_ptr<llvm::Module> preProPhi2MemModule = llvm::CloneModule(moduleM);
+#endif
+    
+    // do mutation
     if (! mut.doMutate())
     {
         llvm::errs() << "\nMUTATION FAILED!!\n\n";
@@ -229,6 +238,10 @@ int main (int argc, char ** argv)
     if (!outFile.substr(outFile.length()-3, 3).compare(".ll") || !outFile.substr(outFile.length()-3, 3).compare(".bc"))
         outFile.replace(outFile.length()-3, 3, "");
     
+    //@ Store Phi2Mem-preprocessed module with the same name of the input file
+    if (! writeIRObj::writeIR (preProPhi2MemModule.get(), outputDir+"/"+outFile+".bc"))
+        assert (false && "Failed to output Phi-preprocessed IR file");
+        
     //@ Print pre-TCE meta-mutant
     if (dumpPreTCEMeta)
     {

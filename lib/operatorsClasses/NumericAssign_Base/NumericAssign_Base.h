@@ -25,9 +25,9 @@ class NumericAssign_Base: public GenericMuOpBase
     inline virtual bool valTypeMatched(llvm::Type * type) = 0;
     
   public:
-    virtual bool matchIRs (std::vector<llvm::Value *> const &toMatch, llvmMutationOp const &mutationOp, unsigned pos, MatchUseful &MU, ModuleUserInfos const &MI) 
+    virtual bool matchIRs (MatchStmtIR const &toMatch, llvmMutationOp const &mutationOp, unsigned pos, MatchUseful &MU, ModuleUserInfos const &MI) 
     {
-        llvm::Value *val = toMatch.at(pos);
+        llvm::Value *val = toMatch.getIRAt(pos);
         if (auto *store = llvm::dyn_cast<llvm::StoreInst>(val))
         {
             if (valTypeMatched (store->getOperand(0)->getType()) && checkCPTypeInIR (mutationOp.getCPType(1), store->getOperand(0)))  
@@ -37,7 +37,7 @@ class NumericAssign_Base: public GenericMuOpBase
                 //if (llvm::isa<llvm::Constant>(store->getOperand(1)) || llvm::isa<llvm::AllocaInst>(store->getOperand(1)) || llvm::isa<llvm::GlovalValue>(store->getOperand(1)))  //ptr oprd (oprd 1)
                 ptr_mu->appendHLOprdsSource(pos, 1);
                 //else
-                //    ptr_mu->appendHLOprdsSource(depPosofPos(toMatch, store->getOperand(1), pos, true));
+                //    ptr_mu->appendHLOprdsSource(toMatch.depPosofPos(store->getOperand(1), pos, true));
                 
                 if (llvm::isa<llvm::Constant>(store->getOperand(0)))    //val oprd (oprd 2)
                 {
@@ -53,7 +53,7 @@ class NumericAssign_Base: public GenericMuOpBase
                     }
                     else
                     {
-                        unsigned valncp = depPosofPos(toMatch, store->getOperand(0), pos, true);
+                        unsigned valncp = toMatch.depPosofPos(store->getOperand(0), pos, true);
                         ptr_mu->appendHLOprdsSource(valncp);
                         ptr_mu->setHLReturningIRPos(valncp);
                     }
@@ -65,9 +65,9 @@ class NumericAssign_Base: public GenericMuOpBase
         return (MU.first() != MU.end());
     }
     
-    void prepareCloneIRs (std::vector<llvm::Value *> const &toMatch, unsigned pos,  MatchUseful const &MU, llvmMutationOp::MutantReplacors const &repl, DoReplaceUseful &DRU, ModuleUserInfos const &MI)
+    void prepareCloneIRs (MatchStmtIR const &toMatch, unsigned pos,  MatchUseful const &MU, llvmMutationOp::MutantReplacors const &repl, DoReplaceUseful &DRU, ModuleUserInfos const &MI)
     {
-        cloneStmtIR (toMatch, DRU.toMatchClone);
+        DRU.toMatchMutant.setToCloneStmtIROf(toMatch, MI);
         llvm::Value * oprdptr[]={nullptr, nullptr};
         unsigned storePos = MU.getRelevantIRPosOf(0);
         unsigned hlRetPos = MU.getHLReturningIRPos();
@@ -75,23 +75,23 @@ class NumericAssign_Base: public GenericMuOpBase
         llvm::Value *load = nullptr;
         for (int i=0; i < repl.getOprdIndexList().size(); i++)
         {
-            if (!(oprdptr[i] = createIfConst (MU.getHLOperandSource(1/*1 to select val operand*/, DRU.toMatchClone)->getType(), repl.getOprdIndexList()[i])))   
+            if (!(oprdptr[i] = createIfConst (MU.getHLOperandSource(1/*1 to select val operand*/, DRU.toMatchMutant)->getType(), repl.getOprdIndexList()[i])))   
             {
                 if (repl.getOprdIndexList()[i] == 0)    // lvalue
                 {
                     llvm::IRBuilder<> builder(MI.getContext());
-                    load = builder.CreateAlignedLoad(MU.getHLOperandSource(0/*1st HL Oprd*/, DRU.toMatchClone), 
-                                                                llvm::dyn_cast<llvm::StoreInst>(DRU.toMatchClone[storePos])->getAlignment());
+                    load = builder.CreateAlignedLoad(MU.getHLOperandSource(0/*1st HL Oprd*/, DRU.toMatchMutant), 
+                                                                llvm::dyn_cast<llvm::StoreInst>(DRU.toMatchMutant.getIRAt(storePos))->getAlignment());
                     oprdptr[i] = load;
                 }
                 else          //rvalue
-                    oprdptr[i] = MU.getHLOperandSource(repl.getOprdIndexList()[i]/*1*/, DRU.toMatchClone);
+                    oprdptr[i] = MU.getHLOperandSource(repl.getOprdIndexList()[i]/*1*/, DRU.toMatchMutant);
             }
         }
         
-        if (load)   //if the lvalue was there, load have been created. We add now because adding in the loop will modify toMatchClone and bias other OprdSources
+        if (load)   //if the lvalue was there, load have been created. We add now because adding in the loop will modify toMatchMutant and bias other OprdSources
         {
-            DRU.toMatchClone.insert(DRU.toMatchClone.begin() + storePos, load);
+            DRU.toMatchMutant.insertIRAt(storePos, load);
             if (storePos == hlRetPos)   //When a constant is the rvalue of assignment
                 hlRetPos++;
             storePos++;

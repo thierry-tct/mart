@@ -27,6 +27,8 @@
 
 #include "llvm/IR/DataLayout.h"
 
+//#include "llvm/IR/InstrTypes.h"
+
 #include "../usermaps.h"
 #include "../typesops.h"
 
@@ -91,12 +93,12 @@ struct MatchUseful
     }
     
     inline void appendHLOprdsSource (unsigned pos, int ir_oprdInd = -1) {highLevelOprdsSources.push_back(std::pair<unsigned/*pos*/, int/*oprd index*/>(pos, ir_oprdInd));}
-    inline llvm::Value * getHLOperandSource (unsigned hlOprdID, std::vector<llvm::Value *> &vecIRs) const
+    inline llvm::Value * getHLOperandSource (unsigned hlOprdID, MutantsOfStmt::MutantStmtIR &mutIRs) const
     {
         if (highLevelOprdsSources.at(hlOprdID).second < 0)
-            return vecIRs.at(highLevelOprdsSources.at(hlOprdID).first);
+            return mutIRs.getIRAt(highLevelOprdsSources.at(hlOprdID).first);
         else
-            return llvm::dyn_cast<llvm::User>(vecIRs.at(highLevelOprdsSources.at(hlOprdID).first))->getOperand(highLevelOprdsSources.at(hlOprdID).second);
+            return llvm::dyn_cast<llvm::User>(mutIRs.getIRAt(highLevelOprdsSources.at(hlOprdID).first))->getOperand(highLevelOprdsSources.at(hlOprdID).second);
     }
     inline int getHLOperandSourceIndexInIR (unsigned hlOprdID) const {return highLevelOprdsSources.at(hlOprdID).second;}
     inline void appendRelevantIRPos (int pos) {relevantIRPos.push_back(pos);}
@@ -125,7 +127,7 @@ struct MatchUseful
 struct DoReplaceUseful
 {
   protected:
-    // \brief The data for each field bellow is computed w.r.t toMatchClone, and not the original (toMatch)
+    // \brief The data for each field bellow is computed w.r.t toMatchMutant, and not the original (toMatch)
     std::vector<llvm::Value *> highLevelOprds;  
     //llvm::Value * highLevelReturningIR;
     int posHighLevelReturningIR;
@@ -135,7 +137,7 @@ struct DoReplaceUseful
     int retIntoOprdIndex;  //For constant replacement and some other that need dumb
   
   public:  
-    std::vector<llvm::Value *> toMatchClone;
+    MutantsOfStmt::MutantStmtIR toMatchMutant;
     std::vector<unsigned> posOfIRtoRemove;
     //enum replacementModes replaceMode;
 
@@ -150,7 +152,7 @@ struct DoReplaceUseful
         posReturnIntoIR = -1;
         retIntoOprdIndex = -1;
         
-        toMatchClone.clear();
+        toMatchMutant.clear();
         posOfIRtoRemove.clear();
         //replaceMode = rmVAL;
     }
@@ -192,7 +194,7 @@ class GenericMuOpBase
      *               It can also be used when the matcher need to match a complex pattern that require using different operations' matchers.
      * @param MI is the parameter containing the global information.
      */
-    virtual bool matchIRs (std::vector<llvm::Value *> const &toMatch, llvmMutationOp const &mutationOp, unsigned pos, MatchUseful &MU, ModuleUserInfos const &MI) = 0;
+    virtual bool matchIRs (MatchStmtIR const &toMatch, llvmMutationOp const &mutationOp, unsigned pos, MatchUseful &MU, ModuleUserInfos const &MI) = 0;
     
     /**  A pure virtual member.
      * \brief make the clones that will be mutated
@@ -202,7 +204,7 @@ class GenericMuOpBase
      * @param DRU is the structure containing the information that will be needed to call @see doReplacement(). The information can also be useful for complex matches.
      * @param MI is the parameter containing the global information.
      */
-    virtual void prepareCloneIRs (std::vector<llvm::Value *> const &toMatch, unsigned pos,  MatchUseful const &MU, llvmMutationOp::MutantReplacors const &repl, DoReplaceUseful &DRU, ModuleUserInfos const &MI) = 0;
+    virtual void prepareCloneIRs (MatchStmtIR const &toMatch, unsigned pos,  MatchUseful const &MU, llvmMutationOp::MutantReplacors const &repl, DoReplaceUseful &DRU, ModuleUserInfos const &MI) = 0;
     
     /**  A pure virtual member
      * \brief create and operation using the passed operands. For thos that match only, report an error.
@@ -222,13 +224,13 @@ class GenericMuOpBase
      * @param isDeleted is the flag that help to know wheter the statement has already been deleted by previous mutation op. Changed from false to true after deletion occurs.
      * @param MI is the parameter containing the global information.
      */
-    virtual void matchAndReplace (std::vector<llvm::Value *> const &toMatch, llvmMutationOp const &mutationOp, MutantsOfStmt &resultMuts, bool &isDeleted, ModuleUserInfos const &MI)
+    virtual void matchAndReplace (MatchStmtIR const &toMatch, llvmMutationOp const &mutationOp, MutantsOfStmt &resultMuts, bool &isDeleted, ModuleUserInfos const &MI)
     {
         MatchUseful mu;
         DoReplaceUseful dru;
         int pos = -1;
         bool stmtDeleted = false;
-        for (auto *val:toMatch)
+        for (auto *val:toMatch.getIRList())
         {
             pos++;
             if (matchIRs (toMatch, mutationOp, pos, mu, MI))
@@ -252,7 +254,7 @@ class GenericMuOpBase
                             {
                                 llvm::errs() << "didn't set 'OrigRelevantIRPos': " << e.what();
                             }
-                            doReplacement (toMatch, resultMuts, repl, dru.toMatchClone, dru.posOfIRtoRemove, dru.getHLOprdOrNull(0), dru.getHLOprdOrNull(1), 
+                            doReplacement (toMatch, resultMuts, repl, dru.toMatchMutant, dru.posOfIRtoRemove, dru.getHLOprdOrNull(0), dru.getHLOprdOrNull(1), 
                                             dru.getHLReturningIRPos(), dru.getOrigRelevantIRPos(), MI, dru.getHLReturnIntoIRPos(), dru.getHLReturnIntoOprdIndex());
                             
                             //make sure to clear 'dru' for the next replcement
@@ -266,75 +268,18 @@ class GenericMuOpBase
             }
         }
     }
+    
+    /**
+     * \brief Thismethod is useful to help filter before hand the operation that can never be matched in a stmt. overload this in the operator classes.
+     * @return the list of instruction opcodes that are required to be present in order to match for an operator. EX: for integer "i++," at least 'load', 'add', 'store' must be present.
+     * thust the method will return std::vector<unsigned>({llvm::Instruction::Load, llvm::Instruction::Add, llvm::Instruction::Store}). @Note: the order do not matter.
+     */
+    virtual std::vector<unsigned> getMinIRInstructionsToBeMatched ()
+    {
+        return std::vector<unsigned>();
+    }
   
   protected:
-    /**
-     * \brief Clone a statement into a new one. The structural relation betwenn IRs in original is kept
-     * \detail Assumes that the IRs instructions in stmtIR have same order as the initial original IR code
-     * @param stmtIR is the list of IRs representing the statement to clone.
-     * @param resultIR is the list of IRs representing the clones stmt.
-     */
-    void cloneStmtIR (std::vector<llvm::Value *> const &stmtIR, std::vector<llvm::Value *> &resultIR)
-    {
-        llvm::SmallDenseMap<llvm::Value *, llvm::Value *> pointerMap;
-        for (llvm::Value * I: stmtIR)
-        { 
-            //clone instruction
-            llvm::Value * newI = llvm::dyn_cast<llvm::Instruction>(I)->clone();
-            
-            //set name
-            //if (I->hasName())
-            //    newI->setName((I->getName()).str()+"_Mut0");
-            
-            if (! pointerMap.insert(std::pair<llvm::Value *, llvm::Value *>(I, newI)).second)
-            {
-                assert(false && "Error (Mutation::getOriginalStmtBB): inserting an element already in the map\n");
-            }
-        };
-        for (llvm::Value * I: stmtIR)
-        {
-            for(unsigned opos = 0; opos < llvm::dyn_cast<llvm::User>(I)->getNumOperands(); opos++)
-            {
-                auto oprd = llvm::dyn_cast<llvm::User>(I)->getOperand(opos);
-                if (llvm::isa<llvm::Instruction>(oprd))
-                {
-                    if (auto newoprd = pointerMap.lookup(oprd))    //TODO:Double check the use of lookup for this map
-                    {
-                        llvm::dyn_cast<llvm::User>(pointerMap.lookup(I))->setOperand(opos, newoprd);  //TODO:Double check the use of lookup for this map
-                    }
-                    else
-                    {
-                        bool fail = false;
-                        switch (opos)
-                        {
-                            case 0:
-                                {
-                                    if (llvm::isa<llvm::StoreInst>(I))
-                                        fail = true;
-                                    break;
-                                }
-                            case 1:
-                                {
-                                    if (llvm::isa<llvm::LoadInst>(I))
-                                        fail = true;
-                                    break;
-                                }
-                            default:
-                                fail = true;
-                        }
-                        
-                        if (fail)
-                        {
-                            llvm::errs() << "Error (Mutation::getOriginalStmtBB): lookup an element not in the map -- "; 
-                            llvm::dyn_cast<llvm::Instruction>(I)->dump();
-                            assert(false && "");
-                        }
-                    }
-                }
-            }
-            resultIR.push_back(llvm::dyn_cast<llvm::Instruction>(pointerMap.lookup(I)));   //TODO:Double check the use of lookup for this map
-        }
-    }
     
     /**
      * \brief the method checkCPTypeInIR - "Check Code Part Type In IR" - validate the seen value type match with the expected one.
@@ -426,7 +371,18 @@ class GenericMuOpBase
             }
             else if (type->isIntegerTy())
             {
-                nc = llvm::ConstantInt::get (llvm::dyn_cast<llvm::IntegerType>(type), llvmMutationOp::getConstValueStr(posConstValueMap_POS), /*radix 10*/10);
+                unsigned bitwidth = llvm::dyn_cast<llvm::IntegerType>(type)->getBitWidth();
+                unsigned required = llvm::APInt::getBitsNeeded(llvmMutationOp::getConstValueStr(posConstValueMap_POS), /*radix 10*/10);
+                
+                if (bitwidth >= required)
+                {
+                    nc = llvm::ConstantInt::get (llvm::dyn_cast<llvm::IntegerType>(type), llvmMutationOp::getConstValueStr(posConstValueMap_POS), /*radix 10*/10);
+                }
+                else
+                {
+                    llvm::APInt xx(required, llvmMutationOp::getConstValueStr(posConstValueMap_POS), /*radix 10*/10);
+                    nc = llvm::ConstantInt::get (type->getContext(), xx.trunc(bitwidth));
+                }
             }
             else
             {
@@ -475,59 +431,6 @@ class GenericMuOpBase
     }
     
     /**
-     * \brief Finds the position of an IR instruction in a list of IRs through sequential search from a starting position
-     * @param toMatch is the list of IRs
-     * @param pos is the starting point of the search
-     * @param firstCheckBefore is the flag to decide whether we first search before (true) @param pos or after (false)
-     * @return the position of the searched IR instruction
-     */
-    int depPosofPos (std::vector<llvm::Value *> const &toMatch, llvm::Value *irinst, int pos, bool firstCheckBefore=true)
-    {
-        int findpos;
-        if (firstCheckBefore)
-        {
-            findpos = pos-1;
-            for (; findpos>=0; findpos--)
-                if (toMatch[findpos] == irinst)
-                    break;
-            if (findpos<0)
-            {
-                for (findpos=pos+1; findpos<toMatch.size(); findpos++)
-                    if (toMatch[findpos] == irinst)
-                        break;
-                if (! (toMatch.size() > findpos))
-                {
-                    for (auto *tmpins: toMatch)
-                        llvm::dyn_cast<llvm::Instruction>(tmpins)->dump();
-                    llvm::errs() << "Pos = " << pos << "\n";
-                    assert (false/*toMatch.size() > findpos*/ && "Impossible error (before)");
-                }
-            }
-        }
-        else
-        {
-            findpos = pos+1;
-            for (; findpos<toMatch.size(); findpos++)
-                if (toMatch[findpos] == irinst)
-                    break;
-            if (findpos>=toMatch.size())
-            {
-                for (findpos=pos-1; findpos>=0; findpos--)
-                    if (toMatch[findpos] == irinst)
-                        break;
-                if (! (findpos>=0))
-                {
-                    for (auto *tmpins: toMatch)
-                        llvm::dyn_cast<llvm::Instruction>(tmpins)->dump();
-                    llvm::errs() << "Pos = " << pos << "\n";
-                    assert (false/*findpos>=0*/ && "Impossible error (after)");
-                }
-            }
-        }
-        return findpos;
-    }
-    
-    /**
      * \brief get the matcher/replacor code for the operation that can delete statement which are block terminators (like return, break, continue)
      * 
      */
@@ -562,16 +465,18 @@ class GenericMuOpBase
      * @param isDeleted is the flag that help to know wheter the statement has already been deleted by previous mutation op. Changed from false to true after deletion occurs, or when undeletable.
      * @param MI is the parameter needed for the call to deletion for terminator stmt.
      */
-    inline void doDeleteStmt (std::vector<llvm::Value *> const &toMatch, llvmMutationOp::MutantReplacors const &repl, MutantsOfStmt &resultMuts, bool &isDeleted, ModuleUserInfos const &MI)
+    inline void doDeleteStmt (MatchStmtIR const &toMatch, llvmMutationOp::MutantReplacors const &repl, MutantsOfStmt &resultMuts, bool &isDeleted, ModuleUserInfos const &MI)
     {
         if (isDeleted)
             return;
-        if (! llvm::dyn_cast<llvm::Instruction>(toMatch.back())->isTerminator())     /// Avoid Deleting if statement's contition or the ret IR.  
+        if (! toMatch.wholeStmtHasTerminators ())     /// Avoid Deleting if statement's contition or the ret IR.  
         {
             std::vector<unsigned> relpos;
-            for (auto i=0; i<toMatch.size();i++)
+            for (auto i=0; i<toMatch.getTotNumIRs();i++)
                 relpos.push_back(i);
-            resultMuts.add(toMatch, std::vector<llvm::Value *>(), repl, relpos); 
+            MutantsOfStmt::MutantStmtIR toMatchMutant;
+            toMatchMutant.setToEmptyStmtOf(toMatch, MI);    
+            resultMuts.add(/*toMatch,  */toMatchMutant, repl, relpos); 
             //isDeleted = true;
         }
         else
@@ -655,8 +560,8 @@ class GenericMuOpBase
     }
     
     /**
-     * \brief Mutate the statement (list if LLVM IR Instructions) 'toMatchClone' a clone of the original statement 'toMatch'
-     * then append the mutated statement (from 'toMatchClone') into 'resultMuts'
+     * \brief Mutate the statement (list if LLVM IR Instructions) 'toMatchMutant' a clone of the original statement 'toMatch'
+     * then append the mutated statement (from 'toMatchMutant') into 'resultMuts'
      * \detail There are two modes: (1) specifying the IR whose value is replaced by the created operation's value (here all its uses become the uses of the created operation). 
      *                                      Such IR is specified with the parameter 'returningIR'. in this case, 'returnIntoIR' must be null and retIntoOprdIndex < 0.
      *                              (2) Specifying the single IR where the value of the created operation is used ('returnIntoIR'). 
@@ -665,18 +570,18 @@ class GenericMuOpBase
      * @param resultMuts is the list of all generated mutants of the original statement 'toMatch'. Note: non attached to original Module.
      * @param repl is the mutation operation to apply in order to generate a corresponding mutant. It contains the operation ID, the list of operands indices and the name of the mutation.
      *              Example: {mSUB, [1,0], xx-yy}, means replace the matched expression (having 2 operands) with SUB and switching the operands.
-     * @param toMatchClone is the semantic equivalent clone of the original statement on which the muattion will take place.
+     * @param toMatchMutant is the semantic equivalent clone of the original statement on which the muattion will take place.
      * @param posOfIRtoRemove is the list position (starting from 0) of the IR instructions that should be removed during mutation. Note: the mutation may add new ones.
-     * @param oprd1_addrOprd is the high level left hand operand for non-pointer operation, and pointer (address) operand for operation on pointers. This in 'toMatchClone'.
-     * @param oprd2_intValOprd is the high level right hand operand for non-pointer operation, and non-pointer (non-address) operand for operation on pointer. This in 'toMatchClone'.
-     * @param returningIRPos is the position of the IR in toMatchClone whose value is the output of the part of the statement that is mutated. Note: Thie can be null if nothing is returned.
+     * @param oprd1_addrOprd is the high level left hand operand for non-pointer operation, and pointer (address) operand for operation on pointers. This in 'toMatchMutant'.
+     * @param oprd2_intValOprd is the high level right hand operand for non-pointer operation, and non-pointer (non-address) operand for operation on pointer. This in 'toMatchMutant'.
+     * @param returningIRPos is the position of the IR in toMatchMutant whose value is the output of the part of the statement that is mutated. Note: Thie can be null if nothing is returned.
      * @param relevantPosInToMatch is the list of IR's indices in @param toMatch which are mutated (relevant to the change: Mutant Location as IR)
      * @param MI is the module information. 
-     * @param returnIntoIRPos when not negative is the pos of the IR in toMatchClone which is the single 'user' of the replacing operation. and the operand index must be passed in retIntoOprd 
+     * @param returnIntoIRPos when not negative is the pos of the IR in toMatchMutant which is the single 'user' of the replacing operation. and the operand index must be passed in retIntoOprd 
      * @param retintoOprdIndex when returnintoIR is not null is the index of the operand where the result of the created mutant computation must go
      */
-    void doReplacement (std::vector<llvm::Value *> const &toMatch, MutantsOfStmt &resultMuts, llvmMutationOp::MutantReplacors const &repl, 
-                std::vector<llvm::Value *> &toMatchClone, std::vector<unsigned> &posOfIRtoRemove, llvm::Value *oprd1_addrOprd, llvm::Value *oprd2_intValOprd, int returningIRPos,
+    void doReplacement (MatchStmtIR const &toMatch, MutantsOfStmt &resultMuts, llvmMutationOp::MutantReplacors const &repl, 
+                 MutantsOfStmt::MutantStmtIR &toMatchMutant, std::vector<unsigned> &posOfIRtoRemove, llvm::Value *oprd1_addrOprd, llvm::Value *oprd2_intValOprd, int returningIRPos,
                 std::vector<unsigned> const &relevantPosInToMatch, ModuleUserInfos const &MI, int returnIntoIRPos=-1, int retIntoOprdIndex=-1)
     {
         std::vector<llvm::Value *> replacement;
@@ -693,12 +598,12 @@ class GenericMuOpBase
             //IRFlags non existant for these verisons
 //#else
         //Copy Flags if binop
-//        if (posOfIRtoRemove.size()==1 && toMatchClone[posOfIRtoRemove.front()] && llvm::isa<llvm::BinaryOperator>(toMatchClone[posOfIRtoRemove.front()]))
+//        if (posOfIRtoRemove.size()==1 && toMatchMutant[posOfIRtoRemove.front()] && llvm::isa<llvm::BinaryOperator>(toMatchMutant[posOfIRtoRemove.front()]))
 //        {
 //            for (auto rinst: replacement)
 //            {
 //                if (auto * risbinop = llvm::dyn_cast<llvm::BinaryOperator>(rinst))
-//                    risbinop->copyIRFlags(toMatchClone[posOfIRtoRemove.front()]);
+//                    risbinop->copyIRFlags(toMatchMutant[posOfIRtoRemove.front()]);
 //            }
 //        }
 //#endif
@@ -708,7 +613,7 @@ class GenericMuOpBase
             assert ((returnIntoIRPos < 0 && retIntoOprdIndex < 0) && "both returningIR and returnIntoIR mode are selected, should only be one!");
             
             replacementInsertPos = returningIRPos + 1;  /// This is used in case posOfIRtoRemove is empty
-            returningIR = toMatchClone[returningIRPos];
+            returningIR = toMatchMutant.getIRAt(returningIRPos);
             
             std::vector<std::pair<llvm::User *, unsigned>> affectedUnO;
             //set uses of the matched IR to corresponding OPRD
@@ -738,18 +643,15 @@ class GenericMuOpBase
         {
             assert ((returnIntoIRPos >= 0 && retIntoOprdIndex >= 0) && "neither returningIR nor returnIntoIR mode are selected, or invalid oprd passed!");
             
-            replacementInsertPos = returnIntoIRPos;     /// This is used in case posOfIRtoRemove is empty
-            returnIntoIR = toMatchClone[returnIntoIRPos];
+            replacementInsertPos = returnIntoIRPos;     /// This is used in case posOfIRtoRemove is empty.   XXX: careful with PHI Nodes (which must be first of their BB)
+            returnIntoIR = toMatchMutant.getIRAt(returnIntoIRPos);
             
             //Check, if createRes and the operand are contants, whether they are equal and abort this mutant
             if (constAndEquals (llvm::dyn_cast<llvm::User>(returnIntoIR)->getOperand(retIntoOprdIndex), createdRes))
             {
                 if (replacement.empty())
                 {
-                    for (auto *ir: toMatchClone)
-                        llvm::dyn_cast<llvm::User>(ir)->dropAllReferences();
-                    for (auto *ir: toMatchClone)
-                        delete ir;
+                    toMatchMutant.deleteContainedMutant();
                     return;             //XXX: cancel this mutation because the resulting mutant is equivalent
                 }
             }
@@ -760,19 +662,17 @@ class GenericMuOpBase
         std::sort(posOfIRtoRemove.begin(), posOfIRtoRemove.end());
         for (int i=posOfIRtoRemove.size()-1; i >= 0; i--)
         {
-            if (toMatchClone[posOfIRtoRemove[i]] && !llvm::isa<llvm::Constant>(toMatchClone[posOfIRtoRemove[i]]))
-                delete toMatchClone[posOfIRtoRemove[i]];
-            toMatchClone.erase(toMatchClone.begin() + posOfIRtoRemove[i]);
+            toMatchMutant.eraseIRAt(posOfIRtoRemove[i]);
         }
         if (! replacement.empty())
         {
             if (! posOfIRtoRemove.empty())
                 replacementInsertPos = posOfIRtoRemove[0];
-            toMatchClone.insert(toMatchClone.begin() + replacementInsertPos, replacement.begin(), replacement.end());
+            toMatchMutant.insertIRAt(replacementInsertPos, replacement);
         }
-        resultMuts.add(toMatch, toMatchClone, repl, relevantPosInToMatch); 
+        resultMuts.add(/*toMatch, */toMatchMutant, repl, relevantPosInToMatch); 
         
-        toMatchClone.clear();
+        toMatchMutant.clear();
     }
 
 };

@@ -31,9 +31,9 @@ class NumericVariable_Base: public MatchOnly_Base
     }*/
     
   public:
-    bool matchIRs (std::vector<llvm::Value *> const &toMatch, llvmMutationOp const &mutationOp, unsigned pos, MatchUseful &MU, ModuleUserInfos const &MI) 
+    bool matchIRs (MatchStmtIR const &toMatch, llvmMutationOp const &mutationOp, unsigned pos, MatchUseful &MU, ModuleUserInfos const &MI) 
     {
-        llvm::Value *val = toMatch.at(pos);
+        llvm::Value *val = toMatch.getIRAt(pos);
         if (llvm::isa<llvm::LoadInst>(val) && varMatched(val))
         {
             MatchUseful *ptr_mu = MU.getNew();
@@ -44,15 +44,15 @@ class NumericVariable_Base: public MatchOnly_Base
         return (MU.first() != MU.end());
     }
     
-    void prepareCloneIRs (std::vector<llvm::Value *> const &toMatch, unsigned pos,  MatchUseful const &MU, llvmMutationOp::MutantReplacors const &repl, DoReplaceUseful &DRU, ModuleUserInfos const &MI)
+    void prepareCloneIRs (MatchStmtIR const &toMatch, unsigned pos,  MatchUseful const &MU, llvmMutationOp::MutantReplacors const &repl, DoReplaceUseful &DRU, ModuleUserInfos const &MI)
     {
-        cloneStmtIR (toMatch, DRU.toMatchClone);
+        DRU.toMatchMutant.setToCloneStmtIROf(toMatch, MI);
         llvm::Value * oprdptr[]={nullptr, nullptr};
         for (int i=0; i < repl.getOprdIndexList().size(); i++)
         {
-            if (!(oprdptr[i] = createIfConst (MU.getHLOperandSource(0, DRU.toMatchClone)->getType(), repl.getOprdIndexList()[i])))
+            if (!(oprdptr[i] = createIfConst (MU.getHLOperandSource(0, DRU.toMatchMutant)->getType(), repl.getOprdIndexList()[i])))
             {
-                oprdptr[i] = MU.getHLOperandSource(0, DRU.toMatchClone);
+                oprdptr[i] = MU.getHLOperandSource(0, DRU.toMatchMutant);
             }
         }
         

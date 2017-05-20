@@ -18,25 +18,25 @@
 class ReturnBreakContinue: public MatchOnly_Base
 {
   public:
-    bool matchIRs (std::vector<llvm::Value *> const &toMatch, llvmMutationOp const &mutationOp, unsigned pos, MatchUseful &MU, ModuleUserInfos const &MI) 
+    bool matchIRs (MatchStmtIR const &toMatch, llvmMutationOp const &mutationOp, unsigned pos, MatchUseful &MU, ModuleUserInfos const &MI) 
     {
         llvm::errs() << "Unsuported yet: 'matchIRs' mathod of ReturnBreakContinue should not be called \n";
         assert (false);
     }
     
-    void prepareCloneIRs (std::vector<llvm::Value *> const &toMatch, unsigned pos,  MatchUseful const &MU, llvmMutationOp::MutantReplacors const &repl, DoReplaceUseful &DRU, ModuleUserInfos const &MI) 
+    void prepareCloneIRs (MatchStmtIR const &toMatch, unsigned pos,  MatchUseful const &MU, llvmMutationOp::MutantReplacors const &repl, DoReplaceUseful &DRU, ModuleUserInfos const &MI) 
     {
         llvm::errs() << "Unsuported yet: 'prepareCloneIRs' mathod of ReturnBreakContinue should not be called \n";
         assert (false);
     }
         
-    void matchAndReplace (std::vector<llvm::Value *> const &toMatch, llvmMutationOp const &mutationOp, MutantsOfStmt &resultMuts, bool &isDeleted, ModuleUserInfos const &MI)
+    void matchAndReplace (MatchStmtIR const &toMatch, llvmMutationOp const &mutationOp, MutantsOfStmt &resultMuts, bool &isDeleted, ModuleUserInfos const &MI)
     {
         static llvm::Function *prevFunc = nullptr;   
         static const llvm::Value *structRetUse = nullptr;
         //Here toMatch should have only one elem for 'br' and for ret, the last elem should be 'ret'
-        llvm::Instruction * retbr = llvm::dyn_cast<llvm::Instruction>(toMatch.back());
-        std::vector<llvm::Value *> toMatchClone;
+        llvm::Instruction * retbr = llvm::dyn_cast<llvm::Instruction>(toMatch.getIRList().back());
+        MutantsOfStmt::MutantStmtIR toMatchMutant;
         assert (mutationOp.getMutantReplacorsList().size() == 1 && "Return, Break and Continue can only be deleted");
 #if (LLVM_VERSION_MAJOR <= 3) && (LLVM_VERSION_MINOR < 5)
         llvm::Function *curFunc = retbr->getParent()->getParent(); 
@@ -61,10 +61,10 @@ class ReturnBreakContinue: public MatchOnly_Base
                 }
             }
         }
-        if(structRetUse && toMatch.size() == 3)     //1: bitcast dests, 2: bitcast src, 3: copy src to dest (llvm.memcpy)
+        if(structRetUse)     //1: bitcast dests, 2: bitcast src, 3: copy src to dest (llvm.memcpy)
         {
             bool found = false;
-            for (auto *ins: toMatch)
+            for (auto *ins: toMatch.getIRList())
                 if (llvm::isa<llvm::BitCastInst>(ins) && llvm::dyn_cast<llvm::User>(ins)->getOperand(0) == structRetUse)
                     found = true;
             if (found)
@@ -85,7 +85,7 @@ class ReturnBreakContinue: public MatchOnly_Base
         {
             if (br->isConditional())
                 return;
-            assert (toMatch.size() == 1 && "unconditional break should be the only instruction in the statement");
+            assert (toMatch.getTotNumIRs() == 1 && "unconditional break should be the only instruction in the statement");
             llvm::BasicBlock *targetBB = br->getSuccessor(0);
     #if (LLVM_VERSION_MAJOR <= 3) && (LLVM_VERSION_MINOR < 5)
             llvm::Function::iterator FI = br->getParent()->getNextNode();//Iterator();
@@ -103,10 +103,10 @@ class ReturnBreakContinue: public MatchOnly_Base
                     {
                         if (isDeletion(repl.getExpElemKey()))
                         {
-                            toMatchClone.clear();
-                            cloneStmtIR (toMatch, toMatchClone);
-                            llvm::dyn_cast<llvm::BranchInst>(toMatchClone.back())->setSuccessor(0, followBB);
-                            resultMuts.add(toMatch, toMatchClone, repl, std::vector<unsigned>({0})/*toMatch size here is 1 (see assert above)*/);
+                            toMatchMutant.clear();
+                            toMatchMutant.setToCloneStmtIROf(toMatch, MI);
+                            llvm::dyn_cast<llvm::BranchInst>(toMatchMutant.getIRAt(0)/*last Inst(toMatch size here is 1)*/)->setSuccessor(0, followBB);
+                            resultMuts.add(/*toMatch, */toMatchMutant, repl, std::vector<unsigned>({0})/*toMatch size here is 1 (see assert above)*/);
                             isDeleted = true;
                         }
                         else
@@ -134,13 +134,16 @@ class ReturnBreakContinue: public MatchOnly_Base
                         if (auto *rve = llvm::dyn_cast<llvm::ConstantInt>(ret->getReturnValue()))
                             if (rve->equalsInt(0))
                                 continue;
-                        toMatchClone.clear();  //w do not clone here, just create new ret
-                        llvm::ReturnInst *newret = builder.CreateRet(llvm::ConstantInt::get(retType, 0));
-                        toMatchClone.push_back(newret);
-                        std::vector<unsigned> relpos;
-                        for (auto i=0; i<toMatch.size();i++)
-                            relpos.push_back(i);
-                        resultMuts.add(toMatch, toMatchClone, repl, relpos);
+                        toMatchMutant.clear();  //w do not clone here, just create new ret
+                        //llvm::ReturnInst *newret = builder.CreateRet(llvm::ConstantInt::get(retType, 0));
+                        //toMatchMutant.push_back(newret);
+                        toMatchMutant.setToCloneStmtIROf(toMatch, MI);
+                        llvm::dyn_cast<llvm::ReturnInst>(toMatchMutant.getIRAt(toMatch.getTotNumIRs()-1) /*last inst*/)->setOperand(0, llvm::ConstantInt::get(retType, 0));
+                        std::vector<unsigned> relpos({toMatch.getTotNumIRs()-1});
+                        /*std::vector<unsigned> relpos;
+                        for (auto i=0; i<toMatch.getTotNumIRs();i++)
+                            relpos.push_back(i);*/  //Uncomment this if the deletion of the return value means delete all that was computed there (not: tmp=computation(); return tmp; -- but instead: return computation();)
+                        resultMuts.add(/*toMatch, */toMatchMutant, repl, relpos);
                         isDeleted = true;
                     }
                     else
@@ -153,18 +156,21 @@ class ReturnBreakContinue: public MatchOnly_Base
                 {
                     if (isDeletion(repl.getExpElemKey()))
                     {
-                        toMatchClone.clear();
+                        toMatchMutant.clear();
+                        toMatchMutant.setToCloneStmtIROf(toMatch, MI);
                         llvm::AllocaInst *alloca = builder.CreateAlloca(retType);
                         alloca->setAlignment( MI.getDataLayout().getTypeStoreSize(retType));
-                        toMatchClone.push_back(alloca);
                         llvm::LoadInst *load = builder.CreateAlignedLoad(alloca, MI.getDataLayout().getTypeStoreSize(retType));
-                        toMatchClone.push_back(load);
-                        llvm::ReturnInst *newret = builder.CreateRet(load);
-                        toMatchClone.push_back(newret);
-                        std::vector<unsigned> relpos;
+                        //llvm::ReturnInst *newret = builder.CreateRet(load);
+                        unsigned initialRetPos = toMatch.getTotNumIRs()-1;
+                        llvm::dyn_cast<llvm::ReturnInst>(toMatchMutant.getIRAt(initialRetPos) /*last inst*/)->setOperand(0, load);
+                        toMatchMutant.insertIRAt(initialRetPos, alloca);
+                        toMatchMutant.insertIRAt(initialRetPos, load);
+                        std::vector<unsigned> relpos({initialRetPos});
+                        /*std::vector<unsigned> relpos;
                         for (auto i=0; i<toMatch.size();i++)
-                            relpos.push_back(i);
-                        resultMuts.add(toMatch, toMatchClone, repl, relpos);
+                            relpos.push_back(i);*/  //Uncomment this if the deletion of the return value means delete all that was computed there (not: tmp=computation(); return tmp; -- but instead: return computation();)
+                        resultMuts.add(/*toMatch, */toMatchMutant, repl, relpos);
                         isDeleted = true;
                     }
                     else

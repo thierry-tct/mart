@@ -18,23 +18,23 @@
 class FunctionCallCallee: public MatchOnly_Base
 {
   public:
-    bool matchIRs (std::vector<llvm::Value *> const &toMatch, llvmMutationOp const &mutationOp, unsigned pos, MatchUseful &MU, ModuleUserInfos const &MI) 
+    bool matchIRs (MatchStmtIR const &toMatch, llvmMutationOp const &mutationOp, unsigned pos, MatchUseful &MU, ModuleUserInfos const &MI) 
     {
         llvm::errs() << "Unsuported yet: 'matchIRs' mathod of FunctionCallCallee should not be called \n";
         assert (false);
     }
     
-    void prepareCloneIRs (std::vector<llvm::Value *> const &toMatch, unsigned pos,  MatchUseful const &MU, llvmMutationOp::MutantReplacors const &repl, DoReplaceUseful &DRU, ModuleUserInfos const &MI) 
+    void prepareCloneIRs (MatchStmtIR const &toMatch, unsigned pos,  MatchUseful const &MU, llvmMutationOp::MutantReplacors const &repl, DoReplaceUseful &DRU, ModuleUserInfos const &MI) 
     {
         llvm::errs() << "Unsuported yet: 'prepareCloneIRs' mathod of FunctionCallCallee should not be called \n";
         assert (false);
     }
     
-    void matchAndReplace (std::vector<llvm::Value *> const &toMatch, llvmMutationOp const &mutationOp, MutantsOfStmt &resultMuts, bool &isDeleted, ModuleUserInfos const &MI)
+    void matchAndReplace (MatchStmtIR const &toMatch, llvmMutationOp const &mutationOp, MutantsOfStmt &resultMuts, bool &isDeleted, ModuleUserInfos const &MI)
     {
-        std::vector<llvm::Value *> toMatchClone;
+        MutantsOfStmt::MutantStmtIR toMatchMutant;
         int pos = -1;
-        for (auto *val:toMatch)
+        for (auto *val:toMatch.getIRList())
         {
             pos++;
             
@@ -56,8 +56,8 @@ class FunctionCallCallee: public MatchOnly_Base
                         {
                             for (auto i=1; i < repl.getOprdIndexList().size(); i++)
                             {
-                                toMatchClone.clear();
-                                cloneStmtIR (toMatch, toMatchClone);
+                                toMatchMutant.clear();
+                                toMatchMutant.setToCloneStmtIROf(toMatch, MI);
                                 llvm::Function *repFun = MI.getModule()->getFunction(llvmMutationOp::getConstValueStr(repl.getOprdIndexList()[i]));
                                 if (!repFun)
                                 {
@@ -70,8 +70,8 @@ class FunctionCallCallee: public MatchOnly_Base
                                     llvm::errs() << "\n#Error: the function to be replaced and de replacing are of different types:" << cf->getName() << " and " << repFun->getName() << "\n";
                                     assert (false);
                                 }                                
-                                llvm::dyn_cast<llvm::CallInst>(toMatchClone[pos])->setCalledFunction(repFun);
-                                resultMuts.add(toMatch, toMatchClone, repl, std::vector<unsigned>({pos})); 
+                                llvm::dyn_cast<llvm::CallInst>(toMatchMutant.getIRAt(pos))->setCalledFunction(repFun);
+                                resultMuts.add(/*toMatch, */toMatchMutant, repl, std::vector<unsigned>({pos})); 
                             }
                         }
                     }

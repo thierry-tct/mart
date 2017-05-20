@@ -35,8 +35,13 @@
 
 #include "llvm/Transforms/Utils/Cloning.h"  //for CloneModule
 
-Mutation::Mutation(llvm::Module &module, std::string mutConfFile, DumpMutFunc_t writeMutsF, std::string scopeJsonFile): forKLEESEMu(true), writeMutantsCallback(writeMutsF), moduleInfo (&module, &usermaps)
+#include "llvm/Transforms/Utils/Local.h"  //for llvm::DemotePHIToStack   used to remove PHI nodes after mutation
+
+Mutation::Mutation(llvm::Module &module, std::string mutConfFile, DumpMutFunc_t writeMutsF, std::string scopeJsonFile): forKLEESEMu(true), funcForKLEESEMu(nullptr), writeMutantsCallback(writeMutsF), moduleInfo (&module, &usermaps)
 {
+    // tranform the PHI Node with any non-constant incoming value with reg2mem
+    preprocessVariablePhi(module);
+    
     //set module
     currentInputModule = &module;
     currentMetaMutantModule = currentInputModule;       //for now the input is transformed (mutated to become mutant)
@@ -49,11 +54,67 @@ Mutation::Mutation(llvm::Module &module, std::string mutConfFile, DumpMutFunc_t 
     
     //initialize mutantIDSelectorName
     getanothermutantIDSelectorName();
-    currentFunction = nullptr;
-    currentBasicBlock = nullptr;
     curMutantID = 0;
 }
 
+/**
+ * \brief PREPROCESSING - Remove PHI Nodes with a non constant incoming value ****
+ */
+void Mutation::preprocessVariablePhi (llvm::Module &module)
+{
+    // Replace the PHI node with memory, to avoid error with verify, as it don't get the relation of mutant ID...
+    for (auto &Func: module)
+    {
+        if (skipFunc (Func))
+            continue;
+        llvm::CastInst *AllocaInsertionPoint = nullptr;
+        std::vector<llvm::PHINode *> phiNodes;
+        for (auto &bb: Func)
+            for (auto &instruct: bb)
+                if (auto *phiN = llvm::dyn_cast<llvm::PHINode>(&instruct))
+                    phiNodes.push_back(phiN);
+        for (auto it=phiNodes.rbegin(), ie=phiNodes.rend(); it!=ie; ++it)
+        {
+            auto *phiN = *it;
+            bool hasNonConstIncVal = false;
+            for (unsigned pind=0, pe=phiN->getNumIncomingValues(); pind < pe; ++pind)
+            {
+                if (! llvm::isa<llvm::Constant>(phiN->getIncomingValue(pind)))
+                {
+                    hasNonConstIncVal = true;
+                    break;
+                }
+            }
+            if (hasNonConstIncVal)
+            {
+                if (! AllocaInsertionPoint) 
+                {
+                    llvm::BasicBlock * BBEntry = &(Func.getEntryBlock());
+                    llvm::BasicBlock::iterator I = BBEntry->begin();
+                    while (llvm::isa<llvm::AllocaInst>(I)) ++I;
+             
+                    llvm::CastInst *AllocaInsertionPoint = new llvm::BitCastInst(
+                       llvm::Constant::getNullValue(llvm::Type::getInt32Ty(Func.getContext())),
+                       llvm::Type::getInt32Ty(Func.getContext()), "my reg2mem alloca point", &*I);
+                }
+                auto * allocaPN = llvm::DemotePHIToStack (phiN, AllocaInsertionPoint);
+                assert(allocaPN && "Failed to transform phi node (Maybe PHI Node has no 'uses')");
+            }
+        }
+    }
+}
+
+inline bool Mutation::skipFunc (llvm::Function &Func)
+{
+    //Skip Function with only Declaration (External function -- no definition)
+    if (Func.isDeclaration())
+        return true;
+        
+    if (forKLEESEMu && funcForKLEESEMu == &Func)
+        return true;
+        
+    return false;
+}
 
 bool Mutation::getConfiguration(std::string &mutConfFile)
 {
@@ -297,84 +358,11 @@ void Mutation::getanothermutantIDSelectorName()
      mutantIDSelectorName_Func.assign(mutantIDSelectorName + "_Func");
 }
 
-/* Assumes that the IRs instructions in stmtIR have same order as the initial original IR code*/
-//@@TODO Remove this Function : UNSUSED
-llvm::BasicBlock * Mutation::getOriginalStmtBB (std::vector<llvm::Value *> &stmtIR, unsigned stmtcount)
-{
-    llvm::SmallDenseMap<llvm::Value *, llvm::Value *> pointerMap;
-    llvm::BasicBlock* block = llvm::BasicBlock::Create(moduleInfo.getContext(), std::string("KS.original_Mut0.")+std::to_string(stmtcount), currentFunction, currentBasicBlock);
-    for (llvm::Value * I: stmtIR)
-    { 
-        //clone instruction
-        llvm::Value * newI = llvm::dyn_cast<llvm::Instruction>(I)->clone();
-        
-        //set name
-        if (I->hasName())
-            newI->setName((I->getName()).str()+"_Mut0");
-        
-        if (! pointerMap.insert(std::pair<llvm::Value *, llvm::Value *>(I, newI)).second)
-        {
-            llvm::errs() << "Error (Mutation::getOriginalStmtBB): inserting an element already in the map\n";
-            return nullptr;
-        }
-    };
-    for (llvm::Value * I: stmtIR)
-    {
-        for(unsigned opos = 0; opos < llvm::dyn_cast<llvm::User>(I)->getNumOperands(); opos++)
-        {
-            auto oprd = llvm::dyn_cast<llvm::User>(I)->getOperand(opos);
-            if (llvm::isa<llvm::Instruction>(oprd))
-            {
-                if (auto newoprd = pointerMap.lookup(oprd))    //TODO:Double check the use of lookup for this map
-                {
-                    llvm::dyn_cast<llvm::User>(pointerMap.lookup(I))->setOperand(opos, newoprd);  //TODO:Double check the use of lookup for this map
-                }
-                else
-                {
-                    bool fail = false;
-                    switch (opos)
-                    {
-                        case 0:
-                            {
-                                if (llvm::isa<llvm::StoreInst>(I))
-                                    fail = true;
-                                break;
-                            }
-                        case 1:
-                            {
-                                if (llvm::isa<llvm::LoadInst>(I))
-                                    fail = true;
-                                break;
-                            }
-                        default:
-                            fail = true;
-                    }
-                    
-                    if (fail)
-                    {
-                        llvm::errs() << "Error (Mutation::getOriginalStmtBB): lookup an element not in the map -- "; 
-                        llvm::dyn_cast<llvm::Instruction>(I)->dump();
-                        return nullptr;
-                    }
-                }
-            }
-        }
-        block->getInstList().push_back(llvm::dyn_cast<llvm::Instruction>(pointerMap.lookup(I)));   //TODO:Double check the use of lookup for this map
-    }
-    
-    if (!block)
-    {
-         llvm::errs() << "Error (Mutation::getOriginalStmtBB): original Basic block is NULL";
-    }
-    
-    return block;
-}
-
 // @Name: Mutation::getMutantsOfStmt
 // This function takes a statement as a list of IR instruction, using the 
 // mutation model specified for this class, generate a list of all possible mutants
 // of the statement
-void Mutation::getMutantsOfStmt (std::vector<llvm::Value *> const &stmtIR, MutantsOfStmt &ret_mutants, ModuleUserInfos const &moduleInfo)
+void Mutation::getMutantsOfStmt (MatchStmtIR const &stmtIR, MutantsOfStmt &ret_mutants, ModuleUserInfos const &moduleInfo)
 {
     assert ((ret_mutants.getNumMuts() == 0) && "Error (Mutation::getMutantsOfStmt): mutant list result vector is not empty!\n");
     
@@ -397,17 +385,17 @@ void Mutation::getMutantsOfStmt (std::vector<llvm::Value *> const &stmtIR, Mutan
             {*/
         usermaps.getMatcherObject(mutator.getMatchOp())->matchAndReplace (stmtIR, mutator, ret_mutants, isDeleted, moduleInfo);
         
-        // Verify that no constant is considered as instruction in the mutant (inserted in replacement vector)
+        // Verify that no constant is considered as instruction in the mutant (inserted in replacement vector)  TODO: Remove commented bellow
         /*# llvm::errs() << "\n@orig\n";   //DBG
         for (auto *dd: stmtIR)          //DBG
             dd->dump();                 //DBG*/
-        for (auto ind = 0; ind < ret_mutants.getNumMuts(); ind++)
+        /*for (auto ind = 0; ind < ret_mutants.getNumMuts(); ind++)
         {    
             auto &mutInsVec = ret_mutants.getMutantStmtIR(ind);
-            /*# llvm::errs() << "\n@Muts\n";    //DBG*/
+            /*# llvm::errs() << "\n@Muts\n";    //DBG* /
             for (auto *mutIns: mutInsVec)
             {
-                /*# mutIns->dump();     //DBG*/
+                /*# mutIns->dump();     //DBG* /
                 if(llvm::dyn_cast<llvm::Constant>(mutIns))
                 {
                     llvm::errs() << "\nError: A constant is considered as Instruction (inserted in 'replacement') for mutator (enum ExpElemKeys): " << mutator.getMatchOp() << "\n\n";
@@ -415,7 +403,7 @@ void Mutation::getMutantsOfStmt (std::vector<llvm::Value *> const &stmtIR, Mutan
                     assert (false);
                 }
             }
-        }
+        }*/
             //}
         //}
     }
@@ -470,109 +458,291 @@ bool Mutation::doMutate()
     mutantIDSelectorGlobal->setAlignment(4);
     mutantIDSelectorGlobal->setInitializer(llvm::ConstantInt::get(moduleInfo.getContext(), llvm::APInt(32, 0, false)));
     
-    //TODO: Insert definition of the function whose call argument will tell KLEE-SEMU which mutants to fork
+    //XXX: Insert definition of the function whose call argument will tell KLEE-SEMU which mutants to fork
     if (forKLEESEMu)
     {
         funcForKLEESEMu = createGlobalMutIDSelector_Func(module);
     }
     
     //mutate
+    struct SourceStmtsSearchList
+    {
+        std::vector<StatementSearch *> sourceOrderedStmts;
+        llvm::BasicBlock *curBB=nullptr;
+        StatementSearch * createNewElem(llvm::BasicBlock *bb)
+        {
+            if (bb != curBB)
+            {
+                //if (curBB != nullptr)
+                sourceOrderedStmts.push_back(nullptr);
+                curBB = bb;
+            }
+            sourceOrderedStmts.push_back(new StatementSearch);
+            return sourceOrderedStmts.back();
+        }
+        void remove (StatementSearch *ss)
+        {
+            delete ss;
+            bool found = false;
+            for (auto i=sourceOrderedStmts.size()-1; i>=0; i--)
+                if (sourceOrderedStmts[i] == ss)
+                {
+                    sourceOrderedStmts.erase(sourceOrderedStmts.begin()+i);
+                    found = true;
+                }
+            assert (found && "removing a statement not inserted");
+        }
+        void appendOrder(llvm::BasicBlock *bb, StatementSearch *ss)
+        {
+            if (bb != curBB)
+            {
+                assert (curBB != nullptr && "calling append before calling createNewElem");
+                sourceOrderedStmts.push_back(nullptr);
+                curBB = bb;
+            }
+            sourceOrderedStmts.push_back(ss);
+        }
+        void doneSearch() {sourceOrderedStmts.push_back(nullptr);}
+        void clear() 
+        {
+            std::unordered_set<StatementSearch *> stmp(sourceOrderedStmts.begin(), sourceOrderedStmts.end());
+            for (auto *ss: stmp)
+                if (ss)
+                    delete ss;
+            sourceOrderedStmts.clear();
+            curBB=nullptr;
+        }
+        std::vector<StatementSearch *> & getSourceOrderedStmts () {return sourceOrderedStmts;}
+    } srcStmtsSearchList;
+    
+    /**
+     * \brief This class create a proxy BB for each incoming BB of PHI nodes whose corresponding value is a CONSTANT (independent on value computed on previous BB)
+     */
+    struct ProxyForPHI
+    {
+        std::unordered_set<llvm::BasicBlock *> proxies;
+        std::unordered_map<llvm::PHINode *, std::unordered_map<llvm::BasicBlock * /*a Basic Block*/, llvm::BasicBlock * /*its Proxy*/>> phiBBProxy;
+        llvm::Function *curFunc = nullptr;
+        
+        void clear(llvm::Function *f) {proxies.clear(); phiBBProxy.clear(); curFunc = f;} 
+        bool isProxy(llvm::BasicBlock *bb) {return (proxies.count(bb)>0);}
+        void getProxiesTerminators(llvm::PHINode *phi, std::vector<llvm::Instruction *> &terms)
+        {
+            auto itt = phiBBProxy.find(phi);
+            assert (itt != phiBBProxy.end() && "looking for missing phi node");
+            for (auto inerIt: itt->second)
+                terms.push_back (inerIt.second->getTerminator());
+        }
+        void handleBB (llvm::BasicBlock *bb, ModuleUserInfos const & MI)
+        {   // see http://llvm.org/docs/doxygen/html/BasicBlock_8cpp_source.html#l00401
+            llvm::TerminatorInst *TI = bb->getTerminator();
+            if (!TI)
+                return;
+            for (auto i=0; i < TI->getNumSuccessors(); i++)
+            {
+                llvm::BasicBlock *Succ = TI->getSuccessor(i); 
+                for (llvm::BasicBlock::iterator II = Succ->begin(), IE = Succ->end(); II != IE; ++II) 
+                {
+                    llvm::PHINode *PN = llvm::dyn_cast<llvm::PHINode>(II);
+                    if (!PN)
+                        break;
+                    handlePhi (PN, MI);
+                }
+            }
+        }
+        void handlePhi (llvm::PHINode * phi, ModuleUserInfos const & MI)
+        {
+            static unsigned proxyBBNum = 0;
+            llvm::BasicBlock *phiBB = nullptr;
+            std::pair<std::unordered_map<llvm::PHINode *, std::unordered_map<llvm::BasicBlock *, llvm::BasicBlock *>>::iterator, bool> ittmp;
+            unsigned pind = 0;
+            /*for (; pind < phi->getNumIncomingValues(); ++pind)
+            {
+                if (llvm::isa<llvm::Constant>(phi->getIncomingValue(pind)))
+                {
+                    ittmp = phiBBProxy.emplace (phi, std::unordered_map<llvm::BasicBlock *, llvm::BasicBlock *>());
+                    if (ittmp.second==false)
+                        return;
+                    phiBB = phi->getParent();
+                    break;
+                }
+            }*/
+            ittmp = phiBBProxy.emplace (phi, std::unordered_map<llvm::BasicBlock *, llvm::BasicBlock *>());
+            if (ittmp.second==false)
+                return;
+            phiBB = phi->getParent();
+            
+            for (; pind < phi->getNumIncomingValues(); ++pind)
+            {
+                /*if (! llvm::isa<llvm::Constant>(phi->getIncomingValue(pind)))
+                    continue;*/
+                    
+                ///The incoming value is a constant
+                llvm::BasicBlock * bb = phi->getIncomingBlock(pind);
+                //create proxy
+                llvm::BasicBlock * proxyBlock = llvm::BasicBlock::Create(MI.getContext(), std::string("MuLL.PHI_N_Proxy")+std::to_string(proxyBBNum++), curFunc, bb->getNextNode());
+                llvm::BranchInst::Create(phiBB, proxyBlock);    //create unconditional branch to phiBB and insert at the end of proxyBlock
+                if((ittmp.first->second.emplace(bb, proxyBlock)).second == false)
+                {
+                    proxyBlock->eraseFromParent();
+                }
+                else
+                {
+                    proxies.insert(proxyBlock);
+                    
+                    phi->setIncomingBlock(pind, proxyBlock);
+                    llvm::TerminatorInst *TI = bb->getTerminator();
+                    bool found=false;     //DEBUG
+                    for (auto i=0; i < TI->getNumSuccessors(); i++)
+                    {
+                        if (phiBB == TI->getSuccessor(i))
+                        {
+                            TI->setSuccessor(i, proxyBlock);
+                            found=true;     //DEBUG
+                        }
+                    }
+                    assert (found && "bb must have phiBB as a successor");  //DEBUG
+                }
+            }            
+        }
+    } phiProxy;
+    
+    std::set<StatementSearch *> remainMultiBBLiveStmts;     //pos in sourceStmts of the statement spawning multiple BB. The actual mutation happend only when this is empty at the end of a BB.
     unsigned mod_mutstmtcount = 0;
+    StatementSearch *curLiveStmtSearch = nullptr;   //set to null after each stmt search completion
+    
+    /******************************************************
+     **** Search for high level statement (source level) **
+     ******************************************************/
     for (auto &Func: module)
     {
         
         //Skip Function with only Declaration (External function -- no definition)
-        if (Func.isDeclaration())
+        if (skipFunc (Func))
             continue;
             
-        if (forKLEESEMu && funcForKLEESEMu == &Func)
-            continue;
+        phiProxy.clear(&Func);
         
-        currentFunction = &Func;
-        
+        ///\brief This hel recording the IR's LOC: index in the function it belongs
         unsigned instructionPosInFunc = 0;
+        
+        ///\brief In case we have multiBB stmt, this say which is the first BB to start mutation from. this is equal to itBBlock below if only sigle BB stmts
+        /// Set to null after each actual mutation take place
+        llvm::BasicBlock * mutationStartingAtBB = nullptr;   
         
         for (auto itBBlock = Func.begin(), F_end = Func.end(); itBBlock != F_end; ++itBBlock)
         { 
-            currentBasicBlock = &*itBBlock;
+            /// Do not mutate the inserted proxy for PHI nodes
+            if (phiProxy.isProxy(&*itBBlock))
+                continue;
+            if((*itBBlock).getName() != "land.rhs" && (*itBBlock).getName() != "land.end") continue; ////////DBG
+            /// set the Basic block from which the actual mutation should start
+            if (! mutationStartingAtBB)
+                mutationStartingAtBB = &*itBBlock;
+                
+            //make sure that in case this BB has phi node as successor, proxy BB will be created and added.
+            phiProxy.handleBB(&*itBBlock, moduleInfo);
             
-            std::vector<std::vector<llvm::Value *>> sourceStmts;
-            std::vector<std::vector<unsigned>> srcStmtsPos;         //Alway go together with sourceStmts (same modifications - push, pop,...)
-#if (LLVM_VERSION_MAJOR <= 3) && (LLVM_VERSION_MINOR < 5)
-            std::set<llvm::Value *> visited;
-#else
-            llvm::SmallPtrSet<llvm::Value *, 5> visited;
-#endif
             std::queue<llvm::Value *> curUses;
-            
-            //Used to maintain same order of instruction as originally when extracting source statement
-            int stmtIRcount = 0;
             
             for (auto &Instr: *itBBlock)
             {
-                instructionPosInFunc++;
+                instructionPosInFunc++;     // This should always be before anything else in this loop
                 
-                //Skip llvm debugging functions void @llvm.dbg.declare and void @llvm.dbg.value
-                if (auto * callinst = llvm::dyn_cast<llvm::CallInst>(&Instr))
+                // For Now do not mutate Exeption handling code, TODO later. TODO (http://llvm.org/docs/doxygen/html/Instruction_8h_source.html#l00393)
+                if (Instr.isEHPad())
                 {
-                    if (llvm::Function *fun = callinst->getCalledFunction())    //TODO: handle function alias
-                    {
-                        if(fun->getName().startswith("llvm.dbg.") && fun->getReturnType()->isVoidTy())
-                        {
-                            if((/*callinst->getNumArgOperands()==2 && */fun->getName().equals("llvm.dbg.declare")) ||
-                                (/*callinst->getNumArgOperands()==3 && */fun->getName().equals("llvm.dbg.value")))
-                            {
-                                if (visited.count(&Instr)) 
-                                {
-                                    assert (false && "The debug statement should not have been in visited (cause no dependency on others stmts...)");
-                                    sourceStmts.pop_back();
-                                    srcStmtsPos.pop_back();
-                                }
-                                continue;
-                            }
-                        }
-                        if (forKLEESEMu && fun->getName().equals("klee_make_symbolic") && callinst->getNumArgOperands() == 3 && fun->getReturnType()->isVoidTy())
-                        {
-                            if (visited.count(&Instr)) 
-                            {
-                                sourceStmts.pop_back();     //do not mutate klee_make_symbolic
-                                srcStmtsPos.pop_back();
-                                stmtIRcount = 0;
-                            }
-                            continue;
-                        }
-                    }
-                }
-               
-                if (visited.count(&Instr))  //is it visited?
-                {
-                    if (stmtIRcount <= 0)
-                    {
-                        if (stmtIRcount < 0)
-                            llvm::errs() << "Error (Mutation::doMutate): 'stmtIRcount' should never be less than 0; Possibly bug in the porgram.\n";
-                        else
-                            llvm::errs() << "Error (Mutation::doMutate): Instruction appearing multiple times.\n";
-                        return false;
-                    }
-                    sourceStmts.back().push_back(&Instr);
-                    srcStmtsPos.back().push_back(instructionPosInFunc - 1);
-                    stmtIRcount--;
-                    
+                    llvm::errs() << "(msg) Exception handling not mutated for now. TODO\n";
                     continue;
-                }
-                
-                //Check that Statements are atomic (all IR of stmt1 before any IR of stmt2, except Alloca - actually all allocas are located at the beginning of the function)
-                if (stmtIRcount > 0)
-                {
-                    llvm::errs() << "Error (Mutation::doMutate): Problem with IR - statements are not atomic (" << stmtIRcount << ").\n";
-                    for(auto * rr:sourceStmts.back()) //DEBUG
-                        llvm::dyn_cast<llvm::Instruction>(rr)->dump(); //DEBUG
-                    return false;
                 }
                 
                 //Do not mind Alloca
                 if (llvm::isa<llvm::AllocaInst>(&Instr))
                     continue;
+                    
+                //If PHI node and wasn't processed by proxy, add proxies
+                if (auto *phiN = llvm::dyn_cast<llvm::PHINode>(&Instr))
+                    phiProxy.handlePhi(phiN, moduleInfo);
+                    
+                //In case this is not the beginig of a stmt search (there are live stmts)
+                if (curLiveStmtSearch)
+                {
+                    //Skip llvm debugging functions void @llvm.dbg.declare and void @llvm.dbg.value
+                    if (auto * callinst = llvm::dyn_cast<llvm::CallInst>(&Instr))
+                    {
+                        if (llvm::Function *fun = callinst->getCalledFunction())    //TODO: handle function alias
+                        {
+                            if(fun->getName().startswith("llvm.dbg.") && fun->getReturnType()->isVoidTy())
+                            {
+                                if((/*callinst->getNumArgOperands()==2 && */fun->getName().equals("llvm.dbg.declare")) ||
+                                    (/*callinst->getNumArgOperands()==3 && */fun->getName().equals("llvm.dbg.value")))
+                                {
+                                    if (curLiveStmtSearch->isVisited(&Instr)) 
+                                    {
+                                        assert (false && "The debug statement should not have been in visited (cause no dependency on others stmts...)");
+                                        srcStmtsSearchList.remove(curLiveStmtSearch);
+                                    }
+                                    continue;
+                                }
+                            }
+                            if (forKLEESEMu && fun->getName().equals("klee_make_symbolic") && callinst->getNumArgOperands() == 3 && fun->getReturnType()->isVoidTy())
+                            {
+                                if (curLiveStmtSearch->isVisited(&Instr)) 
+                                {
+                                    srcStmtsSearchList.remove(curLiveStmtSearch);     //do not mutate klee_make_symbolic
+                                }
+                                continue;
+                            }
+                        }
+                    }
+                   
+                    if (curLiveStmtSearch->isVisited(&Instr))  //is it visited?
+                    {
+                        curLiveStmtSearch->checkCountLogic();
+                        curLiveStmtSearch->appendIRToStmt(&*itBBlock, &Instr, instructionPosInFunc - 1);
+                        curLiveStmtSearch->countDec();
+                        
+                        continue;
+                    }
+                }
+                
+                bool foundd = false;
+                for (auto *remMStmt: remainMultiBBLiveStmts)
+                {
+                    if(remMStmt->isVisited(&Instr))
+                    {
+                        //Check that Statements are atomic (all IR of stmt1 before any IR of stmt2, except Alloca - actually all allocas are located at the beginning of the function)
+                        remMStmt->checkAtomicityInBB(&*itBBlock);
+                        
+                        curLiveStmtSearch = StatementSearch::switchFromTo(&*itBBlock, curLiveStmtSearch, remMStmt);
+                        srcStmtsSearchList.appendOrder(&*itBBlock, curLiveStmtSearch);
+                        remainMultiBBLiveStmts.erase(remMStmt);
+                        foundd = true;
+                        
+                        // process as for visited Inst, as above
+                        curLiveStmtSearch->checkCountLogic();
+                        curLiveStmtSearch->appendIRToStmt(&*itBBlock, &Instr, instructionPosInFunc - 1);
+                        curLiveStmtSearch->countDec();
+                        
+                        break;
+                    }
+                }
+                if (foundd)
+                {
+                    continue;
+                }
+                else
+                {
+                    if (curLiveStmtSearch && ! curLiveStmtSearch->isCompleted())
+                    {
+                        remainMultiBBLiveStmts.insert(curLiveStmtSearch);
+                        curLiveStmtSearch = StatementSearch::switchFromTo(&*itBBlock, curLiveStmtSearch, srcStmtsSearchList.createNewElem(&*itBBlock));     //(re)initialize
+                    }
+                    else
+                    {
+                        curLiveStmtSearch = StatementSearch::switchFromTo(&*itBBlock, nullptr, srcStmtsSearchList.createNewElem(&*itBBlock));     //(re)initialize
+                    }
+                }
                 
                 /* //Commented because the mutating function do no delete stmt with terminator instr (to avoid misformed while), but only delete for return break and continue in this case
                 //make the final unconditional branch part of this statement (to avoid multihop empty branching)
@@ -580,18 +750,19 @@ bool Mutation::doMutate()
                 {
                     if (llvm::dyn_cast<llvm::BranchInst>(&Instr)->isUnconditional() && !visited.empty())
                     {
-                        sourceStmts.back().push_back(&Instr);
-                        srcStmtsPos.back().push_back(instructionPosInFunc - 1);
+                        curLiveStmtSearch->appendIRToStmt(&*itBBlock, &Instr, instructionPosInFunc - 1); 
                         continue;
                     }
                 }*/
                 
-                visited.clear();
-                sourceStmts.push_back(std::vector<llvm::Value *>());
-                srcStmtsPos.push_back(std::vector<unsigned>());
-                sourceStmts.back().push_back(&Instr); 
-                srcStmtsPos.back().push_back(instructionPosInFunc - 1);
-                visited.insert(&Instr);
+                curLiveStmtSearch->appendIRToStmt(&*itBBlock, &Instr, instructionPosInFunc - 1); 
+                if (! curLiveStmtSearch->visit(&Instr))
+                {
+                    //Func.dump();
+                    llvm::errs() << "\nInstruction: ";
+                    Instr.dump();
+                    assert (false && "first time seing an instruction but present in visited. report bug");
+                }
                 curUses.push(&Instr);
                 while (! curUses.empty())
                 {
@@ -605,10 +776,10 @@ bool Mutation::doMutate()
                     for (auto &U: popInstr->uses())
                     {
 #endif
-                        if (visited.insert(U.getUser()).second)
+                        if (curLiveStmtSearch->visit(U.getUser()))  //wasn't visited? insert
                         {
                             curUses.push(U.getUser());
-                            stmtIRcount++;
+                            curLiveStmtSearch->countInc();
                         }
                     }
                     //consider only operands when more than 1 (popInstr is a user or operand or Load or Alloca)
@@ -624,147 +795,218 @@ bool Mutation::doMutate()
                             if (!oprd || llvm::isa<llvm::AllocaInst>(oprd)) // || llvm::isa<llvm::LoadInst>(oprd))
                                 continue;
                                 
-                            if (llvm::dyn_cast<llvm::Instruction>(oprd) && visited.insert(oprd).second)
+                            if (llvm::dyn_cast<llvm::Instruction>(oprd) && curLiveStmtSearch->visit(oprd))
                             {
                                 curUses.push(oprd);
-                                stmtIRcount++;
+                                curLiveStmtSearch->countInc();
                             }
                         }
                     }
                 }
-                //curUses is empty here
+                    //curUses is empty here
+            }   //for (auto &Instr: *itBBlock)
+            
+            curLiveStmtSearch = nullptr;
+            
+            //Check if we can mutate now or not (seach completed all live stmts)
+            if (! remainMultiBBLiveStmts.empty())
+                continue;
+                
+           
+             
+            /***********************************************************
+            // \brief Actual mutation **********************************
+            /***********************************************************/
+            
+            /// \brief mutate all the basic blocks between 'mutationStartingAtBB' and '&*itBBlock'
+            srcStmtsSearchList.doneSearch();       //append the last nullptr to order...
+            auto changingBBIt = mutationStartingAtBB->getIterator();
+            auto stopAtBBIt = itBBlock->getIterator(); 
+            ++stopAtBBIt;   //pass the current block
+            llvm::BasicBlock * sstmtCurBB = nullptr;    //The loop bellow will be executed at least once
+            auto curSrcStmtIt = srcStmtsSearchList.getSourceOrderedStmts().begin();
+            
+            /// Get all the mutants
+            for (auto *sstmt: srcStmtsSearchList.getSourceOrderedStmts())
+            {
+                if (sstmt && sstmt->mutantStmt_list.isEmpty())   //not yet mutated
+                {
+                    // Find all mutants and put into 'mutantStmt_list'
+                    getMutantsOfStmt (sstmt->matchStmtIR, sstmt->mutantStmt_list, moduleInfo);
+                    
+                    //set the mutant IDs
+                    for (auto mind=0; mind < sstmt->mutantStmt_list.getNumMuts(); mind++)
+                    {
+                        sstmt->mutantStmt_list.setMutID(mind, ++curMutantID);
+                        //for(auto &xx:sstmt->mutantStmt_list.getMutantStmtIR(mind).origBBToMutBB)
+                        //    for(auto *bb: xx.second)
+                        //        bb->dump();   
+                    }
+                }
             }
             
-            // \brief Actual mutation
-            //ModuleUserInfos moduleInfo (&module, &usermaps);
-            llvm::BasicBlock * sstmtCurBB = &*itBBlock;
-            for (auto sstmts_ind=0; sstmts_ind < sourceStmts.size(); sstmts_ind++)
+            //for each BB place in the muatnts 
+            for (; changingBBIt != stopAtBBIt; ++changingBBIt)
             {
-                auto &sstmt = sourceStmts[sstmts_ind];
-                auto &sstmtpos = srcStmtsPos[sstmts_ind];
-                /*llvm::errs() << "\n";   
-                for (auto ins: sstmt) 
+                /// Do not mutate the inserted proxies for PHI nodes
+                if (phiProxy.isProxy(&*changingBBIt))
+                    continue;
+                if((*changingBBIt).getName() != "land.rhs" && (*changingBBIt).getName() != "land.end") continue; ////////DBG
+                sstmtCurBB = &*changingBBIt;
+                
+                for (++curSrcStmtIt/*the 1st is nullptr*/; *curSrcStmtIt != nullptr; ++curSrcStmtIt)   //different BB stmts are delimited by nullptr
                 {
-                    llvm::errs() << ">> ";ins->dump();//U.getUser()->dump();
-                }*/
-                
-                //llvm::BasicBlock * original = getOriginalStmtBB(sstmt, mod_mutstmtcount++);
-                //if (! original)
-                //    return false;
-                
-                // Find all mutants and put into 'mutantStmt_list'
-                MutantsOfStmt mutantStmt_list;
-                getMutantsOfStmt (sstmt, mutantStmt_list, moduleInfo);
-                unsigned nMuts = mutantStmt_list.getNumMuts();
-                
-                //Mutate only when mutable: at least one mutant (nMuts > 0)
-                if (nMuts > 0)
-                {
-                    llvm::Instruction * firstInst = llvm::dyn_cast<llvm::Instruction>(sstmt.front());
+                    unsigned nMuts = (*curSrcStmtIt)->mutantStmt_list.getNumMuts();
+                    
+                    //Mutate only when mutable: at least one mutant (nMuts > 0)
+                    if (nMuts > 0)
+                    {
+                        llvm::Instruction * firstInst, *lastInst;
+                        (*curSrcStmtIt)->matchStmtIR.getFirstAndLastIR (&*changingBBIt, firstInst, lastInst);
 
+                        /// If the firstInst (intended basic block plit point) isPHI Node, instead of splitting, directly add the mutant selection switch on the Proxy BB.
+                        bool usePhiProxy_NoSplitBB = false;
+                        if (llvm::isa<llvm::PHINode>(firstInst)) 
+                            usePhiProxy_NoSplitBB = true;
+                        
+                        llvm::BasicBlock * original = nullptr;
+                        std::vector<llvm::Instruction *> linkterminators;
+                        std::vector<llvm::SwitchInst *> sstmtMutants;
+                        
 #if (LLVM_VERSION_MAJOR <= 3) && (LLVM_VERSION_MINOR < 5)
-                    llvm::PassManager PM;
-                    llvm::RegionInfo * tmp_pass = new llvm::RegionInfo();
-                    PM.add(tmp_pass);   //tmp_pass must be created with 'new'
-                    llvm::BasicBlock * original = llvm::SplitBlock(sstmtCurBB, firstInst, tmp_pass);
+                        llvm::PassManager PM;
+                        llvm::RegionInfo * tmp_pass = new llvm::RegionInfo();
+                        PM.add(tmp_pass);   //tmp_pass must be created with 'new'
+                        if (!usePhiProxy_NoSplitBB)
+                        {
+                            original = llvm::SplitBlock(sstmtCurBB, firstInst, tmp_pass);
 #else                
-                    llvm::BasicBlock * original = llvm::SplitBlock(sstmtCurBB, firstInst);
-#endif
-                    original->setName(std::string("KS.original_Mut0.Stmt")+std::to_string(mod_mutstmtcount));
-                
-                    llvm::Instruction * linkterminator = sstmtCurBB->getTerminator();    //this cannot be nullptr because the block just got splitted
-                    llvm::IRBuilder<> sbuilder(linkterminator);
-                    
-                    //XXX: Insert definition of the function whose call argument will tell KLEE-SEMU which mutants to fork (done elsewhere)
-                    if (forKLEESEMu)
-                    {
-                        std::vector<llvm::Value*> argsv;
-                        argsv.push_back(llvm::ConstantInt::get(moduleInfo.getContext(), llvm::APInt(32, (uint64_t)(curMutantID+1), false)));
-                        argsv.push_back(llvm::ConstantInt::get(moduleInfo.getContext(), llvm::APInt(32, (uint64_t)(curMutantID+nMuts), false)));
-                        sbuilder.CreateCall(funcForKLEESEMu, argsv);
-                    }
-                    
-                    llvm::SwitchInst * sstmtMutants = sbuilder.CreateSwitch (sbuilder.CreateAlignedLoad(mutantIDSelectorGlobal, 4), original, nMuts);
-                    
-                    //Remove old terminator link
-                    linkterminator->eraseFromParent();
-                    
-                    //Separate Mutants(including original) BB from rest of instr
-                    if (! llvm::dyn_cast<llvm::Instruction>(sstmt.back())->isTerminator())    //if we have another stmt after this in this BB
-                    {
-                        firstInst = llvm::dyn_cast<llvm::Instruction>(sstmt.back())->getNextNode();
-#if (LLVM_VERSION_MAJOR <= 3) && (LLVM_VERSION_MINOR < 5)
-                        llvm::BasicBlock * nextBB = llvm::SplitBlock(original, firstInst, tmp_pass);
-#else                         
-                        llvm::BasicBlock * nextBB = llvm::SplitBlock(original, firstInst);
-#endif
-                        nextBB->setName(std::string("KS.BBafter.Stmt")+std::to_string(mod_mutstmtcount));
-                        
-                        sstmtCurBB = nextBB;
-                    }
-                    else
-                    {
-                        //llvm::errs() << "Error (Mutation::doMutate): Basic Block '" << original->getName() << "' has no terminator!\n";
-                        //return false;
-                        sstmtCurBB = original;
-                    }
-                    
-                    //XXX: Insert mutant blocks here
-                    //@# MUTANTS (see ELSE bellow)
-                    for (auto ms_ind = 0; ms_ind < mutantStmt_list.getNumMuts(); ms_ind++)
-                    {
-                        auto &mut_vect = mutantStmt_list.getMutantStmtIR(ms_ind);
-                        std::string mutIDstr(std::to_string(++curMutantID));
-                        
-                        // Store mutant info
-                        mutantsInfos.add(curMutantID, sstmt, mutantStmt_list.getTypeName(ms_ind), mutantStmt_list.getIRRelevantPos(ms_ind), &Func, sstmtpos);
-                        
-                        //construct Basic Block and insert before original
-                        llvm::BasicBlock* mutBlock = llvm::BasicBlock::Create(moduleInfo.getContext(), std::string("KS.Mutant_Mut")+mutIDstr, &Func, original);
-                        
-                        //Add to mutant selection switch
-                        sstmtMutants->addCase(llvm::ConstantInt::get(moduleInfo.getContext(), llvm::APInt(32, (uint64_t)curMutantID, false)), mutBlock);
-                        
-                        for (auto mutIRIns: mut_vect)
+                        if (!usePhiProxy_NoSplitBB)
                         {
-                            mutBlock->getInstList().push_back(llvm::dyn_cast<llvm::Instruction>(mutIRIns));
+                            original = llvm::SplitBlock(sstmtCurBB, firstInst);
+#endif
+                            original->setName(std::string("MuLL.original_Mut0.Stmt")+std::to_string(mod_mutstmtcount));
+                    
+                            linkterminators.push_back(sstmtCurBB->getTerminator());    //this cannot be nullptr because the block just got splitted
                         }
-                        
-                        if (! llvm::dyn_cast<llvm::Instruction>(sstmt.back())->isTerminator())    //if we have another stmt after this in this BB
-                        {
-                            //clone original terminator
-                            llvm::Instruction * mutTerm = original->getTerminator()->clone();
-                
-                            //set name
-                            if (original->getTerminator()->hasName())
-                                mutTerm->setName((original->getTerminator()->getName()).str()+"_Mut"+mutIDstr);
+                        else
+                        {   //PHI Node is always the first non PHI instruction of its BB
+                            original = sstmtCurBB;
                             
-                            //set as mutant terminator
-                            mutBlock->getInstList().push_back(mutTerm);
+                            phiProxy.getProxiesTerminators(llvm::dyn_cast<llvm::PHINode>(firstInst), linkterminators);
                         }
-                    }
+                        
+                        for (auto *lkt: linkterminators)
+                        {
+                            llvm::IRBuilder<> sbuilder(lkt);
+                            
+                            //XXX: Insert definition of the function whose call argument will tell KLEE-SEMU which mutants to fork (done elsewhere)
+                            if (forKLEESEMu)
+                            {
+                                std::vector<llvm::Value*> argsv;
+                                argsv.push_back(llvm::ConstantInt::get(moduleInfo.getContext(), llvm::APInt(32, (uint64_t)((*curSrcStmtIt)->mutantStmt_list.getMutID(0)), false)));
+                                argsv.push_back(llvm::ConstantInt::get(moduleInfo.getContext(), llvm::APInt(32, (uint64_t)((*curSrcStmtIt)->mutantStmt_list.getMutID(nMuts-1)), false)));
+                                sbuilder.CreateCall(funcForKLEESEMu, argsv);
+                            }
+                            
+                            sstmtMutants.push_back(sbuilder.CreateSwitch (sbuilder.CreateAlignedLoad(mutantIDSelectorGlobal, 4), original, nMuts));
+                            
+                            //Remove old terminator link
+                            lkt->eraseFromParent();
+                        }
+                        
+                        //Separate Mutants(including original) BB from rest of instr
+                        if (! llvm::dyn_cast<llvm::Instruction>(lastInst)->isTerminator())    //if we have another stmt after this in this BB
+                        {
+#if (LLVM_VERSION_MAJOR <= 3) && (LLVM_VERSION_MINOR < 5)
+                            llvm::BasicBlock * nextBB = llvm::SplitBlock(original, lastInst->getNextNode(), tmp_pass);
+#else                         
+                            llvm::BasicBlock * nextBB = llvm::SplitBlock(original, lastInst->getNextNode());
+#endif
+                            nextBB->setName(std::string("MuLL.BBafter.Stmt")+std::to_string(mod_mutstmtcount));
+                            
+                            sstmtCurBB = nextBB;
+                        }
+                        else
+                        {
+                            //llvm::errs() << "Error (Mutation::doMutate): Basic Block '" << original->getName() << "' has no terminator!\n";
+                            //return false;
+                            sstmtCurBB = original;
+                        }
+                        
+                        //XXX: Insert mutant blocks here
+                        //@# MUTANTS (see ELSE bellow)
+                        for (auto ms_ind = 0; ms_ind < (*curSrcStmtIt)->mutantStmt_list.getNumMuts(); ms_ind++)
+                        {
+                            auto &mut_stmt_ir = (*curSrcStmtIt)->mutantStmt_list.getMutantStmtIR(ms_ind);
+                            std::string mutIDstr(std::to_string((*curSrcStmtIt)->mutantStmt_list.getMutID(ms_ind)));
+                            
+                            // Store mutant info
+                            mutantsInfos.add((*curSrcStmtIt)->mutantStmt_list.getMutID(ms_ind), (*curSrcStmtIt)->matchStmtIR.toMatchIRs, (*curSrcStmtIt)->mutantStmt_list.getTypeName(ms_ind),\
+                                                                                 (*curSrcStmtIt)->mutantStmt_list.getIRRelevantPos(ms_ind), &Func, (*curSrcStmtIt)->matchStmtIR.posIRsInOrigFunc);
+                            
+                            //construct Basic Block and insert before original
+                            std::vector<llvm::BasicBlock *> &mutBlocks = mut_stmt_ir.getMut(&*changingBBIt);
+                            
+                            //Add to mutant selection switch
+                            for (auto *swches: sstmtMutants)
+                                swches->addCase(llvm::ConstantInt::get(moduleInfo.getContext(), llvm::APInt(32, (uint64_t)(*curSrcStmtIt)->mutantStmt_list.getMutID(ms_ind), false)), \
+                                                                                                                                                                            mutBlocks.front());
+                            
+                            for (auto *subBB: mutBlocks)
+                            {
+                                subBB->setName(std::string("MuLL.Mutant_Mut")+mutIDstr);
+                                subBB->insertInto (&Func, original);
+                            }
+                            
+                            if (! llvm::dyn_cast<llvm::Instruction>(lastInst)->isTerminator())    //if we have another stmt after this in this BB
+                            {
+                                //clone original terminator
+                                llvm::Instruction * mutTerm = original->getTerminator()->clone();
                     
-                    /*//delete previous instructions
-                    auto rit = sstmt.rbegin();
-                    for (; rit!= sstmt.rend(); ++rit)
-                    {
-                        llvm::dyn_cast<llvm::Instruction>(*rit)->eraseFromParent();
-                    }*/
-                    
-                    //Help name the labels for mutants
-                    mod_mutstmtcount++;
-                }//~ if(nMuts > 0)
-            }
+                                //set name
+                                if (original->getTerminator()->hasName())
+                                    mutTerm->setName((original->getTerminator()->getName()).str()+"_Mut"+mutIDstr);
+                                
+                                //set as mutant terminator
+                                mutBlocks.back()->getInstList().push_back(mutTerm);
+                            }
+                        }
+                        
+                        /*//delete previous instructions
+                        auto rit = sstmt.rbegin();
+                        for (; rit!= sstmt.rend(); ++rit)
+                        {
+                            llvm::dyn_cast<llvm::Instruction>(*rit)->eraseFromParent();
+                        }*/
+                        
+                        //Help name the labels for mutants
+                        mod_mutstmtcount++;
+                    }//~ if(nMuts > 0)
+                }
+                changingBBIt = sstmtCurBB->getIterator();   //make 'changeBBIt' foint to the last BB before the next one to explore
+            } //Actual mutation for
             
             //Get to the right block
-            while (&*itBBlock != sstmtCurBB)
+            /*while (&*itBBlock != sstmtCurBB)
             {
                 itBBlock ++;
-            }
+            }*/
+            
+            // Do not use changingBBIt here because it is advanced
+            itBBlock = sstmtCurBB->getIterator();   //make 'changeBBIt' foint to the last BB before the next one to explore
+            
+            ///\brief Mutation over for the current set of BB, reinitialize 'mutationStartingAtBB' for the coming ones
+            mutationStartingAtBB = nullptr;
+            
+            srcStmtsSearchList.clear();
             
         }   //for each BB in Function
         
-
+        assert (remainMultiBBLiveStmts.empty() && "Something wrong with function (missing IRs) or bug!");
+        
+        //Func.dump();
+        
 #if (LLVM_VERSION_MAJOR <= 3) && (LLVM_VERSION_MINOR < 5)
         if (llvm::verifyFunction (Func, llvm::AbortProcessAction))
 #else
@@ -895,7 +1137,8 @@ void Mutation::computeWeakMutation(std::unique_ptr<llvm::Module> &cmodule, std::
     }
     llvm::GlobalVariable *mutantIDSelGlob = cmodule->getNamedGlobal(mutantIDSelectorName);
     //mutantIDSelGlob->setInitializer(llvm::ConstantInt::get(moduleInfo.getContext(), llvm::APInt(32, (uint64_t)0, false)));    //Not needed because there is no case anyway, only default
-    mutantIDSelGlob->setConstant(true); // only original...
+    if (mutantIDSelGlob)
+        mutantIDSelGlob->setConstant(true); // only original...
     
     //verify WM module
 #if (LLVM_VERSION_MAJOR <= 3) && (LLVM_VERSION_MINOR < 5)

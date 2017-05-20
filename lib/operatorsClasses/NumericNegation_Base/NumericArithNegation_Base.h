@@ -26,9 +26,9 @@ class NumericArithNegation_Base: public GenericMuOpBase
     inline virtual int matchAndGetOprdID(llvm::BinaryOperator * propNeg) = 0;
     
   public:
-    bool matchIRs (std::vector<llvm::Value *> const &toMatch, llvmMutationOp const &mutationOp, unsigned pos, MatchUseful &MU, ModuleUserInfos const &MI) 
+    bool matchIRs (MatchStmtIR const &toMatch, llvmMutationOp const &mutationOp, unsigned pos, MatchUseful &MU, ModuleUserInfos const &MI) 
     {
-        llvm::Value *val = toMatch.at(pos);
+        llvm::Value *val = toMatch.getIRAt(pos);
         if (llvm::BinaryOperator *neg = llvm::dyn_cast<llvm::BinaryOperator>(val))
         {
             int oprdId;
@@ -40,22 +40,22 @@ class NumericArithNegation_Base: public GenericMuOpBase
                 return false;
                     
             MatchUseful *ptr_mu = MU.getNew();
-            ptr_mu->appendHLOprdsSource(depPosofPos(toMatch, neg->getOperand(oprdId), pos, true));
+            ptr_mu->appendHLOprdsSource(toMatch.depPosofPos(neg->getOperand(oprdId), pos, true));
             ptr_mu->appendRelevantIRPos(pos);
             ptr_mu->setHLReturningIRPos(pos);
         }
         return (MU.first() != MU.end());
     }
     
-    void prepareCloneIRs (std::vector<llvm::Value *> const &toMatch, unsigned pos,  MatchUseful const &MU, llvmMutationOp::MutantReplacors const &repl, DoReplaceUseful &DRU, ModuleUserInfos const &MI)
+    void prepareCloneIRs (MatchStmtIR const &toMatch, unsigned pos,  MatchUseful const &MU, llvmMutationOp::MutantReplacors const &repl, DoReplaceUseful &DRU, ModuleUserInfos const &MI)
     {
-        cloneStmtIR (toMatch, DRU.toMatchClone);
+        DRU.toMatchMutant.setToCloneStmtIROf(toMatch, MI);
         llvm::Value * oprdptr[]={nullptr, nullptr};
         for (int i=0; i < repl.getOprdIndexList().size(); i++)
         {
-            if (!(oprdptr[i] = createIfConst (MU.getHLOperandSource(0, DRU.toMatchClone)->getType(), repl.getOprdIndexList()[i])))
+            if (!(oprdptr[i] = createIfConst (MU.getHLOperandSource(0, DRU.toMatchMutant)->getType(), repl.getOprdIndexList()[i])))
             {
-                oprdptr[i] = MU.getHLOperandSource(repl.getOprdIndexList()[i], DRU.toMatchClone);
+                oprdptr[i] = MU.getHLOperandSource(repl.getOprdIndexList()[i], DRU.toMatchMutant);
             }
         }
         

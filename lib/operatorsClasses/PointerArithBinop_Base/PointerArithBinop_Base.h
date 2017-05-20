@@ -27,9 +27,9 @@ class PointerArithBinop_Base: public GenericMuOpBase
     inline virtual bool checkIntPartExp(llvm::Instruction *tmpI) = 0;
     
   public:
-    bool matchIRs (std::vector<llvm::Value *> const &toMatch, llvmMutationOp const &mutationOp, unsigned pos, MatchUseful &MU, ModuleUserInfos const &MI) 
+    bool matchIRs (MatchStmtIR const &toMatch, llvmMutationOp const &mutationOp, unsigned pos, MatchUseful &MU, ModuleUserInfos const &MI) 
     {
-        llvm::Value *val = toMatch.at(pos);
+        llvm::Value *val = toMatch.getIRAt(pos);
         if (auto *gep = llvm::dyn_cast<llvm::GetElementPtrInst>(val))
         {
             // check the pointer displacement index (0)'s value
@@ -64,10 +64,10 @@ class PointerArithBinop_Base: public GenericMuOpBase
         return (MU.first() != MU.end());
     }
     
-    void prepareCloneIRs (std::vector<llvm::Value *> const &toMatch, unsigned pos,  MatchUseful const &MU, llvmMutationOp::MutantReplacors const &repl, DoReplaceUseful &DRU, ModuleUserInfos const &MI)
+    void prepareCloneIRs (MatchStmtIR const &toMatch, unsigned pos,  MatchUseful const &MU, llvmMutationOp::MutantReplacors const &repl, DoReplaceUseful &DRU, ModuleUserInfos const &MI)
     {
-        cloneStmtIR (toMatch, DRU.toMatchClone);
-        llvm::Value *indxVal = MU.getHLOperandSource(1, DRU.toMatchClone);      //Integer oprd (secondly appended in matchIs)
+        DRU.toMatchMutant.setToCloneStmtIROf(toMatch, MI);
+        llvm::Value *indxVal = MU.getHLOperandSource(1, DRU.toMatchMutant);      //Integer oprd (secondly appended in matchIs)
         int oldPos = MU.getRelevantIRPosOf(0);
         int newPos = oldPos;
         int indx = MU.getHLOperandSourceIndexInIR(1) - 1;      //index according to Gep:   Get the in IR index of the Integer HLOprd (1) then remove 1
@@ -80,17 +80,17 @@ class PointerArithBinop_Base: public GenericMuOpBase
         llvm::IRBuilder<> builder(MI.getContext());
         if (indx > 0)
         {
-            llvm::GetElementPtrInst * curGI = llvm::dyn_cast<llvm::GetElementPtrInst>(DRU.toMatchClone[oldPos]);
+            llvm::GetElementPtrInst * curGI = llvm::dyn_cast<llvm::GetElementPtrInst>(DRU.toMatchMutant.getIRAt(oldPos));
             extraIdx.clear();
             for (auto i=0; i<indx;i++)
                 extraIdx.push_back(*(curGI->idx_begin() + i));
             llvm::GetElementPtrInst * preGep = llvm::dyn_cast<llvm::GetElementPtrInst>(builder.CreateInBoundsGEP(curGI->getPointerOperand(), extraIdx));
         }
-        if (indx < llvm::dyn_cast<llvm::GetElementPtrInst>(DRU.toMatchClone[oldPos])->getNumIndices()-1)
+        if (indx < llvm::dyn_cast<llvm::GetElementPtrInst>(DRU.toMatchMutant.getIRAt(oldPos))->getNumIndices()-1)
         {
-            llvm::GetElementPtrInst * curGI = llvm::dyn_cast<llvm::GetElementPtrInst>(DRU.toMatchClone[oldPos]);
+            llvm::GetElementPtrInst * curGI = llvm::dyn_cast<llvm::GetElementPtrInst>(DRU.toMatchMutant.getIRAt(oldPos));
             extraIdx.clear();
-            for (auto i=indx+1; i < llvm::dyn_cast<llvm::GetElementPtrInst>(DRU.toMatchClone[oldPos])->getNumIndices();i++)
+            for (auto i=indx+1; i < llvm::dyn_cast<llvm::GetElementPtrInst>(DRU.toMatchMutant.getIRAt(oldPos))->getNumIndices();i++)
                 extraIdx.push_back(*(curGI->idx_begin() + i));
             llvm::GetElementPtrInst * postGep = llvm::dyn_cast<llvm::GetElementPtrInst>(builder.CreateInBoundsGEP(curGI, extraIdx));
             std::vector<std::pair<llvm::User *, unsigned>> affectedUnO;
@@ -113,16 +113,16 @@ class PointerArithBinop_Base: public GenericMuOpBase
                     affected.first->setOperand(affected.second, postGep);
         }
         if (postGep)
-            DRU.toMatchClone.insert(DRU.toMatchClone.begin() + oldPos + 1, postGep);
+            DRU.toMatchMutant.insertIRAt(oldPos + 1, postGep);
         if (preGep)
-            DRU.toMatchClone.insert(DRU.toMatchClone.begin() + oldPos, preGep);
+            DRU.toMatchMutant.insertIRAt(oldPos, preGep);
         llvm::Value * ptroprd = nullptr, *valoprd = nullptr;
         if (repl.getOprdIndexList().size() == 2)
         {
             if (preGep)
                 ptroprd = preGep;
             else
-                ptroprd = llvm::dyn_cast<llvm::GetElementPtrInst >(DRU.toMatchClone[newPos])->getPointerOperand();
+                ptroprd = llvm::dyn_cast<llvm::GetElementPtrInst >(DRU.toMatchMutant.getIRAt(newPos))->getPointerOperand();
             if (! (valoprd = createIfConst (indxVal->getType(), repl.getOprdIndexList()[1])))
                 valoprd = indxVal;
         }
@@ -130,22 +130,22 @@ class PointerArithBinop_Base: public GenericMuOpBase
         {
             if (ptroprd = createIfConst (indxVal->getType(), repl.getOprdIndexList()[0]))    
             {   //The replacor should be CONST_VALUE_OF
-                ptroprd = builder.CreateIntToPtr(ptroprd, preGep? preGep->getType(): llvm::dyn_cast<llvm::GetElementPtrInst >(DRU.toMatchClone[newPos])->getPointerOperand()->getType());
+                ptroprd = builder.CreateIntToPtr(ptroprd, preGep? preGep->getType(): llvm::dyn_cast<llvm::GetElementPtrInst >(DRU.toMatchMutant.getIRAt(newPos))->getPointerOperand()->getType());
                 if (! llvm::isa<llvm::Constant>(ptroprd))
-                    DRU.toMatchClone.insert(DRU.toMatchClone.begin() + newPos + 1, ptroprd);    //insert right after the instruction to remove
+                    DRU.toMatchMutant.insertIRAt(newPos + 1, ptroprd);    //insert right after the instruction to remove
             }
             else if (repl.getOprdIndexList()[0] == 1)   //non pointer (integer)
             {   //The replacor should be either KEEP_ONE_OPRD
-                ptroprd = builder.CreateIntToPtr(indxVal, preGep? preGep->getType(): llvm::dyn_cast<llvm::GetElementPtrInst >(DRU.toMatchClone[newPos])->getPointerOperand()->getType());
+                ptroprd = builder.CreateIntToPtr(indxVal, preGep? preGep->getType(): llvm::dyn_cast<llvm::GetElementPtrInst >(DRU.toMatchMutant.getIRAt(newPos))->getPointerOperand()->getType());
                 if (! llvm::isa<llvm::Constant>(ptroprd))
-                    DRU.toMatchClone.insert(DRU.toMatchClone.begin() + newPos + 1, ptroprd);    //insert right after the instruction to remove
+                    DRU.toMatchMutant.insertIRAt(newPos + 1, ptroprd);    //insert right after the instruction to remove
             }
             else // pointer
             {
                 if (preGep)
                     ptroprd = preGep;
                 else
-                    ptroprd = llvm::dyn_cast<llvm::GetElementPtrInst >(DRU.toMatchClone[newPos])->getPointerOperand();
+                    ptroprd = llvm::dyn_cast<llvm::GetElementPtrInst >(DRU.toMatchMutant.getIRAt(newPos))->getPointerOperand();
             }
         }
 

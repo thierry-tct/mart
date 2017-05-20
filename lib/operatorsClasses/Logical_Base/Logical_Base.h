@@ -24,23 +24,23 @@
 class Logical_Base: public GenericMuOpBase
 {
   public:
-    bool matchIRs (std::vector<llvm::Value *> const &toMatch, llvmMutationOp const &mutationOp, unsigned pos, MatchUseful &MU, ModuleUserInfos const &MI)
+    bool matchIRs (MatchStmtIR const &toMatch, llvmMutationOp const &mutationOp, unsigned pos, MatchUseful &MU, ModuleUserInfos const &MI)
     {
         llvm::errs() << "Unsuported yet: 'matchIRs' mathod of Logical should not be called \n";
         assert (false);
     }
     
-    void prepareCloneIRs (std::vector<llvm::Value *> const &toMatch, unsigned pos,  MatchUseful const &MU, llvmMutationOp::MutantReplacors const &repl, DoReplaceUseful &DRU, ModuleUserInfos const &MI)
+    void prepareCloneIRs (MatchStmtIR const &toMatch, unsigned pos,  MatchUseful const &MU, llvmMutationOp::MutantReplacors const &repl, DoReplaceUseful &DRU, ModuleUserInfos const &MI)
     {
         llvm::errs() << "Unsuported yet: 'prepareCloneIRs' mathod of Logical should not be called \n";
         assert (false);
     }
     
-    void matchAndReplace (std::vector<llvm::Value *> const &toMatch, llvmMutationOp const &mutationOp, MutantsOfStmt &resultMuts, bool &isDeleted, ModuleUserInfos const &MI)
+    void matchAndReplace (MatchStmtIR const &toMatch, llvmMutationOp const &mutationOp, MutantsOfStmt &resultMuts, bool &isDeleted, ModuleUserInfos const &MI)
     {
-        std::vector<llvm::Value *> toMatchClone;
+        MutantsOfStmt::MutantStmtIR toMatchMutant;
         int pos = -1;
-        for (auto *val:toMatch)
+        for (auto *val:toMatch.getIRList())
         {
             pos++;
             
@@ -178,18 +178,18 @@ class Logical_Base: public GenericMuOpBase
                     
                 for (auto &repl: mutationOp.getMutantReplacorsList())
                 {
-                    toMatchClone.clear();
+                    toMatchMutant.clear();
                     if (isDeletion(repl.getExpElemKey()))
                     {
                         doDeleteStmt (toMatch, repl, resultMuts, isDeleted, MI);
                     }
                     else
                     {
-                        cloneStmtIR (toMatch, toMatchClone);
+                        toMatchMutant.setToCloneStmtIROf(toMatch, MI);
                         if (repl.getExpElemKey() == mAND || repl.getExpElemKey() == mOR || repl.getExpElemKey() == mKEEP_ONE_OPRD)
                         {   //directly replace
                             // NO CALL TO doReplacement HERE
-                            llvm::BranchInst * clonedBr = llvm::dyn_cast<llvm::BranchInst>(toMatchClone[pos]);
+                            llvm::BranchInst * clonedBr = llvm::dyn_cast<llvm::BranchInst>(toMatchMutant.getIRAt(pos));
                             switch (repl.getExpElemKey())
                             {
                                 case mAND:
@@ -234,8 +234,8 @@ class Logical_Base: public GenericMuOpBase
                                     assert (false && "Unreachable");
                             }
                             std::vector<unsigned> relevantPosInToMatch({pos});       // Only pos because is was the only added
-                            resultMuts.add(toMatch, toMatchClone, repl, relevantPosInToMatch); 
-                            toMatchClone.clear();
+                            resultMuts.add(/*toMatch, */toMatchMutant, repl, relevantPosInToMatch); 
+                            toMatchMutant.clear();
                         }
                         else
                         {

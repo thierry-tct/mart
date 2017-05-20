@@ -53,7 +53,7 @@ class FPLeftDec: public NumericArithIncDec_Base
         
         //llvm::dyn_cast<llvm::Instruction>(oprd1_addrOprd)->dump();//DEBUG   
         llvm::Value *rawVal = oprd1_addrOprd;
-        std::vector<llvm::Value *> seenCasts;
+        std::vector<llvm::Value *> seenCasts;       //cast in the opposite order of uses: { int(float(char(x)) -> [char, float, int] }
         while (llvm::isa<llvm::CastInst>(oprd1_addrOprd))
         {
             //assert (llvm::dyn_cast<llvm::User>(val)->getNumOperands() == 1);
@@ -90,10 +90,14 @@ class FPLeftDec: public NumericArithIncDec_Base
         replacement.push_back(storeit);
         if (!seenCasts.empty())
         {
-            std::vector<llvm::Value *> copySeenCasts;
-            cloneStmtIR (seenCasts, copySeenCasts);
-            llvm::dyn_cast<llvm::User>(copySeenCasts.front())->setOperand(0, changedVal);
-            replacement.insert(replacement.end(), copySeenCasts.begin(), copySeenCasts.end());
+            llvm::Value *tmp = changedVal;
+            for (auto *instt: seenCasts)
+            {
+                llvm::Instruction *c_inst = llvm::dyn_cast<llvm::Instruction>(instt)->clone();
+                c_inst->setOperand(0, tmp);
+                replacement.push_back(c_inst);
+                tmp = c_inst;
+            }
             return replacement.back();
         }
         return changedVal;

@@ -25,9 +25,6 @@ class Mutation
     bool forKLEESEMu;
     llvm::Function* funcForKLEESEMu;
     
-    llvm::Function * currentFunction;
-    llvm::BasicBlock * currentBasicBlock;
-    
     llvm::Module * currentInputModule;
     llvm::Module * currentMetaMutantModule;
     
@@ -55,6 +52,9 @@ public:
     bool getMutant (llvm::Module &module, unsigned mutanatID);
     unsigned getHighestMutantID (llvm::Module &module);
     
+    void preprocessVariablePhi (llvm::Module &module);
+    inline bool skipFunc (llvm::Function &Func);
+    
     void loadMutantInfos (std::string filename);
     void dumpMutantInfos (std::string filename);
     //llvm::Module & getMetaMutantModule() {return currentMetaMutantModule;}
@@ -62,10 +62,8 @@ public:
 private:
     bool getConfiguration(std::string &mutconfFile);
     void getanothermutantIDSelectorName();
-    llvm::BasicBlock *getOriginalStmtBB (std::vector<llvm::Value *> &stmtIR, unsigned stmtcount);
-    void getMutantsOfStmt (std::vector<llvm::Value *> const &stmtIR, MutantsOfStmt &ret_mutants, ModuleUserInfos const &moduleInfos);
+    void getMutantsOfStmt (MatchStmtIR const &stmtIR, MutantsOfStmt &ret_mutants, ModuleUserInfos const &moduleInfos);
     llvm::Function * createGlobalMutIDSelector_Func(llvm::Module &module, bool bodyOnly=false);
-    void updateMutantsInfos (std::vector<llvm::Value *> &stmtIR, std::vector<std::string> &mutNameList, unsigned startID, unsigned num);
     DumpMutFunc_t writeMutantsCallback;
     llvm::Value * getWMCondition (llvm::BasicBlock *orig, llvm::BasicBlock *mut, llvm::Instruction * insertBeforeInst);
 };

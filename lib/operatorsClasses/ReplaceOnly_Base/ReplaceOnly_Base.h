@@ -20,7 +20,7 @@ class ReplaceOnly_Base: public GenericMuOpBase
     /**
      * \bref Inplements virtual from @see GenericMuOpBase
      */
-    bool matchIRs (std::vector<llvm::Value *> const &toMatch, llvmMutationOp const &mutationOp, unsigned pos, MatchUseful &MU, ModuleUserInfos const &MI)
+    bool matchIRs (MatchStmtIR const &toMatch, llvmMutationOp const &mutationOp, unsigned pos, MatchUseful &MU, ModuleUserInfos const &MI)
     {
         llvm::errs() << "Error: Calling 'MatchIRs' method from a ReplaceOnly objects of the class: " /*<< typeid(*this).name()*/ << "\n";
         assert (false);
@@ -29,7 +29,7 @@ class ReplaceOnly_Base: public GenericMuOpBase
     /**
      * \bref Inplements virtual from @see GenericMuOpBase
      */
-    void prepareCloneIRs (std::vector<llvm::Value *> const &toMatch, unsigned pos, MatchUseful const &MU, llvmMutationOp::MutantReplacors const &repl, DoReplaceUseful &DRU, ModuleUserInfos const &MI)
+    void prepareCloneIRs (MatchStmtIR const &toMatch, unsigned pos, MatchUseful const &MU, llvmMutationOp::MutantReplacors const &repl, DoReplaceUseful &DRU, ModuleUserInfos const &MI)
     {
         llvm::errs() << "Error: Calling 'prepareCloneIRs' method from a ReplaceOnly objects of the class: " /*<< typeid(*this).name()*/ << "\n";
         assert (false);
@@ -38,7 +38,7 @@ class ReplaceOnly_Base: public GenericMuOpBase
     /**
      * \bref Inplements virtual from @see GenericMuOpBase
      */
-    void matchAndReplace (std::vector<llvm::Value *> const &toMatch, llvmMutationOp const &mutationOp, MutantsOfStmt &resultMuts, bool &isDeleted, ModuleUserInfos const &MI)
+    void matchAndReplace (MatchStmtIR const &toMatch, llvmMutationOp const &mutationOp, MutantsOfStmt &resultMuts, bool &isDeleted, ModuleUserInfos const &MI)
     {
         llvm::errs() << "Error: Calling 'matchAndReplace' method from a ReplaceOnly objects of the class: " /*<< typeid(*this).name()*/ << "\n";
         assert (false);

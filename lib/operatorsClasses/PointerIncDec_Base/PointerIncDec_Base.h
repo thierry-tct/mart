@@ -31,9 +31,9 @@ class PointerIncDec_Base: public GenericMuOpBase
     inline virtual bool isLeft_notRight() = 0;
     
   public:
-    bool matchIRs (std::vector<llvm::Value *> const &toMatch, llvmMutationOp const &mutationOp, unsigned pos, MatchUseful &MU, ModuleUserInfos const &MI) 
+    bool matchIRs (MatchStmtIR const &toMatch, llvmMutationOp const &mutationOp, unsigned pos, MatchUseful &MU, ModuleUserInfos const &MI) 
     {
-        llvm::Value *val = toMatch.at(pos);
+        llvm::Value *val = toMatch.getIRAt(pos);
         if (llvm::StoreInst *store = llvm::dyn_cast<llvm::StoreInst>(val))
         {
             llvm::Value *addr = store->getOperand(1);   //equivalent to getPointerOperand()
@@ -58,8 +58,8 @@ class PointerIncDec_Base: public GenericMuOpBase
                     return false;
                     
                 int returningIRPos;
-                int loadpos = depPosofPos(toMatch, load, pos, true);
-                int modifpos = depPosofPos(toMatch, modif, pos, true);
+                int loadpos = toMatch.depPosofPos(load, pos, true);
+                int modifpos = toMatch.depPosofPos(modif, pos, true);
                 assert ((pos > loadpos && pos > modifpos) && "problem in IR order");
                 
                 //check wheter it is left or right inc-dec
@@ -99,28 +99,28 @@ class PointerIncDec_Base: public GenericMuOpBase
         return (MU.first() != MU.end());
     }
     
-    void prepareCloneIRs (std::vector<llvm::Value *> const &toMatch, unsigned pos,  MatchUseful const &MU, llvmMutationOp::MutantReplacors const &repl, DoReplaceUseful &DRU, ModuleUserInfos const &MI)
+    void prepareCloneIRs (MatchStmtIR const &toMatch, unsigned pos,  MatchUseful const &MU, llvmMutationOp::MutantReplacors const &repl, DoReplaceUseful &DRU, ModuleUserInfos const &MI)
     {
-        cloneStmtIR (toMatch, DRU.toMatchClone);
+        DRU.toMatchMutant.setToCloneStmtIROf(toMatch, MI);
         llvm::Value * ptroprd = nullptr, *valoprd = nullptr;
         if (repl.getOprdIndexList().size() == 2)    //size is 2
         {
-            ptroprd = MU.getHLOperandSource(repl.getOprdIndexList()[0], DRU.toMatchClone);      //load
-            valoprd = createIfConst ((*(llvm::dyn_cast<llvm::GetElementPtrInst>(DRU.toMatchClone[MU.getRelevantIRPosOf(0)])->idx_begin()))->getType(), repl.getOprdIndexList()[1]);
+            ptroprd = MU.getHLOperandSource(repl.getOprdIndexList()[0], DRU.toMatchMutant);      //load
+            valoprd = createIfConst ((*(llvm::dyn_cast<llvm::GetElementPtrInst>(DRU.toMatchMutant.getIRAt(MU.getRelevantIRPosOf(0)))->idx_begin()))->getType(), repl.getOprdIndexList()[1]);
             assert (valoprd && "Problem here, must be hard coded constant int here");
         }
         else    //size is 1
         {
-            if ( ptroprd = createIfConst ((*(llvm::dyn_cast<llvm::GetElementPtrInst>(DRU.toMatchClone[MU.getRelevantIRPosOf(0)])->idx_begin()))->getType(), repl.getOprdIndexList()[0]) )
+            if ( ptroprd = createIfConst ((*(llvm::dyn_cast<llvm::GetElementPtrInst>(DRU.toMatchMutant.getIRAt(MU.getRelevantIRPosOf(0)))->idx_begin()))->getType(), repl.getOprdIndexList()[0]) )
             { //The replacor should be CONST_VALUE_OF
                 llvm::IRBuilder<> builder (MI.getContext());
-                ptroprd = builder.CreateIntToPtr(ptroprd, (DRU.toMatchClone[MU.getHLReturningIRPos()])->getType());
+                ptroprd = builder.CreateIntToPtr(ptroprd, (DRU.toMatchMutant.getIRAt(MU.getHLReturningIRPos()))->getType());
                 if (! llvm::isa<llvm::Constant>(ptroprd))
-                    DRU.toMatchClone.insert(DRU.toMatchClone.begin() + MU.getRelevantIRPosOf(1) + 1, ptroprd);    //insert right after the instruction to remove
+                    DRU.toMatchMutant.insertIRAt(MU.getRelevantIRPosOf(1) + 1, ptroprd);    //insert right after the instruction to remove
             }
             else // pointer
             {
-                ptroprd = MU.getHLOperandSource(repl.getOprdIndexList()[0], DRU.toMatchClone);      //load. repl.getOprdIndexList()[0] is equal to 0 here
+                ptroprd = MU.getHLOperandSource(repl.getOprdIndexList()[0], DRU.toMatchMutant);      //load. repl.getOprdIndexList()[0] is equal to 0 here
             }
         }
         

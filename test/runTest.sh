@@ -33,10 +33,10 @@ cp -r $TOPDIR/operator "test" || error_exit "Failed to copy $TOPDIR/operator int
 cd test/tmpRunDir
 
 #-----------------------------------
-CLANGC=clang
-LLVM_DIS=llvm-dis-3.4  #llvm-dis
-#CLANGC=/media/thierry/TestMutants/DG-dependency/llvm-3.8.0/build/bin/clang
-#LLVM_DIS=/media/thierry/TestMutants/DG-dependency/llvm-3.8.0/build/bin/llvm-dis
+#CLANGC=clang
+#LLVM_DIS=llvm-dis-3.4  #llvm-dis
+CLANGC=/media/thierry/TestMutants/DG-dependency/llvm-3.8.0/build/bin/clang
+LLVM_DIS=/media/thierry/TestMutants/DG-dependency/llvm-3.8.0/build/bin/llvm-dis
 #------------------------------------
 
 ## compile
