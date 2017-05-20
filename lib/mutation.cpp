@@ -76,7 +76,7 @@ void Mutation::preprocessVariablePhi (llvm::Module &module)
         for (auto it=phiNodes.rbegin(), ie=phiNodes.rend(); it!=ie; ++it)
         {
             auto *phiN = *it;
-            bool hasNonConstIncVal = false;
+            bool hasNonConstIncVal = true; /*false;
             for (unsigned pind=0, pe=phiN->getNumIncomingValues(); pind < pe; ++pind)
             {
                 if (! llvm::isa<llvm::Constant>(phiN->getIncomingValue(pind)))
@@ -84,7 +84,7 @@ void Mutation::preprocessVariablePhi (llvm::Module &module)
                     hasNonConstIncVal = true;
                     break;
                 }
-            }
+            }*/
             if (hasNonConstIncVal)
             {
                 if (! AllocaInsertionPoint) 
@@ -93,17 +93,92 @@ void Mutation::preprocessVariablePhi (llvm::Module &module)
                     llvm::BasicBlock::iterator I = BBEntry->begin();
                     while (llvm::isa<llvm::AllocaInst>(I)) ++I;
              
-                    llvm::CastInst *AllocaInsertionPoint = new llvm::BitCastInst(
+                    AllocaInsertionPoint = new llvm::BitCastInst(
                        llvm::Constant::getNullValue(llvm::Type::getInt32Ty(Func.getContext())),
                        llvm::Type::getInt32Ty(Func.getContext()), "my reg2mem alloca point", &*I);
                 }
-                auto * allocaPN = llvm::DemotePHIToStack (phiN, AllocaInsertionPoint);
+                auto * allocaPN = MYDemotePHIToStack (phiN, AllocaInsertionPoint);
                 assert(allocaPN && "Failed to transform phi node (Maybe PHI Node has no 'uses')");
             }
         }
+        if (AllocaInsertionPoint)
+            AllocaInsertionPoint->eraseFromParent();
     }
 }
 
+/// DemotePHIToStack - This function takes a virtual register computed by a PHI
+/// node and replaces it with a slot in the stack frame allocated via alloca.
+/// The PHI node is deleted. It returns the pointer to the alloca inserted.
+/// @MuLL: edited from "llvm/lib/Transforms/Utils/DemoteRegToStack.cpp"
+///TODO: @todo Update this as LLVM evolve
+llvm::AllocaInst *Mutation::MYDemotePHIToStack(llvm::PHINode *P, llvm::Instruction *AllocaPoint) 
+{
+    if (P->use_empty()) 
+    {
+        P->eraseFromParent();
+        return nullptr;
+    }
+
+    // Create a stack slot to hold the value.
+    llvm::AllocaInst *Slot;
+    if (AllocaPoint) 
+    {
+        Slot = new llvm::AllocaInst(P->getType(), nullptr,
+                            P->getName()+".reg2mem", AllocaPoint);
+    } 
+    else 
+    {
+        /*llvm::Function *F = P->getParent()->getParent();
+        Slot = new llvm::AllocaInst(P->getType(), nullptr, P->getName() + ".reg2mem",
+                              &F->getEntryBlock().front());*/
+        assert (false && "must have non-null insertion point, which if after all allocates of entry BB");
+    }
+
+    // Iterate over each operand inserting a store in each predecessor.
+    for (unsigned i = 0, e = P->getNumIncomingValues(); i < e; ++i) 
+    {
+        if (llvm::InvokeInst *II = llvm::dyn_cast<llvm::InvokeInst>(P->getIncomingValue(i))) 
+        {
+            assert(II->getParent() != P->getIncomingBlock(i) &&
+                    "Invoke edge not supported yet"); (void)II;
+        }
+        llvm::Instruction *storeInsertPoint=nullptr;
+        llvm::Value *incomingValue = P->getIncomingValue(i);
+        llvm::BasicBlock *incomingBlock = P->getIncomingBlock(i);
+        //avoid atomicity problem of high level stmts
+        if ((storeInsertPoint = llvm::dyn_cast<llvm::Instruction>(incomingValue)) && (storeInsertPoint->getParent() == incomingBlock))
+        {
+            storeInsertPoint = storeInsertPoint->getNextNode();
+            assert(storeInsertPoint && "storeInsertPoint is null");
+        }
+        else //if (llvm::isa<llvm::Constant>(incomingValue) || incomingBlock != incomingValue->getParent())  
+        {
+            if (AllocaPoint->getParent() == incomingBlock)
+                storeInsertPoint = AllocaPoint;
+            else
+                storeInsertPoint = &*(incomingBlock->begin());  
+        }
+        new llvm::StoreInst(incomingValue, Slot, storeInsertPoint);
+                      //P->getIncomingBlock(i)->getTerminator());
+    }
+
+    // Insert a load in place of the PHI and replace all uses.
+    llvm::BasicBlock::iterator InsertPt = P->getIterator();
+
+    for (; llvm::isa<llvm::PHINode>(InsertPt) || InsertPt->isEHPad(); ++InsertPt)
+        /* empty */;   // Don't insert before PHI nodes or landingpad instrs.
+
+    llvm::Value *V = new llvm::LoadInst(Slot, P->getName() + ".reload", &*InsertPt);
+    P->replaceAllUsesWith(V);
+
+    // Delete PHI.
+    P->eraseFromParent();
+    return Slot;
+}
+
+/**
+ * \brief The function that mutation will skip
+ */
 inline bool Mutation::skipFunc (llvm::Function &Func)
 {
     //Skip Function with only Declaration (External function -- no definition)
@@ -367,7 +442,7 @@ void Mutation::getMutantsOfStmt (MatchStmtIR const &stmtIR, MutantsOfStmt &ret_m
     assert ((ret_mutants.getNumMuts() == 0) && "Error (Mutation::getMutantsOfStmt): mutant list result vector is not empty!\n");
     
     bool isDeleted = false;
-    for (llvmMutationOp mutator: configuration.mutators)
+    for (llvmMutationOp &mutator: configuration.mutators)
     {
         /*switch (mutator.getMatchOp())
         {
@@ -635,7 +710,7 @@ bool Mutation::doMutate()
             /// Do not mutate the inserted proxy for PHI nodes
             if (phiProxy.isProxy(&*itBBlock))
                 continue;
-            if((*itBBlock).getName() != "land.rhs" && (*itBBlock).getName() != "land.end") continue; ////////DBG
+            
             /// set the Basic block from which the actual mutation should start
             if (! mutationStartingAtBB)
                 mutationStartingAtBB = &*itBBlock;
@@ -851,7 +926,7 @@ bool Mutation::doMutate()
                 /// Do not mutate the inserted proxies for PHI nodes
                 if (phiProxy.isProxy(&*changingBBIt))
                     continue;
-                if((*changingBBIt).getName() != "land.rhs" && (*changingBBIt).getName() != "land.end") continue; ////////DBG
+                
                 sstmtCurBB = &*changingBBIt;
                 
                 for (++curSrcStmtIt/*the 1st is nullptr*/; *curSrcStmtIt != nullptr; ++curSrcStmtIt)   //different BB stmts are delimited by nullptr

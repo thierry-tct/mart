@@ -178,10 +178,10 @@ UserMaps::UserMaps()
     addOpMatchObjectPair (mFSUB, CREATE_OBJ(FPSub));
     addOpMatchObjectPair (mSUB, CREATE_OBJ(IntegerSub));
     
-    addConfNameOpPair ("PADD", {mPADD});        //Pointer (Address Increase)
+    addConfNameOpPair ("PADD", {mPADD,mPADD, mPADD, mPADD});        //Pointer (Address Increase)
     addOpMatchObjectPair (mPADD, CREATE_OBJ(PointerAdd));
     
-    addConfNameOpPair ("PSUB", {mPSUB});        //Pointer (Address Decrease)
+    addConfNameOpPair ("PSUB", {mPSUB, mPSUB, mPSUB, mPSUB});        //Pointer (Address Decrease)
     addOpMatchObjectPair (mPSUB, CREATE_OBJ(PointerSub));
     
     addConfNameOpPair ("MUL", {mFMUL, mFMUL, mMUL, mMUL});
@@ -241,16 +241,16 @@ UserMaps::UserMaps()
     addOpMatchObjectPair (mFRIGHTDEC, CREATE_OBJ(FPRightDec));
     addOpMatchObjectPair (mRIGHTDEC, CREATE_OBJ(IntegerRightDec));
     
-    addConfNameOpPair ("PLEFTINC", {mPLEFTINC});        //Pointer (Poniter Left Increment)
+    addConfNameOpPair ("PLEFTINC", {mPLEFTINC, mPLEFTINC, mPLEFTINC, mPLEFTINC});        //Pointer (Poniter Left Increment)
     addOpMatchObjectPair (mPLEFTINC, CREATE_OBJ(PointerLeftInc));
     
-    addConfNameOpPair ("PRIGHTINC", {mPRIGHTINC});        //Pointer (Poniter Right Increment)
+    addConfNameOpPair ("PRIGHTINC", {mPRIGHTINC, mPRIGHTINC, mPRIGHTINC, mPRIGHTINC});        //Pointer (Poniter Right Increment)
     addOpMatchObjectPair (mPRIGHTINC, CREATE_OBJ(PointerRightInc));
     
-    addConfNameOpPair ("PLEFTDEC", {mPLEFTDEC});        //Pointer (Poniter Left Decrement)
+    addConfNameOpPair ("PLEFTDEC", {mPLEFTDEC, mPLEFTDEC, mPLEFTDEC, mPLEFTDEC});        //Pointer (Poniter Left Decrement)
     addOpMatchObjectPair (mPLEFTDEC, CREATE_OBJ(PointerLeftDec));
     
-    addConfNameOpPair ("PRIGHTDEC", {mPRIGHTDEC});        //Pointer (Poniter Right Decrement)
+    addConfNameOpPair ("PRIGHTDEC", {mPRIGHTDEC, mPRIGHTDEC, mPRIGHTDEC, mPRIGHTDEC});        //Pointer (Poniter Right Decrement)
     addOpMatchObjectPair (mPRIGHTDEC, CREATE_OBJ(PointerRightDec));
     
     addConfNameOpPair ("EQ", {mFCMP_OEQ, mFCMP_UEQ, mICMP_EQ, mICMP_EQ});
@@ -287,22 +287,22 @@ UserMaps::UserMaps()
     addOpMatchObjectPair (mICMP_SLE, CREATE_OBJ(SIntegerLessOrEqual));
     addOpMatchObjectPair (mICMP_ULE, CREATE_OBJ(UIntegerLessOrEqual));
     
-    addConfNameOpPair ("PEQ", {mP_EQ});        //Pointer (Poniter Equal)
+    addConfNameOpPair ("PEQ", {mP_EQ, mP_EQ, mP_EQ, mP_EQ});        //Pointer (Poniter Equal)
     addOpMatchObjectPair (mP_EQ, CREATE_OBJ(PointerEqual));    //The difference with common EQ will be the operand types
     
-    addConfNameOpPair ("PNEQ", {mP_NE});        //Pointer (Poniter Not-Equal)
+    addConfNameOpPair ("PNEQ", {mP_NE, mP_NE, mP_NE, mP_NE});        //Pointer (Poniter Not-Equal)
     addOpMatchObjectPair (mP_NE, CREATE_OBJ(PointerNotEqual));    //The difference with common NEQ will be the operand types
     
-    addConfNameOpPair ("PGT", {mP_GT});        //Pointer (Poniter Greater than)
+    addConfNameOpPair ("PGT", {mP_GT, mP_GT, mP_GT, mP_GT});        //Pointer (Poniter Greater than)
     addOpMatchObjectPair (mP_GT, CREATE_OBJ(PointerGreaterThan));    //The difference with common GT will be the operand types
     
-    addConfNameOpPair ("PGE", {mP_GE});        //Pointer (Poniter Greater or Equal than)
+    addConfNameOpPair ("PGE", {mP_GE, mP_GE, mP_GE, mP_GE});        //Pointer (Poniter Greater or Equal than)
     addOpMatchObjectPair (mP_GE, CREATE_OBJ(PointerGreaterOrEqual));    //The difference with common GE will be the operand types
     
-    addConfNameOpPair ("PLT", {mP_LT});        //Pointer (Poniter Less than)
+    addConfNameOpPair ("PLT", {mP_LT, mP_LT, mP_LT, mP_LT});        //Pointer (Poniter Less than)
     addOpMatchObjectPair (mP_LT, CREATE_OBJ(PointerLessThan));    //The difference with common LT will be the operand types
     
-    addConfNameOpPair ("PLE", {mP_LE});        //Pointer (Poniter Less or Equal than)
+    addConfNameOpPair ("PLE", {mP_LE, mP_LE, mP_LE, mP_LE});        //Pointer (Poniter Less or Equal than)
     addOpMatchObjectPair (mP_LE, CREATE_OBJ(PointerLessOrEqual));    //The difference with common LE will be the operand types
     
     addConfNameOpPair ("AND", {mAND, mAND, mAND, mAND});

@@ -53,6 +53,7 @@ public:
     unsigned getHighestMutantID (llvm::Module &module);
     
     void preprocessVariablePhi (llvm::Module &module);
+    llvm::AllocaInst * MYDemotePHIToStack(llvm::PHINode *P, llvm::Instruction *AllocaPoint);
     inline bool skipFunc (llvm::Function &Func);
     
     void loadMutantInfos (std::string filename);

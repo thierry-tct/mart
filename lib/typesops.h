@@ -435,7 +435,7 @@ struct MatchStmtIR
     inline llvm::BasicBlock * getBBAt(int i) const {return bbStartPosToOrigBB[i].second;}
     inline unsigned getTotNumIRs () const {return toMatchIRs.size();}
     inline const std::vector<llvm::Value *> &getIRList() const {return toMatchIRs;}
-    inline llvm::Value * getIRAt (unsigned ind) const {return toMatchIRs[ind];}
+    inline llvm::Value * getIRAt (int ind) const {return toMatchIRs[ind];}
     void getFirstAndLastIR (llvm::BasicBlock *selBB, llvm::Instruction *&firstIR, llvm::Instruction *&lastIR) const
     {
         auto it=bbStartPosToOrigBB.begin(), ie=bbStartPosToOrigBB.end();
@@ -560,7 +560,7 @@ struct MutantsOfStmt
         {
             return origBBToMutBB[orig];
         }
-        inline llvm::Value * getIRAt (unsigned ind/*0,1,...*/) const
+        inline llvm::Value * getIRAt (int ind/*0,1,...*/) const
         {
             return toMatchIRsMutClone.at(ind);
         }
@@ -842,7 +842,8 @@ struct StatementSearch
     {
         if (atomicityInBB == curBB)
         {
-            llvm::errs() << "Error (Mutation::doMutate): Problem with IR - statements are not atomic (" << stmtIRcount << ").\n";
+            curBB->dump();
+            llvm::errs() << "Error (Mutation::doMutate): Problem with IR - statements are not atomic (" << stmtIRcount << "). Maybe reg2mem was applied to input module...\n";
             for(auto * rr:matchStmtIR.toMatchIRs) //DEBUG
                 llvm::dyn_cast<llvm::Instruction>(rr)->dump(); //DEBUG
             assert (false);

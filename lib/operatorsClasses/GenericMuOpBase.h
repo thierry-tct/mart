@@ -88,7 +88,7 @@ struct MatchUseful
         else
         {
             curLast->additionalMU = new MatchUseful();
-            return curLast;
+            return curLast->additionalMU;
         }
     }
     
@@ -323,7 +323,7 @@ class GenericMuOpBase
                 if (llvm::isa<llvm::LoadInst>(val)) //|| llvm::isa<llvm::PtrToIntInst>(val)) // || llvm::isa<llvm::ExtractValueInst>(val) || llvm::isa<llvm::ExtractElementInst>(val))
                 {
                     llvm::Type *valelty = llvm::dyn_cast<llvm::User>(val)->getOperand(0)->getType()->getPointerElementType();
-                    if (! (llvm::isa<llvm::CompositeType>(valelty) || llvm::isa<llvm::FunctionType>(valelty)))      //XXX: Change this to add support for array and vector operation (besid float and int)
+                    if (! (llvm::isa<llvm::CompositeType>(valelty) || llvm::isa<llvm::FunctionType>(valelty)))   //XXX: Change this to add support for array and vector operation (besid float and int)
                         return true;
                 }
                 return false;

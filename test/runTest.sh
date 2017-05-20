@@ -58,7 +58,7 @@ do
     echo -n "mutation...   "
     
     options="-print-preTCE-Meta -gen-mutants"
-    $buildDir/../tools/mull $options -mutant-config ../operator/mutconf.conf $filep.bc 2>$filep.info > $filep.info || { printf "\n---\n"; cat $filep.info; echo "---"; error_exit "mutation Failed for $src. cmd: `readlink -f  $buildDir/../tools/mull` -mutant-config $(readlink -f ../operator/mutconf.conf) $(readlink -f $filep.bc) 2>&1"; }
+    $buildDir/../tools/mull $options -mutant-config ../operator/mutconf.conf $filep.bc 2>$filep.info > $filep.info || { printf "\n---\n"; cat $filep.info; echo "---"; error_exit "mutation Failed for $src. cmd: `readlink -f  $buildDir/../tools/mull` $options -mutant-config $(readlink -f ../operator/mutconf.conf) $(readlink -f $filep.bc) 2>&1"; }
     mv mull-out-0 $filep-out || error_exit "Failed to store output"
     mv $filep.info $filep-out || error_exit "Failed to move info to output"
     echo "llvm-dis..."
