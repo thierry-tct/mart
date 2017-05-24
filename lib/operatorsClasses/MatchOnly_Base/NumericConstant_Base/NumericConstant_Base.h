@@ -41,10 +41,33 @@ class NumericConstant_Base: public MatchOnly_Base
         //Skip switch
         if (llvm::isa<llvm::SwitchInst>(val))
             return false;
-           
-        //for gep, only mutate the poiter indexing
-        if (llvm::GetElementPtrInst * gep = llvm::dyn_cast<llvm::GetElementPtrInst>(val))
+        
+        //llvm memory intrinsec: do no mutate alignement param. XXX
+        if (auto * callinst = llvm::dyn_cast<llvm::CallInst>(val))
         {
+            if (llvm::Function *fun = callinst->getCalledFunction())   
+            {
+                auto fName = fun->getName();
+                if(fName.startswith("llvm.mem") && fun->getReturnType()->isVoidTy() && callinst->getNumArgOperands() == 5)  //TODO: check llvm way of detecting memory intrinsec call, if exist
+                {
+                    //only mutate, if possible, the 'len' and 'isvolatile' params
+                    int indxs[2] = {2,4};
+                    for (auto i=0; i<2; i++)
+                    {
+                        if (llvm::Constant *constval = constMatched(callinst->getArgOperand(indxs[i])))
+                        {
+                            MatchUseful *ptr_mu = MU.getNew();
+                            ptr_mu->appendHLOprdsSource(pos, indxs[i]);
+                            ptr_mu->appendRelevantIRPos(pos);
+                            ptr_mu->setHLReturnIntoIRPos(pos);
+                            ptr_mu->setHLReturnIntoOprdIndex(indxs[i]);
+                        }
+                    }
+                }
+            }
+        }
+        else if (llvm::GetElementPtrInst * gep = llvm::dyn_cast<llvm::GetElementPtrInst>(val))
+        {   //for gep, only mutate the poiter indexing
             int pindex;
             if(llvm::Value *tmpVal = checkIsPointerIndexingAndGet (gep, pindex))
             {

@@ -45,8 +45,8 @@ class ReturnBreakContinue: public MatchOnly_Base
 #endif
         if (prevFunc != curFunc)
         {
+            assert (!structRetUse && "Error, Maybe the return struct was not mutated for prev funtion!");
             prevFunc = curFunc;
-            assert (!structRetUse && "Error, Maybe the return struct was not mutated for perv funtion!");
             // Check whether the function returns a struct
             if (curFunc->getReturnType()->isVoidTy())
             {
@@ -69,6 +69,7 @@ class ReturnBreakContinue: public MatchOnly_Base
                     found = true;
             if (found)
             {
+                structRetUse = nullptr;
                 for (auto &repl: mutationOp.getMutantReplacorsList())
                 {
                     if (isDeletion(repl.getExpElemKey()))
