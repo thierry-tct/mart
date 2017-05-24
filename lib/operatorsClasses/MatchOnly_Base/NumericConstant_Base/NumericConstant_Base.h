@@ -37,15 +37,41 @@ class NumericConstant_Base: public MatchOnly_Base
     bool matchIRs (MatchStmtIR const &toMatch, llvmMutationOp const &mutationOp, unsigned pos, MatchUseful &MU, ModuleUserInfos const &MI) 
     {
         llvm::Value *val = toMatch.getIRAt(pos);
-        for (auto oprdvIt = 0; oprdvIt < llvm::dyn_cast<llvm::User>(val)->getNumOperands(); oprdvIt++) 
+        
+        //Skip switch
+        if (llvm::isa<llvm::SwitchInst>(val))
+            return false;
+           
+        //for gep, only mutate the poiter indexing
+        if (llvm::GetElementPtrInst * gep = llvm::dyn_cast<llvm::GetElementPtrInst>(val))
         {
-            if (llvm::Constant *constval = constMatched(llvm::dyn_cast<llvm::User>(val)->getOperand(oprdvIt)))
+            int pindex;
+            if(llvm::Value *tmpVal = checkIsPointerIndexingAndGet (gep, pindex))
             {
-                MatchUseful *ptr_mu = MU.getNew();
-                ptr_mu->appendHLOprdsSource(pos, oprdvIt);
-                ptr_mu->appendRelevantIRPos(pos);
-                ptr_mu->setHLReturnIntoIRPos(pos);
-                ptr_mu->setHLReturnIntoOprdIndex(oprdvIt);
+                if (llvm::Constant *constval = constMatched(tmpVal))
+                {
+                    pindex++;  //This because 'checkIsPointerIndexingAndGet' returns Gep index which is User index - 1
+                    MatchUseful *ptr_mu = MU.getNew();
+                    ptr_mu->appendHLOprdsSource(pos, pindex);
+                    ptr_mu->appendRelevantIRPos(pos);
+                    ptr_mu->setHLReturnIntoIRPos(pos);
+                    ptr_mu->setHLReturnIntoOprdIndex(pindex);
+                }
+            }
+        }
+        else
+        {
+            //for others mutate everything
+            for (unsigned oprdvIt = 0, maxbound = llvm::dyn_cast<llvm::User>(val)->getNumOperands(); oprdvIt < maxbound; oprdvIt++) 
+            {
+                if (llvm::Constant *constval = constMatched(llvm::dyn_cast<llvm::User>(val)->getOperand(oprdvIt)))
+                {
+                    MatchUseful *ptr_mu = MU.getNew();
+                    ptr_mu->appendHLOprdsSource(pos, oprdvIt);
+                    ptr_mu->appendRelevantIRPos(pos);
+                    ptr_mu->setHLReturnIntoIRPos(pos);
+                    ptr_mu->setHLReturnIntoOprdIndex(oprdvIt);
+                }
             }
         }
         return (MU.first() != MU.end());

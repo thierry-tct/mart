@@ -520,6 +520,7 @@ class GenericMuOpBase
      * \brief 
      * @return nullptr if the Gep do not represent a pointer indexing, else, it return the value representing the index
      * When the pointer oprd do not comes from LoadInst, the 1st index of get just take out the address part (as alloca vars are actually addresses)
+     * Also return the Gep index in 'index', which is (User operand - 1)
      */
     inline llvm::Value* checkIsPointerIndexingAndGet (llvm::GetElementPtrInst * gep, int &index)
     {

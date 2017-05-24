@@ -159,13 +159,13 @@ class ReturnBreakContinue: public MatchOnly_Base
                         toMatchMutant.clear();
                         toMatchMutant.setToCloneStmtIROf(toMatch, MI);
                         llvm::AllocaInst *alloca = builder.CreateAlloca(retType);
-                        alloca->setAlignment( MI.getDataLayout().getTypeStoreSize(retType));
+                        alloca->setAlignment(MI.getDataLayout().getTypeStoreSize(retType));
                         llvm::LoadInst *load = builder.CreateAlignedLoad(alloca, MI.getDataLayout().getTypeStoreSize(retType));
                         //llvm::ReturnInst *newret = builder.CreateRet(load);
                         unsigned initialRetPos = toMatch.getTotNumIRs()-1;
                         llvm::dyn_cast<llvm::ReturnInst>(toMatchMutant.getIRAt(initialRetPos) /*last inst*/)->setOperand(0, load);
-                        toMatchMutant.insertIRAt(initialRetPos, alloca);
                         toMatchMutant.insertIRAt(initialRetPos, load);
+                        toMatchMutant.insertIRAt(initialRetPos, alloca);
                         std::vector<unsigned> relpos({initialRetPos});
                         /*std::vector<unsigned> relpos;
                         for (auto i=0; i<toMatch.size();i++)

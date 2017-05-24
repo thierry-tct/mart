@@ -41,7 +41,13 @@ class FunctionCallCallee: public MatchOnly_Base
             ///MATCH
             if (llvm::CallInst *call = llvm::dyn_cast<llvm::CallInst>(val))
             {
-                llvm::Function *cf = call->getCalledFunction();
+                llvm::Function *cf = call->getCalledFunction(); 
+                
+                // The case of call through function pointer: we can't directly get the called function as this may be dynamically assigned. 
+                //XXX: for now just skip it.  TODO: check for the function alias if it is same then fix it
+                if(!cf)
+                    continue;
+
                 for (auto &repl: mutationOp.getMutantReplacorsList())
                 {
                     if (isDeletion(repl.getExpElemKey()))

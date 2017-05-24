@@ -36,6 +36,7 @@
 #include "llvm/Transforms/Utils/Cloning.h"  //for CloneModule
 
 #include "llvm/Transforms/Utils/Local.h"  //for llvm::DemotePHIToStack   used to remove PHI nodes after mutation
+#include "llvm/Analysis/CFG.h"  // llvm::GetSuccessorNumber and  llvm::GetSuccessorNumber  
 
 Mutation::Mutation(llvm::Module &module, std::string mutConfFile, DumpMutFunc_t writeMutsF, std::string scopeJsonFile): forKLEESEMu(true), funcForKLEESEMu(nullptr), writeMutantsCallback(writeMutsF), moduleInfo (&module, &usermaps)
 {
@@ -58,7 +59,7 @@ Mutation::Mutation(llvm::Module &module, std::string mutConfFile, DumpMutFunc_t 
 }
 
 /**
- * \brief PREPROCESSING - Remove PHI Nodes with a non constant incoming value ****
+ * \brief PREPROCESSING - Remove PHI Nodes, replacing by reg2mem, for every funtion in module
  */
 void Mutation::preprocessVariablePhi (llvm::Module &module)
 {
@@ -67,7 +68,16 @@ void Mutation::preprocessVariablePhi (llvm::Module &module)
     {
         if (skipFunc (Func))
             continue;
+            
         llvm::CastInst *AllocaInsertionPoint = nullptr;
+        llvm::BasicBlock * BBEntry = &(Func.getEntryBlock());
+        llvm::BasicBlock::iterator I = BBEntry->begin();
+        while (llvm::isa<llvm::AllocaInst>(I)) ++I;
+ 
+        AllocaInsertionPoint = new llvm::BitCastInst(
+           llvm::Constant::getNullValue(llvm::Type::getInt32Ty(Func.getContext())),
+           llvm::Type::getInt32Ty(Func.getContext()), "my reg2mem alloca point", &*I);
+                       
         std::vector<llvm::PHINode *> phiNodes;
         for (auto &bb: Func)
             for (auto &instruct: bb)
@@ -87,7 +97,7 @@ void Mutation::preprocessVariablePhi (llvm::Module &module)
             }*/
             if (hasNonConstIncVal)
             {
-                if (! AllocaInsertionPoint) 
+                /***if (! AllocaInsertionPoint) 
                 {
                     llvm::BasicBlock * BBEntry = &(Func.getEntryBlock());
                     llvm::BasicBlock::iterator I = BBEntry->begin();
@@ -96,13 +106,54 @@ void Mutation::preprocessVariablePhi (llvm::Module &module)
                     AllocaInsertionPoint = new llvm::BitCastInst(
                        llvm::Constant::getNullValue(llvm::Type::getInt32Ty(Func.getContext())),
                        llvm::Type::getInt32Ty(Func.getContext()), "my reg2mem alloca point", &*I);
-                }
+                }****/
                 auto * allocaPN = MYDemotePHIToStack (phiN, AllocaInsertionPoint);
                 assert(allocaPN && "Failed to transform phi node (Maybe PHI Node has no 'uses')");
             }
         }
+        
+        //Now take care of the values used on different Blocks: there is no more Phi Nodes
+        std::vector<llvm::Instruction *> crossBBInsts;
+        for (auto &bb: Func)
+        {
+            for (auto &instruct: bb)
+            {
+                if (llvm::isa<llvm::AllocaInst>(&instruct))
+                    continue;
+                    
+#if (LLVM_VERSION_MAJOR <= 3) && (LLVM_VERSION_MINOR < 5)
+                for (llvm::Value::use_iterator ui=instruct.use_begin(), ue=instruct.use_end(); ui!=ue; ++ui)
+                {
+                    auto &Usr = ui.getUse();
+#else
+                for (auto &Usr: instruct.uses())
+                {
+#endif
+                    llvm::Instruction *U = llvm::dyn_cast<llvm::Instruction>(Usr.getUser());
+                    if (U->getParent() != &bb)
+                    {
+                        crossBBInsts.push_back(&instruct);
+                        break;
+                    }
+                }
+            } 
+        }
+        for (auto * Inst: crossBBInsts)
+            MyDemoteRegToStack(*Inst, false/*volitile?*/, AllocaInsertionPoint);
+            
         if (AllocaInsertionPoint)
             AllocaInsertionPoint->eraseFromParent();
+        
+#if (LLVM_VERSION_MAJOR <= 3) && (LLVM_VERSION_MINOR < 5)
+        if (verifyFuncModule && llvm::verifyFunction (Func, llvm::AbortProcessAction))
+#else
+        if (verifyFuncModule && llvm::verifyFunction (Func, &llvm::errs()))
+#endif
+        {
+            //Func.dump();
+            llvm::errs() << "PreProcessing ERROR: Preprocessing Broke Function('" << Func.getName() << "')!\n";
+            assert(false); 
+        }
     }
 }
 
@@ -176,6 +227,97 @@ llvm::AllocaInst *Mutation::MYDemotePHIToStack(llvm::PHINode *P, llvm::Instructi
     return Slot;
 }
 
+/// DemoteRegToStack - This function takes a virtual register computed by an
+/// Instruction and replaces it with a slot in the stack frame, allocated via
+/// alloca.  This allows the CFG to be changed around without fear of
+/// invalidating the SSA information for the value.  It returns the pointer to
+/// the alloca inserted to create a stack slot for I.
+/// @MuLL: edited from "llvm/lib/Transforms/Utils/DemoteRegToStack.cpp"
+///TODO: @todo Update this as LLVM evolve
+llvm::AllocaInst *Mutation::MyDemoteRegToStack(llvm::Instruction &I, bool VolatileLoads, llvm::Instruction *AllocaPoint) 
+{
+    /*if (I.use_empty()) 
+    {
+        I.eraseFromParent();
+        return nullptr;
+    }*/
+
+    //Change the users from different BB to read from stack.
+    std::vector<llvm::Instruction *> crossBBUsers;
+    llvm::BasicBlock *Ibb = I.getParent();
+#if (LLVM_VERSION_MAJOR <= 3) && (LLVM_VERSION_MINOR < 5)
+    for (llvm::Value::use_iterator ui=I.use_begin(), ue=I.use_end(); ui!=ue; ++ui)
+    {
+        auto &Usr = ui.getUse();
+#else
+    for (auto &Usr: I.uses())
+    {
+#endif
+        llvm::Instruction *U = llvm::dyn_cast<llvm::Instruction>(Usr.getUser());
+        if (U->getParent() != Ibb)
+            crossBBUsers.push_back(U);
+    }
+    
+    llvm::AllocaInst *Slot = nullptr;
+    if (!crossBBUsers.empty())
+    {
+        // Create a stack slot to hold the value.
+        if (AllocaPoint) 
+        {
+            Slot = new llvm::AllocaInst(I.getType(), nullptr,
+                                I.getName()+".reg2mem", AllocaPoint);
+        } 
+        else 
+        {
+            /*llvm::Function *F = I.getParent()->getParent();
+            Slot = new llvm::AllocaInst(I.getType(), nullptr, I.getName() + ".reg2mem",
+                                  &F->getEntryBlock().front());*/
+            assert (false && "must have non-null insertion point, which if after all allocates of entry BB");
+        }
+
+        // We cannot demote invoke instructions to the stack if their normal edge
+        // is critical. Therefore, split the critical edge and create a basic block
+        // into which the store can be inserted.  TODO TODO: Check out whether this is needed here (Invoke..)
+        if (llvm::InvokeInst *II = llvm::dyn_cast<llvm::InvokeInst>(&I)) 
+        {
+            if (!II->getNormalDest()->getSinglePredecessor()) 
+            {
+                unsigned SuccNum = llvm::GetSuccessorNumber(II->getParent(), II->getNormalDest());
+                assert(llvm::isCriticalEdge(II, SuccNum) && "Expected a critical edge!");
+                llvm::BasicBlock *BB = llvm::SplitCriticalEdge(II, SuccNum);
+                assert(BB && "Unable to split critical edge.");
+                (void)BB;
+            }
+        }
+        
+        for (auto *U: crossBBUsers)
+        {
+            //XXX: No need to care for PHI Nodes, since they are already all removed
+            llvm::Value *V = new llvm::LoadInst(Slot, I.getName()+".reload", VolatileLoads, U);
+            U->replaceUsesOfWith(&I, V);
+        }
+
+        // Insert stores of the computed value into the stack slot. We have to be
+        // careful if I is an invoke instruction, because we can't insert the store
+        // AFTER the terminator instruction.
+        llvm::BasicBlock::iterator InsertPt;
+        if (!llvm::isa<llvm::TerminatorInst>(I)) 
+        {
+            InsertPt = ++I.getIterator();
+            for (; llvm::isa<llvm::PHINode>(InsertPt) || InsertPt->isEHPad(); ++InsertPt)
+              /* empty */;   // Don't insert before PHI nodes or landingpad instrs.
+        } 
+        else 
+        {
+            llvm::InvokeInst &II = llvm::cast<llvm::InvokeInst>(I);
+            InsertPt = II.getNormalDest()->getFirstInsertionPt();
+        }
+
+        new llvm::StoreInst(&I, Slot, &*InsertPt);
+    }
+    return Slot;
+}
+
 /**
  * \brief The function that mutation will skip
  */
@@ -186,6 +328,9 @@ inline bool Mutation::skipFunc (llvm::Function &Func)
         return true;
         
     if (forKLEESEMu && funcForKLEESEMu == &Func)
+        return true;
+        
+    if (! mutationScope.functionInMutationScope(&Func))
         return true;
         
     return false;
@@ -1030,7 +1175,7 @@ bool Mutation::doMutate()
                             
                             for (auto *subBB: mutBlocks)
                             {
-                                subBB->setName(std::string("MuLL.Mutant_Mut")+mutIDstr);
+                                subBB->setName(std::string("MuLL.Mutant_Mut")+mutIDstr/*+"-"+(*curSrcStmtIt)->mutantStmt_list.getTypeName(ms_ind)*/);
                                 subBB->insertInto (&Func, original);
                             }
                             
@@ -1080,12 +1225,14 @@ bool Mutation::doMutate()
         
         assert (remainMultiBBLiveStmts.empty() && "Something wrong with function (missing IRs) or bug!");
         
+        //repairDefinitionUseDomination(Func);  //TODO: when we want to directly support cross BB use
+        
         //Func.dump();
         
 #if (LLVM_VERSION_MAJOR <= 3) && (LLVM_VERSION_MINOR < 5)
-        if (llvm::verifyFunction (Func, llvm::AbortProcessAction))
+        if (verifyFuncModule && llvm::verifyFunction (Func, llvm::AbortProcessAction))
 #else
-        if (llvm::verifyFunction (Func, &llvm::errs()))
+        if (verifyFuncModule && llvm::verifyFunction (Func, &llvm::errs()))
 #endif
         {
             llvm::errs() << "ERROR: Misformed Function('" << Func.getName() << "') After mutation!\n";//module.dump();
@@ -1100,9 +1247,9 @@ bool Mutation::doMutate()
     //module.dump();
     
 #if (LLVM_VERSION_MAJOR <= 3) && (LLVM_VERSION_MINOR < 5)
-    if (llvm::verifyModule (module, llvm::AbortProcessAction))
+    if (verifyFuncModule && llvm::verifyModule (module, llvm::AbortProcessAction))
 #else
-    if (llvm::verifyModule (module, &llvm::errs()))
+    if (verifyFuncModule && llvm::verifyModule (module, &llvm::errs()))
 #endif
     {
         llvm::errs() << "ERROR: Misformed Module after mutation!\n"; 
@@ -1111,6 +1258,25 @@ bool Mutation::doMutate()
     
     return true;
 }//~Mutation::doMutate
+
+/**
+ * \brief for the statements spawning multiple BB, make sure that the IR used in other BB will not make verifier complain. We fix by adding a phi node at the convergence point of mutants and original.
+ * TODO: When we want do support cross BB use
+ */
+/*void Mutation::repairDefinitionUseDomination(llvm::Function &Func);
+{
+    llvm::SwitchInst *mutSelSw = nullptr;
+    for (auto &BB: Func)
+    {
+        for (auto &Inst: BB)
+        {
+            if (mutSelSw = llvm::dyn_cast<llvm::SwitchInst>(&Inst))
+            {
+                
+            }
+        }
+    }
+}*/
 
 /**
  * \brief obtain the Weak Mutant kill condition and insert it before the instruction @param insertBeforeInst and return the result of the comparison 'original' != 'mutant'
@@ -1217,9 +1383,9 @@ void Mutation::computeWeakMutation(std::unique_ptr<llvm::Module> &cmodule, std::
     
     //verify WM module
 #if (LLVM_VERSION_MAJOR <= 3) && (LLVM_VERSION_MINOR < 5)
-    if (llvm::verifyModule (*cmodule, llvm::AbortProcessAction))
+    if (verifyFuncModule && llvm::verifyModule (*cmodule, llvm::AbortProcessAction))
 #else
-    if (llvm::verifyModule (*cmodule, &llvm::errs()))
+    if (verifyFuncModule && llvm::verifyModule (*cmodule, &llvm::errs()))
 #endif
     {
         llvm::errs() << "ERROR: Misformed WM Module!\n"; 
@@ -1235,27 +1401,33 @@ void Mutation::doTCE (std::unique_ptr<llvm::Module> &modWMLog, bool writeMuts)
     llvm::GlobalVariable *mutantIDSelGlob = module.getNamedGlobal(mutantIDSelectorName);
     assert (mutantIDSelGlob && "Unmutated module passed to TCE");
     
-    unsigned highestMutID = getHighestMutantID (module);
+    unsigned highestMutID = getHighestMutantID (&module);
     
     TCE tce;
     
     std::map<unsigned, std::vector<unsigned>> duplicateMap;
     std::vector<llvm::Module *> mutModules;
+#if (LLVM_VERSION_MAJOR <= 3) && (LLVM_VERSION_MINOR < 5)
+    std::unique_ptr<llvm::Module> subjectM(llvm::CloneModule(&module));
+#else
+    std::unique_ptr<llvm::Module> subjectM = llvm::CloneModule(&module);
+#endif
+    tce.optimize(*subjectM);
     for (unsigned id=0; id <= highestMutID; id++)       //id==0 is the original
     {
 #if (LLVM_VERSION_MAJOR <= 3) && (LLVM_VERSION_MINOR < 5)
-        llvm::Module *clonedM = llvm::CloneModule(&module);
+        llvm::Module *clonedM = llvm::CloneModule(subjectM.get());
 #else
-        llvm::Module *clonedM = llvm::CloneModule(&module).release();
+        llvm::Module *clonedM = llvm::CloneModule(subjectM.get()).release();
 #endif
         mutModules.push_back(clonedM);  
         mutantIDSelGlob = clonedM->getNamedGlobal(mutantIDSelectorName);
         mutantIDSelGlob->setInitializer(llvm::ConstantInt::get(moduleInfo.getContext(), llvm::APInt(32, (uint64_t)id, false)));
-        mutantIDSelGlob->setConstant(true);
-        tce.optimize(*clonedM);
+        mutantIDSelGlob->setConstant(true); ////llvm::errs()<<"processing "<<id<<"\n";    ////DBG
+        tce.optimize(*clonedM);   //Time consuming. TRY Optimizing at the Function level and attach to Module for diff??
         bool hasEq = false;
         for (auto &M: duplicateMap)
-        {
+        {////llvm::errs()<<"diff with: "<<M.first<<"\n"; ////DBG
             if (! tce.moduleDiff(mutModules.at(M.first), clonedM))
             {
                 hasEq = true;
@@ -1415,9 +1587,9 @@ void Mutation::doTCE (std::unique_ptr<llvm::Module> &modWMLog, bool writeMuts)
     
     //verify post TCE Meta-module
 #if (LLVM_VERSION_MAJOR <= 3) && (LLVM_VERSION_MINOR < 5)
-    if (llvm::verifyModule (module, llvm::AbortProcessAction))
+    if (verifyFuncModule && llvm::verifyModule (module, llvm::AbortProcessAction))
 #else
-    if (llvm::verifyModule (module, &llvm::errs()))
+    if (verifyFuncModule && llvm::verifyModule (module, &llvm::errs()))
 #endif
     {
         llvm::errs() << "ERROR: Misformed post-TCE Meta-Module!\n"; 
@@ -1431,7 +1603,7 @@ void Mutation::doTCE (std::unique_ptr<llvm::Module> &modWMLog, bool writeMuts)
 
 bool Mutation::getMutant (llvm::Module &module, unsigned mutantID)
 {
-    unsigned highestMutID = getHighestMutantID (module);
+    unsigned highestMutID = getHighestMutantID (&module);
     if (mutantID > highestMutID)
         return false;
     
@@ -1444,9 +1616,11 @@ bool Mutation::getMutant (llvm::Module &module, unsigned mutantID)
     
     return true;
 }
-unsigned Mutation::getHighestMutantID (llvm::Module &module)
+unsigned Mutation::getHighestMutantID (llvm::Module const *module)
 {
-    llvm::GlobalVariable *mutantIDSelectorGlobal = module.getNamedGlobal(mutantIDSelectorName);
+    if (!module)
+        module = currentMetaMutantModule;
+    llvm::GlobalVariable const *mutantIDSelectorGlobal = module->getNamedGlobal(mutantIDSelectorName);
     assert (mutantIDSelectorGlobal && mutantIDSelectorGlobal->getInitializer()->getType()->isIntegerTy() && "Unmutated module passed to TCE");
     return llvm::dyn_cast<llvm::ConstantInt>(mutantIDSelectorGlobal->getInitializer())->getZExtValue() - 1;
 }

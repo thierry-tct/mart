@@ -1,5 +1,6 @@
 
 #include <string>
+#include <ctime>
 #include <sys/stat.h>   //mkdir, stat
 #include <sys/types.h>  //mkdir, stat
 #include <libgen.h> //basename
@@ -71,6 +72,7 @@ bool dumpMutantsCallback (std::map<unsigned, std::vector<unsigned>> *poss, std::
 
 int main (int argc, char ** argv)
 {
+    clock_t curClockTime;
     char * inputIRfile = nullptr;
     char * mutantConfigfile = nullptr;
     char * mutantScopeJsonfile = nullptr;
@@ -212,11 +214,14 @@ int main (int argc, char ** argv)
 #endif
     
     // do mutation
+    llvm::outs() << "MuLL@Progress: Mutating...\n";
+    curClockTime = clock();
     if (! mut.doMutate())
     {
         llvm::errs() << "\nMUTATION FAILED!!\n\n";
         return 1;
     }
+    llvm::outs() << "MuLL@Progress: Mutation took: "<< (float)(clock() - curClockTime)/CLOCKS_PER_SEC <<" Seconds.\n";
     
     // @Output setup
     struct stat st;// = {0};
@@ -251,7 +256,10 @@ int main (int argc, char ** argv)
     }
     
     //@ Remove equivalent mutants and //@ print mutants in case on
+    llvm::outs() << "MuLL@Progress: Removing TCE Duplicates & WM & writing mutants IRs (with initially " << mut.getHighestMutantID() <<" mutants)...\n";
+    curClockTime = clock();
     mut.doTCE(modWMLog, dumpMutants);
+    llvm::outs() << "MuLL@Progress: Removing TCE Duplicates  & WM & writing mutants IRs took: "<< (float)(clock() - curClockTime)/CLOCKS_PER_SEC <<" Seconds.\n";
     
     /// Mutants Infos into json
     if (dumpMutantInfos)
@@ -308,12 +316,14 @@ int main (int argc, char ** argv)
 #endif  //#ifdef KLEE_SEMU_GENMU_OBJECTFILE
     //llvm::errs() << "@After Mutation->TCE\n"; moduleM->dump(); llvm::errs() << "\n";
     
-    llvm::errs() << " @progress: Compiling Mutants ...\n";
+    llvm::errs() << "MuLL@Progress: Compiling Mutants ...\n";
+    curClockTime = clock();
     tmpStr = new char[1+std::strlen(argv[0])]; //Alocate tmpStr3
     std::strcpy(tmpStr, argv[0]); 
     std::string compileMutsScript(dirname(tmpStr));  //dirname change the contain of its parameter
     delete [] tmpStr; tmpStr = nullptr;  //del tmpStr3
     //llvm::errs() << "bash " + compileMutsScript+"/useful/CompileAllMuts.sh "+outputDir+" yes" <<"\n";
     assert(!system(("bash " + compileMutsScript+"/useful/CompileAllMuts.sh "+outputDir+" yes").c_str()) && "Mutants Compile script failed");
+    llvm::outs() << "MuLL@Progress:  Compiling Mutants took: "<< (float)(clock() - curClockTime)/CLOCKS_PER_SEC <<" Seconds.\n";
     return 0;
 }

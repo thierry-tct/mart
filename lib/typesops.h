@@ -292,7 +292,7 @@ class MutationScope
 {
   private:
     bool mutateAllFuncs;
-    std::vector<llvm::Function *> funcsToMutate;
+    std::unordered_set<llvm::Function *> funcsToMutate;
   public:
     void Initialize (llvm::Module &module, std::string inJsonFilename="")
     {
@@ -397,12 +397,12 @@ class MutationScope
                     if (specFuncs.count(Func.getName()))
                     {
                         assert (canMutThisFunc && "Error in input file: Function selected to be mutated but corresponding source file not selected.");
-                        funcsToMutate.push_back(&Func);
+                        funcsToMutate.insert(&Func);
                     }
                 }
                 else if (canMutThisFunc)
                 {
-                    funcsToMutate.push_back(&Func);
+                    funcsToMutate.insert(&Func);
                 }
 	        }
 	        assert (hasDbgIfSrc && "No debug information in the module, but mutation source file scope given");
@@ -411,6 +411,17 @@ class MutationScope
 	        assert (seenSrcs.size() == specSrcFiles.size() && "Some specified sources file are not found in the module.");
 	    }
 	    mutateAllFuncs = funcsToMutate.empty();
+    }
+    
+    /**
+     * \brief This method return true if the function passed is in the scope (to be mutated). false otherwise
+     */
+    inline bool functionInMutationScope (llvm::Function *F)
+    {
+        if (mutateAllFuncs)
+            return true;
+        else
+            return (funcsToMutate.count(F) > 0);
     }
 };
 
@@ -659,12 +670,12 @@ struct MutantsOfStmt
                         {
                             llvm::dyn_cast<llvm::User>(pointerMap.lookup(I))->setOperand(opos, newoprd);  //TODO:Double check the use of lookup for this map
                         }
-                        else
+                        else if (! llvm::isa<llvm::AllocaInst>(oprd))
                         {
                             bool fail = false;
                             switch (opos)
                             {
-                                case 0:
+                                /*case 0:
                                     {
                                         if (llvm::isa<llvm::StoreInst>(I))
                                             fail = true;
@@ -675,7 +686,7 @@ struct MutantsOfStmt
                                         if (llvm::isa<llvm::LoadInst>(I))
                                             fail = true;
                                         break;
-                                    }
+                                    }*/
                                 default:
                                     fail = true;
                             }
@@ -684,6 +695,7 @@ struct MutantsOfStmt
                             {
                                 llvm::errs() << "Error (Mutation::getOriginalStmtBB): lookup an element not in the map -- "; 
                                 llvm::dyn_cast<llvm::Instruction>(I)->dump();
+                                oprd->dump();
                                 assert(false && "");
                             }
                         }
@@ -921,8 +933,15 @@ struct MutantInfoList
                     {
                         if (! (srcLevelLoc.empty() || srcLevelLoc.substr(0,srcLevelLoc.rfind(":")-1) == tmpSrc.substr(0,tmpSrc.rfind(":")-1))) //rfind to remove the column info
                         {
-                            llvm::errs() << srcLevelLoc << " --- " << tmpSrc <<"\n";
-                            assert (false && "A stmt spawn more than 1 src level line of code");
+                            /*llvm::errs() << srcLevelLoc << " --- " << tmpSrc <<"\n\n"; 
+                            I->dump();
+                            llvm::errs() <<"toMatch: ---\n";
+                            for (auto *iival: toMatch)
+                                iival->dump();
+                            assert (false && "A stmt spawn more than 1 src level line of code");*/
+                            
+                            //sometimes a function call may spawn multiple lines and the params are computed first but are on next lines. The last would be the function call line
+                            srcLevelLoc.assign(tmpSrc);
                         }
                         if (srcLevelLoc.empty())
                         {

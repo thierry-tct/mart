@@ -55,7 +55,7 @@ class NumericAssign_Base: public GenericMuOpBase
                     {
                         unsigned valncp = toMatch.depPosofPos(store->getOperand(0), pos, true);
                         ptr_mu->appendHLOprdsSource(valncp);
-                        ptr_mu->setHLReturningIRPos(valncp);
+                        ptr_mu->setHLReturningIRPos(pos); //valncp);  //TODO: find a way to handle a=b=c becomes a=b+. heres the use a of b=c which is use of c, become the use of b+c. replace by valncp only into users that follow?? 
                     }
                 }
                     

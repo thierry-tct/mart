@@ -42,19 +42,16 @@ class Mutation
     
     const char * wmLogFuncName = "muLLVM_WM_Log_Function"; //This fuction take the mutant ID and the condition and print the mutant ID if the condition is true.
     
+    bool verifyFuncModule = true;  //Change this to enable/disable verification after mutation
+    
 public:
     typedef bool (* DumpMutFunc_t)(std::map<unsigned, std::vector<unsigned>>*, std::vector<llvm::Module *>*, llvm::Module *);
     Mutation (llvm::Module &module, std::string mutConfFile, DumpMutFunc_t writeMutsF, std::string scopeJsonFile="");
     ~Mutation ();
     bool doMutate ();   //Transforms module
     void doTCE (std::unique_ptr<llvm::Module> &modWMLog, bool writeMuts=false);      //Transforms module
-    void computeWeakMutation(std::unique_ptr<llvm::Module> &cmodule, std::unique_ptr<llvm::Module> &modWMLog);     //Compute WM of the module passed (pass a cloned module)
     bool getMutant (llvm::Module &module, unsigned mutanatID);
-    unsigned getHighestMutantID (llvm::Module &module);
-    
-    void preprocessVariablePhi (llvm::Module &module);
-    llvm::AllocaInst * MYDemotePHIToStack(llvm::PHINode *P, llvm::Instruction *AllocaPoint);
-    inline bool skipFunc (llvm::Function &Func);
+    unsigned getHighestMutantID (llvm::Module const *module=nullptr);
     
     void loadMutantInfos (std::string filename);
     void dumpMutantInfos (std::string filename);
@@ -67,4 +64,9 @@ private:
     llvm::Function * createGlobalMutIDSelector_Func(llvm::Module &module, bool bodyOnly=false);
     DumpMutFunc_t writeMutantsCallback;
     llvm::Value * getWMCondition (llvm::BasicBlock *orig, llvm::BasicBlock *mut, llvm::Instruction * insertBeforeInst);
+    void computeWeakMutation(std::unique_ptr<llvm::Module> &cmodule, std::unique_ptr<llvm::Module> &modWMLog);     //Compute WM of the module passed (pass a cloned module)
+    void preprocessVariablePhi (llvm::Module &module);
+    llvm::AllocaInst * MYDemotePHIToStack(llvm::PHINode *P, llvm::Instruction *AllocaPoint);
+    llvm::AllocaInst * MyDemoteRegToStack(llvm::Instruction &I, bool VolatileLoads, llvm::Instruction *AllocaPoint);
+    inline bool skipFunc (llvm::Function &Func);
 };
