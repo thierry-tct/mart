@@ -35,7 +35,7 @@ enum codeParts {cpEXPR=0, cpCONSTNUM, cpVAR, cpADDRESS, cpPOINTER};
 
 //enum typeOP {Arithetical, Relational, Logical, Bitwise, Assignement, Misc, Call, DelStmt};
 //enum modeOP {Unary, Binary, None};	//None for DelStmt
-enum ExpElemKeys {mALLSTMT=0, mALLFEXPR, mALLIEXPR, mANYFVAR, mANYIVAR, mANYFCONST, mANYICONST, mDELSTMT, mKEEP_ONE_OPRD, mCONST_VALUE_OF, //special, Delete stmt
+enum ExpElemKeys {mALLSTMT=0, mALLFEXPR, mALLIEXPR, mANYFVAR, mANYIVAR/*non pointer*/, mANYFCONST, mANYICONST, mANYADDRESS, mANYPOINTER, mDELSTMT, mKEEP_ONE_OPRD, mCONST_VALUE_OF, //special, Delete stmt
             mIASSIGN, mFASSIGN, mADD, mFADD, mSUB, mFSUB, mMUL, mFMUL, mSDIV, mUDIV, mFDIV, mSMOD, mUMOD, mFMOD,  //Arithmetic Binary
             mNEG, mFNEG, mLEFTINC, mFLEFTINC, mRIGHTINC, mFRIGHTINC, mLEFTDEC, mFLEFTDEC, mRIGHTDEC, mFRIGHTDEC, mABS, mFABS,    //Arithmetic Unary
             mPADD, mPSUB, mPLEFTINC, mPRIGHTINC, mPLEFTDEC, mPRIGHTDEC,     //Pointer
@@ -47,7 +47,8 @@ enum ExpElemKeys {mALLSTMT=0, mALLFEXPR, mALLIEXPR, mANYFVAR, mANYIVAR, mANYFCON
             mAND, mOR,                              //Logical Binary
             mNOT,                                    //Logical Unary    TODO TODO: Add this to replace only
             
-            mCALL, mNEWCALLEE,              // called function
+            mCALL, mNEWCALLEE, mSHUFFLE_ARGS,             // called function    TODO TODO: SHUffle-args
+            mSWITCH, mSHUFFLE_CASE_DESTS,   // exchange the destinations of switch   TODO TODO  
             mRETURN_BREAK_CONTINUE,         // delete them by replacing unconditional 'br' target. for the final return with argument, set it to 0
             mPADD_DEREF, mPSUB_DEREF, mPDEREF_ADD, mPDEREF_SUB,     // Pointer/val operation combined with deref
             mPLEFTINC_DEREF, mPRIGHTINC_DEREF, mPLEFTDEC_DEREF, mPRIGHTDEC_DEREF, mPDEREF_LEFTINC, mPDEREF_RIGHTINC, mPDEREF_LEFTDEC, mPDEREF_RIGHTDEC,   // Pointer/val operation combined with deref

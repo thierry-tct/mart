@@ -151,16 +151,7 @@ void Mutation::preprocessVariablePhi (llvm::Module &module)
         if (AllocaInsertionPoint)
             AllocaInsertionPoint->eraseFromParent();
         
-#if (LLVM_VERSION_MAJOR <= 3) && (LLVM_VERSION_MINOR < 5)
-        if (verifyFuncModule && llvm::verifyFunction (Func, llvm::AbortProcessAction))
-#else
-        if (verifyFuncModule && llvm::verifyFunction (Func, &llvm::errs()))
-#endif
-        {
-            //Func.dump();
-            llvm::errs() << "PreProcessing ERROR: Preprocessing Broke Function('" << Func.getName() << "')!\n";
-            assert(false); 
-        }
+        Mutation::checkFunctionValidity(Func, "ERROR: PreProcessing ERROR: Preprocessing Broke Function!");
     }
 }
 
@@ -662,6 +653,32 @@ llvm::Function * Mutation::createGlobalMutIDSelector_Func(llvm::Module &module, 
     builder.CreateRetVoid();
     
     return funcForKS;
+}
+
+void Mutation::checkModuleValidity(llvm::Module &Mod, const char *errMsg)
+{
+#if (LLVM_VERSION_MAJOR <= 3) && (LLVM_VERSION_MINOR < 5)
+    if (verifyFuncModule && llvm::verifyModule (Mod, llvm::AbortProcessAction))
+#else
+    if (verifyFuncModule && llvm::verifyModule (Mod, &llvm::errs()))
+#endif
+    {
+        llvm::errs() << errMsg << "\n"; 
+        assert(false); //return false;
+    }
+}
+
+void Mutation::checkFunctionValidity(llvm::Function &Func, const char *errMsg)
+{
+#if (LLVM_VERSION_MAJOR <= 3) && (LLVM_VERSION_MINOR < 5)
+        if (verifyFuncModule && llvm::verifyFunction (Func, llvm::AbortProcessAction))
+#else
+        if (verifyFuncModule && llvm::verifyFunction (Func, &llvm::errs()))
+#endif
+        {
+            llvm::errs() << errMsg << "(" << Func.getName() << ")\n";
+            assert(false); //return false;
+        }
 }
 
 // @Name: doMutate
@@ -1233,16 +1250,7 @@ bool Mutation::doMutate()
         
         //Func.dump();
         
-#if (LLVM_VERSION_MAJOR <= 3) && (LLVM_VERSION_MINOR < 5)
-        if (verifyFuncModule && llvm::verifyFunction (Func, llvm::AbortProcessAction))
-#else
-        if (verifyFuncModule && llvm::verifyFunction (Func, &llvm::errs()))
-#endif
-        {
-            llvm::errs() << "ERROR: Misformed Function('" << Func.getName() << "') After mutation!\n";//module.dump();
-            assert(false); //return false;
-        }
-         
+        Mutation::checkFunctionValidity(Func, "ERROR: Misformed Function After mutation!");
     }   //for each Function in Module
     
     //@ Set the Initial Value of mutantIDSelectorGlobal to '<Highest Mutant ID> + 1' (which is equivalent to selecting the original program)
@@ -1250,15 +1258,7 @@ bool Mutation::doMutate()
     
     //module.dump();
     
-#if (LLVM_VERSION_MAJOR <= 3) && (LLVM_VERSION_MINOR < 5)
-    if (verifyFuncModule && llvm::verifyModule (module, llvm::AbortProcessAction))
-#else
-    if (verifyFuncModule && llvm::verifyModule (module, &llvm::errs()))
-#endif
-    {
-        llvm::errs() << "ERROR: Misformed Module after mutation!\n"; 
-        assert(false); //return false;
-    }
+    Mutation::checkModuleValidity(module, "ERROR: Misformed Module after mutation!");
     
     return true;
 }//~Mutation::doMutate
@@ -1386,29 +1386,29 @@ void Mutation::computeWeakMutation(std::unique_ptr<llvm::Module> &cmodule, std::
         mutantIDSelGlob->setConstant(true); // only original...
     
     //verify WM module
-#if (LLVM_VERSION_MAJOR <= 3) && (LLVM_VERSION_MINOR < 5)
-    if (verifyFuncModule && llvm::verifyModule (*cmodule, llvm::AbortProcessAction))
-#else
-    if (verifyFuncModule && llvm::verifyModule (*cmodule, &llvm::errs()))
-#endif
-    {
-        llvm::errs() << "ERROR: Misformed WM Module!\n"; 
-        assert(false); 
-    }
+    Mutation::checkModuleValidity(*cmodule, "ERROR: Misformed WM Module!");
 }//~Mutation::computeWeakMutation
 
-void Mutation::setModFuncToFunction (llvm::Module *Mod, llvm::Function *Fun)
+/**
+ * \brief If targetF is non nul, it should be the function corresponding to srcF in Mod
+ */
+void Mutation::setModFuncToFunction (llvm::Module *Mod, llvm::Function *srcF, llvm::Function *targetF)
 {
-    llvm::Function *targetF = Mod->getFunction(Fun->getName());
+    if (targetF == nullptr)
+        targetF = Mod->getFunction(srcF->getName());
+    else
+        assert (targetF->getParent() == Mod && "passed targetF which is not a function of module");
     assert (targetF && "the function Fun do not have an instance in module Mod");
     llvm::ValueToValueMapTy vmap;
     llvm::Function::arg_iterator destI = targetF->arg_begin();
-    for (const llvm::Argument &aII: Fun->args())
+    for (const llvm::Argument &aII: srcF->args())
         if (vmap.count(&aII) == 0)
             vmap[&aII] = &*destI++;
     llvm::SmallVector<llvm::ReturnInst*, 8> Returns;
     targetF->dropAllReferences(); //deleteBody();
-    llvm::CloneFunctionInto(targetF, Fun, vmap, true, Returns);
+    llvm::CloneFunctionInto(targetF, srcF, vmap, true, Returns);
+    //verify post clone into module
+    //Mutation::checkModuleValidity(*Mod, "ERROR: Misformed module after cloneFunctionInto!");
 }
 
 void Mutation::doTCE (std::unique_ptr<llvm::Module> &modWMLog, bool writeMuts, bool isTCEFunctionMode)
@@ -1452,8 +1452,8 @@ void Mutation::doTCE (std::unique_ptr<llvm::Module> &modWMLog, bool writeMuts, b
     {
         mutFunctions.clear();
         mutFunctions.resize(highestMutID+1, nullptr);
+        llvm::errs() << "Cloning...\n";   //////DBG
         computeModuleBufsByFunc(module, nullptr, &clonedModByFunc, funcMutByMutID);
-        //llvm::errs() << "Cloning...\n";   //////DBG
 #if (LLVM_VERSION_MAJOR <= 3) && (LLVM_VERSION_MINOR < 5)
         clonedOrig = llvm::CloneModule(clonedModByFunc.at(funcMutByMutID[0]));
 #else
@@ -1476,9 +1476,9 @@ void Mutation::doTCE (std::unique_ptr<llvm::Module> &modWMLog, bool writeMuts, b
     {
         mutModules.clear();
         mutModules.resize(highestMutID+1, nullptr);
+        llvm::errs() << "Cloning...\n";   //////DBG
         computeModuleBufsByFunc(module, &inMemIRModBufByFunc, nullptr, funcMutByMutID);
         // Read all the mutantmodules possibly in parallel
-        llvm::errs() << "Cloning...\n";   //////DBG
        /*#ifdef ENABLE_OPENMP_PARALLEL
             omp_set_num_threads(std::min(atoi(std::getenv("OMP_NUM_THREADS")), std::max(omp_get_max_threads()/2, 1)));
             #pragma omp parallel for 
@@ -1514,10 +1514,10 @@ void Mutation::doTCE (std::unique_ptr<llvm::Module> &modWMLog, bool writeMuts, b
         llvm::Module *clonedM = llvm::CloneModule(&module).release();
 #endif*/
 
-        llvm::errs()<<"processing "<<id<<"; ";    ////DBG
-        
         //Currently only support a mutant in a single funtion. TODO TODO: extent to mutant cros function
         assert(funcMutByMutID[id] != nullptr && "//Currently only support a mutant in a single funtion (funcMutByMutID[id]). TODO TODO: extent to mutant cros function");
+        
+        llvm::errs()<<"processing "<<id<< ", Func: " << funcMutByMutID[id]->getName() << "\n";    ////DBG
         
         //Check with original
         mutatedFuncsOfMID.clear();
@@ -1535,14 +1535,7 @@ void Mutation::doTCE (std::unique_ptr<llvm::Module> &modWMLog, bool writeMuts, b
             //restore clonedM module
             llvm::ValueToValueMapTy vmap;
             mutFunctions[id] = llvm::CloneFunction(targetF, vmap, true/*moduleLevelChanges*/);
-            vmap.clear();
-            llvm::Function::arg_iterator destI = targetF->arg_begin();
-            for (const llvm::Argument &aII: srcF->args())
-                if (vmap.count(&aII) == 0)
-                    vmap[&aII] = &*destI++;
-            llvm::SmallVector<llvm::ReturnInst*, 8> Returns;
-            targetF->dropAllReferences(); //deleteBody();
-            llvm::CloneFunctionInto(targetF, srcF, vmap, true, Returns);
+            setModFuncToFunction (clonedM, srcF, targetF);
             
             //If there was difference with original process bellow
         }
@@ -1787,15 +1780,7 @@ void Mutation::doTCE (std::unique_ptr<llvm::Module> &modWMLog, bool writeMuts, b
     }
     
     //verify post TCE Meta-module
-#if (LLVM_VERSION_MAJOR <= 3) && (LLVM_VERSION_MINOR < 5)
-    if (verifyFuncModule && llvm::verifyModule (module, llvm::AbortProcessAction))
-#else
-    if (verifyFuncModule && llvm::verifyModule (module, &llvm::errs()))
-#endif
-    {
-        llvm::errs() << "ERROR: Misformed post-TCE Meta-Module!\n"; 
-        assert(false); //return false;
-    }
+    Mutation::checkModuleValidity(module, "ERROR: Misformed post-TCE Meta-Module!");
     
     // free mutModules' cloned modules.
     if (isTCEFunctionMode)
@@ -1817,6 +1802,8 @@ void Mutation::doTCE (std::unique_ptr<llvm::Module> &modWMLog, bool writeMuts, b
 
 void Mutation::cleanFunctionToMut (llvm::Function &Func, MuLL::MutantIDType mutantID, llvm::GlobalVariable *mutantIDSelGlob, llvm::Function *mutantIDSelGlob_Func)
 {
+    if (Func.isDeclaration())
+        return;
     for (auto &BB: Func)
     {
         std::vector<llvm::BasicBlock *> toBeRemovedBB;
@@ -1875,6 +1862,8 @@ void Mutation::cleanFunctionToMut (llvm::Function &Func, MuLL::MutantIDType muta
         for (auto *bbrm: toBeRemovedBB)
             bbrm->eraseFromParent();
     }
+    //Check validity
+    Mutation::checkFunctionValidity(Func, "ERROR: Misformed Function after cleanToMut!");
 }
 
 void Mutation::computeModuleBufsByFunc(llvm::Module &module, std::unordered_map<llvm::Function *, ReadWriteIRObj> *inMemIRModBufByFunc, \
@@ -1957,6 +1946,9 @@ void Mutation::computeModuleBufsByFunc(llvm::Module &module, std::unordered_map<
                 if (&Func == cloneMM->getFunction(funcPtr->getName()))
                     continue;
                 
+                if (Func.isDeclaration())
+                    continue;
+                    
                 cleanFunctionToMut (Func, 0, mutantIDSelGlobMM, mutantIDSelGlob_FuncMM);
             }
             (*inMemIRModBufByFunc)[funcPtr].setToModule(cloneMM.get());
@@ -2025,6 +2017,8 @@ bool Mutation::getMutant (llvm::Module &module, unsigned mutantID, llvm::Functio
     
     for ( ; modIter != modend; ++modIter)
     {
+        if (modIter->isDeclaration())
+            continue;
         llvm::Function &Func = *modIter;
         cleanFunctionToMut (Func, mutantID, mutantIDSelGlob, mutantIDSelGlob_Func);
     } 

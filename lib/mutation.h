@@ -44,7 +44,7 @@ class Mutation
     
     const char * wmLogFuncName = "muLLVM_WM_Log_Function"; //This fuction take the mutant ID and the condition and print the mutant ID if the condition is true.
     
-    bool verifyFuncModule = true;  //Change this to enable/disable verification after mutation
+    static const bool verifyFuncModule = true;  //Change this to enable/disable verification after mutation
     
     static const unsigned funcModeOptLevel = 1; 
     static const unsigned modModeOptLevel = 0;
@@ -56,7 +56,7 @@ public:
     ~Mutation ();
     bool doMutate ();   //Transforms module
     void doTCE (std::unique_ptr<llvm::Module> &modWMLog, bool writeMuts=false, bool isTCEFunctionMode=false);      //Transforms module
-    void setModFuncToFunction (llvm::Module *Mod, llvm::Function *Fun);
+    void setModFuncToFunction (llvm::Module *Mod, llvm::Function *srcF, llvm::Function *targetF=nullptr);
     unsigned getHighestMutantID (llvm::Module const *module=nullptr);
     
     void loadMutantInfos (std::string filename);
@@ -80,4 +80,7 @@ private:
     void computeModuleBufsByFunc(llvm::Module &module, std::unordered_map<llvm::Function *, ReadWriteIRObj> *inMemIRModBufByFunc, \
                                                     std::unordered_map<llvm::Function *, llvm::Module *> *clonedModByFunc, std::vector<llvm::Function *> &funcMutByMutID);
     bool getMutant (llvm::Module &module, unsigned mutanatID, llvm::Function *mutFunc=nullptr, char optimizeModFuncNone='M'/* 'M', 'F', 'A', '0' */);
+    
+    static inline void checkModuleValidity(llvm::Module &Mod, const char *errMsg="");
+    static inline void checkFunctionValidity(llvm::Function &Func, const char *errMsg="");
 };

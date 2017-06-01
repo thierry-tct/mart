@@ -67,6 +67,10 @@ public:
         fpm.doFinalization();
     }
     
+    /**
+     *  \brief check module difference
+     * @return true if there was a difference between the two functions
+     */
     bool moduleDiff (llvm::Module *M1, llvm::Module *M2)
     {
         llvm::DiffConsumer Consumer;
@@ -77,13 +81,17 @@ public:
         return Consumer.hadDifferences();
     }
     
+    /**
+     *  \brief Check function difference
+     * @return true if there was a difference between the two functions
+     */
     bool functionDiff (llvm::Function *F1, llvm::Function *F2)
     {
         llvm::DiffConsumer Consumer;
         llvm::DifferenceEngine Engine(Consumer);
         
         Engine.diff(F1, F2);
-
+        
         return Consumer.hadDifferences();
     }
     

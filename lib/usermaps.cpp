@@ -153,6 +153,12 @@ UserMaps::UserMaps()
     addOpMatchObjectPair (mANYFCONST, CREATE_OBJ(FPNumericConstant));       //Matcher
     addOpMatchObjectPair (mANYICONST, CREATE_OBJ(IntNumericConstant));      //Matcher
     
+    /*addConfNameOpPair ("A", {mANYADDRESS, mANYADDRESS, mANYADDRESS, mANYADDRESS});
+    addOpMatchObjectPair (mANYADDRESS, CREATE_OBJ(MemoryAddressValue));       //Matcher     //Pointer
+    
+    addConfNameOpPair ("P", {mANYPOINTER, mANYPOINTER, mANYPOINTER, mANYPOINTER});
+    addOpMatchObjectPair (mANYPOINTER, CREATE_OBJ(MemoryPointerVariable));       //Matcher     //Pointer*/
+    
     //CONSTVAL Have no match function (cannot be a match -- something we want to mutate)
     //Same as just putting a constant value. EX: "ADD(@1,@2) ---> xx, CONSTVAL(0)" equivalent to "ADD(@1,@2) ---> xx, 0"
     addConfNameOpPair ("CONSTVAL", {mCONST_VALUE_OF, mCONST_VALUE_OF, mCONST_VALUE_OF, mCONST_VALUE_OF});

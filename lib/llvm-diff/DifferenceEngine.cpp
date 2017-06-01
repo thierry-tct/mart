@@ -181,7 +181,7 @@ class FunctionDifferenceEngine {
     DifferenceEngine::Context C(Engine, L, R);
 
     bool Result = diff(L, R, true, true);
-    /////assert(!Result && "structural differences second time around?");     //TODO TODO: @TCT : Check why this assertion fails sometimes (expr:22, function 'quotearg_n_options')
+    assert(!Result && "structural differences second time around?");
     (void) Result;
     if (!L->use_empty())
       Values[L] = R;
@@ -542,17 +542,16 @@ void FunctionDifferenceEngine::runBlockDiff(BasicBlock::iterator LStart,
     std::swap(Cur, Next);
   }
 
-  // We don't need the tentative values anymore; everything from here
-  // on out should be non-tentative.
-  TentativeValues.clear();
-
   SmallVectorImpl<char> &Path = Cur[NL].Path;
   BasicBlock::iterator LI = LStart, RI = RStart;
 
   DiffLogBuilder Diff(Engine.getConsumer());
 
+  // @TCT: FIX - If all the elements on the vector are DC_match in this
+  // @TCT: while loop, it will do Path.back() of an empty vector which assert. 
+  // @TCT: Fix by adding condition checking empty
   // Drop trailing matches.
-  while (Path.back() == DC_match)
+  while (!Path.empty() && Path.back() == DC_match)
     Path.pop_back();
 
   // Skip leading matches.
@@ -596,6 +595,15 @@ void FunctionDifferenceEngine::runBlockDiff(BasicBlock::iterator LStart,
     unify(&*LI, &*RI);
     ++LI, ++RI;
   }
+
+  // @TCT: FIX - for bug caused by early clearing of 'TentativeValues' and cause 'unify' function 
+  // @TCT: to fail (assert) saying that the 2 Inst don't match (since operand are not match then)
+  // @TCT: To fix this, 'TentativeValues.clear()' is moved from before 
+  // @TCT: "SmallVectorImpl<char> &Path = Cur[NL].Path;" to here bellow: after the last 'unify'
+  // @TCT: of this function and before any return (must be cleared before return)
+  // We don't need the tentative values anymore; everything from here
+  // on out should be non-tentative.
+  TentativeValues.clear();
 
   // If the terminators have different kinds, but one is an invoke and the
   // other is an unconditional branch immediately following a call, unify
