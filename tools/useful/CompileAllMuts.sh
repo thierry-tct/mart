@@ -32,9 +32,10 @@ cd $Dir
 CFLAGS="-lm"    #link with lm because gcc complain linking when fmod mutant is added
 for m in `find -type f -name "*.bc"`
 do
-    $llc -O3 -filetype=obj -o ${m%.bc}.o $m || error_exit "Failed to compile mutant $m to object"
+    $llc -O0 -filetype=obj -o ${m%.bc}.o $m || error_exit "Failed to compile mutant $m to object"
     $CC -O3 -o ${m%.bc} ${m%.bc}.o $CFLAGS || error_exit "Failed to compile mutant $m to executable"
     rm -f ${m%.bc}.o #$m
+    echo "($SECONDS) done $m!"   ##DEBUG 
 done
 
 if test -d 'mutants' # && [ `ls 'mutants' | wc -l` -gt 0 ]        #no need to check non empty because the original is alway there

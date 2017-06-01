@@ -35,6 +35,8 @@ class Mutation
     
     unsigned preTCENumMuts;
     unsigned postTCENumMuts;
+    unsigned numDuplicateMuts;
+    unsigned numEquivalentMuts;
     
     UserMaps usermaps;
     
@@ -44,13 +46,17 @@ class Mutation
     
     bool verifyFuncModule = true;  //Change this to enable/disable verification after mutation
     
+    static const unsigned funcModeOptLevel = 1; 
+    static const unsigned modModeOptLevel = 0;
+    
 public:
-    typedef bool (* DumpMutFunc_t)(std::map<unsigned, std::vector<unsigned>>*, std::vector<llvm::Module *>*, llvm::Module *);
+    typedef bool (* DumpMutFunc_t)(Mutation *mutEng, std::map<unsigned, std::vector<unsigned>>*, std::vector<llvm::Module *>*, llvm::Module *, \
+                                        std::vector<llvm::Function *> const *mutFunctions, std::unordered_map<llvm::Module *, llvm::Function *> *backedFuncsByMods);
     Mutation (llvm::Module &module, std::string mutConfFile, DumpMutFunc_t writeMutsF, std::string scopeJsonFile="");
     ~Mutation ();
     bool doMutate ();   //Transforms module
-    void doTCE (std::unique_ptr<llvm::Module> &modWMLog, bool writeMuts=false);      //Transforms module
-    bool getMutant (llvm::Module &module, unsigned mutanatID);
+    void doTCE (std::unique_ptr<llvm::Module> &modWMLog, bool writeMuts=false, bool isTCEFunctionMode=false);      //Transforms module
+    void setModFuncToFunction (llvm::Module *Mod, llvm::Function *Fun);
     unsigned getHighestMutantID (llvm::Module const *module=nullptr);
     
     void loadMutantInfos (std::string filename);
@@ -69,4 +75,9 @@ private:
     llvm::AllocaInst * MYDemotePHIToStack(llvm::PHINode *P, llvm::Instruction *AllocaPoint);
     llvm::AllocaInst * MyDemoteRegToStack(llvm::Instruction &I, bool VolatileLoads, llvm::Instruction *AllocaPoint);
     inline bool skipFunc (llvm::Function &Func);
+    
+    void cleanFunctionToMut (llvm::Function &Func, MuLL::MutantIDType mutantID, llvm::GlobalVariable *mutantIDSelGlob, llvm::Function *mutantIDSelGlob_Func);
+    void computeModuleBufsByFunc(llvm::Module &module, std::unordered_map<llvm::Function *, ReadWriteIRObj> *inMemIRModBufByFunc, \
+                                                    std::unordered_map<llvm::Function *, llvm::Module *> *clonedModByFunc, std::vector<llvm::Function *> &funcMutByMutID);
+    bool getMutant (llvm::Module &module, unsigned mutanatID, llvm::Function *mutFunc=nullptr, char optimizeModFuncNone='M'/* 'M', 'F', 'A', '0' */);
 };

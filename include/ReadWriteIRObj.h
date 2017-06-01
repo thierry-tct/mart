@@ -12,6 +12,8 @@
 //#include <llvm/Support/raw_os_ostream.h>
 #include "llvm/Support/FileSystem.h"    //for F_None
 
+#include "llvm/Support/MemoryBuffer.h"
+
 #ifdef KLEE_SEMU_GENMU_OBJECTFILE
 #if (LLVM_VERSION_MAJOR <= 3) && (LLVM_VERSION_MINOR < 5)
 #include "llvm/PassManager.h"
@@ -27,29 +29,51 @@
 #include "llvm/Target/TargetOptions.h"
 #endif  //#ifdef KLEE_SEMU_GENMU_OBJECTFILE
 
-class writeIRObj
+class ReadWriteIRObj
 {
+    std::unique_ptr<llvm::MemoryBuffer> mBuf;
 public:
-    /*bool readIR (const std::string filename, llvm::Module * &module)
+    ReadWriteIRObj(): mBuf(nullptr) {}
+    void setToModule(llvm::Module const *module)
     {
-        llvm::LLVMContext context;
+        std::string data;
+        llvm::raw_string_ostream OS(data);
+        llvm::WriteBitcodeToFile(module, OS);
+        mBuf = llvm::MemoryBuffer::getMemBufferCopy(OS.str());
+    }
+    
+    ReadWriteIRObj(ReadWriteIRObj const &cp)
+    {   
+        mBuf = llvm::MemoryBuffer::getMemBuffer(cp.mBuf->getMemBufferRef());
+    }
+    
+    inline llvm::Module * readIR ()// (std::unique_ptr<llvm::Module> &module)
+    {
         llvm::SMDiagnostic SMD;
-#if (LLVM_VERSION_MINOR < 5)
-        module = llvm::ParseIRFile(filename, SMD, context);
+#if (LLVM_VERSION_MAJOR <= 3) && (LLVM_VERSION_MINOR < 5)
+        return (llvm::ParseIR(*mBuf, SMD, llvm::getGlobalContext()));
 #else
-        auto _M = llvm::parseIRFile(filename, SMD, context);
-        // _M is unique pointer, we need to get Module *
-        module = _M.get();
+        return llvm::parseIR(*mBuf, SMD, llvm::getGlobalContext()).release();
+#endif
+    }
+    
+    static bool readIR (const std::string filename, std::unique_ptr<llvm::Module> &module)
+    {
+        llvm::SMDiagnostic SMD;
+#if (LLVM_VERSION_MAJOR <= 3) && (LLVM_VERSION_MINOR < 5)
+        module.reset(llvm::ParseIRFile(filename, SMD, llvm::getGlobalContext()));
+#else
+        module = llvm::parseIRFile(filename, SMD, llvm::getGlobalContext());
 #endif
 
         if (!module) 
         {
             llvm::errs() << "Failed parsing '" << filename << "' file:\n";
-            SMD.print("KLEE-SEMu-GenMu", llvm::errs());
+            SMD.print("MuLL", llvm::errs());
             return false;
         }
         return true;
-    }*/
+    }
 
     static bool writeIR (const llvm::Module * module, const std::string filename)
     {

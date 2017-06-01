@@ -5,7 +5,7 @@
 #include <sys/types.h>  //mkdir, stat
 #include <libgen.h> //basename
 
-#include "writeIRObj.h"
+#include "ReadWriteIRObj.h"
 #include "../lib/mutation.h"
 
 #include "llvm/Transforms/Utils/Cloning.h"  //for CloneModule
@@ -23,13 +23,16 @@ void insertMutSelectGetenv(llvm::Module *mod)
 }
 
 //print all the modules of mutants, sorted from mutant 0(original) to mutant max
-bool dumpMutantsCallback (std::map<unsigned, std::vector<unsigned>> *poss, std::vector<llvm::Module *> *mods, llvm::Module *wmModule/*=nullptr*/)
+bool dumpMutantsCallback (Mutation *mutEng, std::map<unsigned, std::vector<unsigned>> *poss, std::vector<llvm::Module *> *mods, llvm::Module *wmModule/*=nullptr*/, \
+                                std::vector<llvm::Function *> const *mutFunctions, std::unordered_map<llvm::Module *, llvm::Function *> *backedFuncsByMods)
 {
+    llvm::outs() << "MuLL@Progress: writing mutants to files ...\n";
+    clock_t curClockTime = clock();
   //weak mutation
     if (wmModule)
     {
         std::string wmFilePath = outputDir+"//"+outFile+".WM.bc";
-        if (! writeIRObj::writeIR (wmModule, wmFilePath))
+        if (! ReadWriteIRObj::writeIR (wmModule, wmFilePath))
         {
             assert (false && "Failed to output weak mutation IR file");
         }
@@ -48,7 +51,7 @@ bool dumpMutantsCallback (std::map<unsigned, std::vector<unsigned>> *poss, std::
         //original
         if (mkdir((mutantsDir+"//0").c_str(), 0777) != 0)
             assert (false && "Failed to create output directory for original (0)");
-        if (! writeIRObj::writeIR (formutsModule, mutantsDir+"//0//"+outFile+".bc"))
+        if (! ReadWriteIRObj::writeIR (formutsModule, mutantsDir+"//0//"+outFile+".bc"))
         {
             assert (false && "Failed to output post-TCE original IR file");
         }
@@ -57,16 +60,23 @@ bool dumpMutantsCallback (std::map<unsigned, std::vector<unsigned>> *poss, std::
         for (auto &m: *poss)   
         {
             formutsModule = mods->at(m.first);
+            if (mutFunctions != nullptr)
+                mutEng->setModFuncToFunction (formutsModule, mutFunctions->at(m.first));
             mid = m.second.front();
             if (mkdir((mutantsDir+"/"+std::to_string(mid)).c_str(), 0777) != 0)
                 assert (false && "Failed to create output directory for mutant");
-            if (! writeIRObj::writeIR (formutsModule, mutantsDir+"//"+std::to_string(mid)+"//"+outFile+".bc"))
+            if (! ReadWriteIRObj::writeIR (formutsModule, mutantsDir+"//"+std::to_string(mid)+"//"+outFile+".bc"))
             {
                 llvm::errs() << "Mutant " << mid << "...\n";
                 assert (false && "Failed to output post-TCE mutant IR file");
             }
         }
+        if (mutFunctions != nullptr)
+            // restore
+            for (auto &itt: *backedFuncsByMods)
+                mutEng->setModFuncToFunction (itt.first, itt.second);
     }
+    llvm::outs() << "MuLL@Progress: writing mutants to file took: "<< (float)(clock() - curClockTime)/CLOCKS_PER_SEC <<" Seconds.\n";
     return true;
 }
 
@@ -83,6 +93,10 @@ int main (int argc, char ** argv)
     bool dumpMutants = false;
     bool enabledWeakMutation = true;
     bool dumpMutantInfos = true;
+    
+    /// \brief set this to false if the module is small enough, that all mutants will fit in memory
+    bool isTCEFunctionMode = true;
+    
 #ifdef KLEE_SEMU_GENMU_OBJECTFILE
     bool dumpMetaObj = false; 
 #endif  //#ifdef KLEE_SEMU_GENMU_OBJECTFILE
@@ -126,25 +140,13 @@ int main (int argc, char ** argv)
     assert (inputIRfile && "Error: No input llvm IR file passed!");
     
     llvm::Module *moduleM;
-    std::unique_ptr<llvm::Module> modWMLog (nullptr);
+    std::unique_ptr<llvm::Module> modWMLog (nullptr), _M;
     
     // Read IR into moduleM
     ///llvm::LLVMContext context;
-    llvm::SMDiagnostic SMD;
-#if (LLVM_VERSION_MAJOR <= 3) && (LLVM_VERSION_MINOR < 5)
-    moduleM = llvm::ParseIRFile(inputIRfile, SMD, llvm::getGlobalContext());
-#else
-    auto _M = llvm::parseIRFile(inputIRfile, SMD, llvm::getGlobalContext());
-    // _M is unique pointer, we need to get Module *
-    moduleM = _M.get();
-#endif
-
-    if (!moduleM) 
-    {
-        llvm::errs() << "Failed parsing '" << inputIRfile << "' file:\n";
-        SMD.print("KLEE-SEMu-GenMu", llvm::errs());
+    if (! ReadWriteIRObj::readIR(inputIRfile, _M))
         return 1;
-    }
+    moduleM = _M.get();
     // ~
     
     /// Weak mutation 
@@ -156,19 +158,8 @@ int main (int argc, char ** argv)
         delete [] tmpStr; tmpStr = nullptr;  //del tmpStr1
         wmLogFuncinputIRfile = wmLogFuncinputIRfile + "//"+wmLogFuncinputIRfileName; 
         // get the module containing the function to log WM info. to be linked with WMModule
-#if (LLVM_VERSION_MAJOR <= 3) && (LLVM_VERSION_MINOR < 5)
-        modWMLog.reset (llvm::ParseIRFile(wmLogFuncinputIRfile, SMD, llvm::getGlobalContext()));
-#else
-        modWMLog = llvm::parseIRFile(wmLogFuncinputIRfile, SMD, llvm::getGlobalContext());
-        // _M is unique pointer, we need to get Module *
-        //modWMLog = _M.release();
-#endif
-        if (!modWMLog) 
-        {
-            llvm::errs() << "Failed parsing '" << wmLogFuncinputIRfile << "' file:\n";
-            SMD.print("KLEE-SEMu-GenMu", llvm::errs());
+        if (! ReadWriteIRObj::readIR(wmLogFuncinputIRfile, modWMLog))
             return 1;
-        }
     }
     else
     {
@@ -244,13 +235,13 @@ int main (int argc, char ** argv)
         outFile.replace(outFile.length()-3, 3, "");
     
     //@ Store Phi2Mem-preprocessed module with the same name of the input file
-    if (! writeIRObj::writeIR (preProPhi2MemModule.get(), outputDir+"/"+outFile+".bc"))
+    if (! ReadWriteIRObj::writeIR (preProPhi2MemModule.get(), outputDir+"/"+outFile+".bc"))
         assert (false && "Failed to output Phi-preprocessed IR file");
         
     //@ Print pre-TCE meta-mutant
     if (dumpPreTCEMeta)
     {
-        if (! writeIRObj::writeIR (moduleM, outputDir+"/"+outFile+".preTCE.MetaMu.bc"))
+        if (! ReadWriteIRObj::writeIR (moduleM, outputDir+"/"+outFile+".preTCE.MetaMu.bc"))
             assert (false && "Failed to output pre-TCE meta-mutatant IR file");
        // mut.dumpMutantInfos (outputDir+"//"+outFile+"mutantLocs-preTCE.json");
     }
@@ -258,7 +249,7 @@ int main (int argc, char ** argv)
     //@ Remove equivalent mutants and //@ print mutants in case on
     llvm::outs() << "MuLL@Progress: Removing TCE Duplicates & WM & writing mutants IRs (with initially " << mut.getHighestMutantID() <<" mutants)...\n";
     curClockTime = clock();
-    mut.doTCE(modWMLog, dumpMutants);
+    mut.doTCE(modWMLog, dumpMutants, isTCEFunctionMode);
     llvm::outs() << "MuLL@Progress: Removing TCE Duplicates  & WM & writing mutants IRs took: "<< (float)(clock() - curClockTime)/CLOCKS_PER_SEC <<" Seconds.\n";
     
     /// Mutants Infos into json
@@ -268,7 +259,7 @@ int main (int argc, char ** argv)
     //@ Print post-TCE meta-mutant
     if (dumpMetaIRbc) 
     {   
-        if (! writeIRObj::writeIR (moduleM, outputDir+"/"+outFile+".MetaMu.bc"))
+        if (! ReadWriteIRObj::writeIR (moduleM, outputDir+"/"+outFile+".MetaMu.bc"))
             assert (false && "Failed to output post-TCE meta-mutatant IR file");
     }
     
@@ -293,7 +284,7 @@ int main (int argc, char ** argv)
                 llvm::errs() << "\nError Failed to generate module for Mutant " << mid << "\n\n";
                 assert (false && "");
             }
-            if (! writeIRObj::writeIR (formutsModule, mutantsDir+"//"+std::to_string(mid)+"//"+outFile+".bc"))
+            if (! ReadWriteIRObj::writeIR (formutsModule, mutantsDir+"//"+std::to_string(mid)+"//"+outFile+".bc"))
             {
                 llvm::errs() << "Mutant " << mid << "...\n";
                 assert (false && "Failed to output post-TCE meta-mutatant IR file");
@@ -310,20 +301,22 @@ int main (int argc, char ** argv)
         std::unique_ptr<llvm::Module> forObjModule = llvm::CloneModule(moduleM);
 #endif
         //TODO: insert mutant selection code into the cloned module
-        if (! writeIRObj::writeObj (forObjModule.get(), outputDir+"/"+outFile+".MetaMu.o"))
+        if (! ReadWriteIRObj::writeObj (forObjModule.get(), outputDir+"/"+outFile+".MetaMu.o"))
             assert (false && "Failed to output meta-mutatant object file");
     }
 #endif  //#ifdef KLEE_SEMU_GENMU_OBJECTFILE
     //llvm::errs() << "@After Mutation->TCE\n"; moduleM->dump(); llvm::errs() << "\n";
     
     llvm::errs() << "MuLL@Progress: Compiling Mutants ...\n";
-    curClockTime = clock();
+    //curClockTime = clock();
+    time_t timer = time(NULL);  //clock_t do not measure time when calling a script
     tmpStr = new char[1+std::strlen(argv[0])]; //Alocate tmpStr3
     std::strcpy(tmpStr, argv[0]); 
     std::string compileMutsScript(dirname(tmpStr));  //dirname change the contain of its parameter
     delete [] tmpStr; tmpStr = nullptr;  //del tmpStr3
     //llvm::errs() << "bash " + compileMutsScript+"/useful/CompileAllMuts.sh "+outputDir+" yes" <<"\n";
     assert(!system(("bash " + compileMutsScript+"/useful/CompileAllMuts.sh "+outputDir+" yes").c_str()) && "Mutants Compile script failed");
-    llvm::outs() << "MuLL@Progress:  Compiling Mutants took: "<< (float)(clock() - curClockTime)/CLOCKS_PER_SEC <<" Seconds.\n";
+    //llvm::outs() << "MuLL@Progress:  Compiling Mutants took: "<< (float)(clock() - curClockTime)/CLOCKS_PER_SEC <<" Seconds.\n";
+    llvm::outs() << "MuLL@Progress:  Compiling Mutants took: "<< difftime(time(NULL), timer) <<" Seconds.\n";
     return 0;
 }

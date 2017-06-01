@@ -13,6 +13,14 @@ if (KLEE_SEMU_GENMU)
                  DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/operatorsClasses/mutation_op_headers.h.inc
                 )
 
+    #include(FindOpenMP)
+    #if(OPENMP_FOUND)
+    #    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OpenMP_C_FLAGS}")
+    #    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
+    #    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${OpenMP_EXE_LINKER_FLAGS}")
+    #    add_definitions(-DENABLE_OPENMP_PARALLEL)
+    #endif()
+    
     add_library(KLEE-SEMu-GenMu SHARED
         mutation.cpp
         usermaps.cpp
