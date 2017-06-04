@@ -41,9 +41,12 @@ class IntegerRelational_Base: public NumericAndPointerRelational_Base
         llvm::Value *icmp = builder.CreateICmp(getMyPredicate(), oprd1_addrOprd, oprd2_intValOprd);
         if (!llvm::dyn_cast<llvm::Constant>(icmp))
             replacement.push_back(icmp);
-        icmp = builder.CreateZExt (icmp, oprd1_addrOprd->getType());
-        if (!llvm::dyn_cast<llvm::Constant>(icmp))
-            replacement.push_back(icmp);
+        if (icmp->getType() != oprd1_addrOprd->getType())
+        {
+            icmp = builder.CreateZExt (icmp, oprd1_addrOprd->getType());
+            if (!llvm::dyn_cast<llvm::Constant>(icmp))
+                replacement.push_back(icmp);
+        }
         return icmp;
     }
 };

@@ -330,7 +330,7 @@ class GenericMuOpBase
             }
             case cpADDRESS:
             {
-                if (llvm::isa<llvm::GetElementPtrInst>(val) || llvm::isa<llvm::AddrSpaceCastInst>(val) || llvm::isa<llvm::IntToPtrInst>(val))
+                if (llvm::isa<llvm::PointerType>(val->getType()) || llvm::isa<llvm::AddrSpaceCastInst>(val) || llvm::isa<llvm::IntToPtrInst>(val)) //|| llvm::isa<llvm::GetElementPtrInst>(val)
                     return true;
                 return false;
             }
@@ -502,12 +502,12 @@ class GenericMuOpBase
     inline virtual bool constAndEquals (llvm::Value *c1, llvm::Value *c2)
     {
         assert (c1->getType() == c2->getType() && "Type Mismatch!");
-        if (llvm::isa<llvm::ConstantInt>(c1))
+        if (llvm::isa<llvm::ConstantInt>(c1) && llvm::isa<llvm::ConstantInt>(c2))
         {
             if (llvm::dyn_cast<llvm::ConstantInt>(c1)->equalsInt(llvm::dyn_cast<llvm::ConstantInt>(c2)->getZExtValue()))
                 return true;
         }
-        else if (llvm::isa<llvm::ConstantFP>(c1))
+        else if (llvm::isa<llvm::ConstantFP>(c1) && llvm::isa<llvm::ConstantFP>(c2))
         {
             if (llvm::dyn_cast<llvm::ConstantFP>(c1)->isExactlyValue(llvm::dyn_cast<llvm::ConstantFP>(c2)->getValueAPF()))
                 return true;
@@ -519,7 +519,7 @@ class GenericMuOpBase
     /**
      * \brief 
      * @return nullptr if the Gep do not represent a pointer indexing, else, it return the value representing the index
-     * When the pointer oprd do not comes from LoadInst, the 1st index of get just take out the address part (as alloca vars are actually addresses)
+     * When the pointer oprd do not comes from LoadInst, the 1st index of gep just take out the address part (as alloca vars are actually addresses)
      * Also return the Gep index in 'index', which is (User operand - 1)
      */
     inline llvm::Value* checkIsPointerIndexingAndGet (llvm::GetElementPtrInst * gep, int &index)

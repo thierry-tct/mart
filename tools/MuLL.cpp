@@ -82,6 +82,7 @@ bool dumpMutantsCallback (Mutation *mutEng, std::map<unsigned, std::vector<unsig
 
 int main (int argc, char ** argv)
 {
+    time_t totalRunTime = time(NULL);
     clock_t curClockTime;
     char * inputIRfile = nullptr;
     char * mutantConfigfile = nullptr;
@@ -318,5 +319,6 @@ int main (int argc, char ** argv)
     assert(!system(("bash " + compileMutsScript+"/useful/CompileAllMuts.sh "+outputDir+" yes").c_str()) && "Mutants Compile script failed");
     //llvm::outs() << "MuLL@Progress:  Compiling Mutants took: "<< (float)(clock() - curClockTime)/CLOCKS_PER_SEC <<" Seconds.\n";
     llvm::outs() << "MuLL@Progress:  Compiling Mutants took: "<< difftime(time(NULL), timer) <<" Seconds.\n";
+    llvm::outs() << "\nMuLL@Progress:  TOTAL EXECUTION TOOK: "<< (difftime(time(NULL), totalRunTime)/60) <<" min.\n";
     return 0;
 }

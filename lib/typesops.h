@@ -640,7 +640,15 @@ struct MutantsOfStmt
         inline void eraseIRAt (unsigned ind) 
         {
             if (!llvm::isa<llvm::Constant>(toMatchIRsMutClone[ind]))
+            {
+                if (! toMatchIRsMutClone[ind]->use_empty())
+                {
+                    llvm::errs() << "\nError: Deleting IR while its use is not empty. Please report Bug!\n\n";
+                    llvm::dyn_cast<llvm::Instruction>(toMatchIRsMutClone[ind])->dump();
+                    assert (false);
+                }
                 llvm::dyn_cast<llvm::Instruction>(toMatchIRsMutClone[ind])->eraseFromParent();
+            }
             toMatchIRsMutClone.erase(toMatchIRsMutClone.begin() + ind);;
         }
         void setToEmptyStmtOf(MatchStmtIR const &toMatch, ModuleUserInfos const &MI)
@@ -770,6 +778,38 @@ struct MutantsOfStmt
             }*/
             
         }   //~setToCloneStmtIROf
+        
+        /**
+         * \brief Check that load and stores type are okay
+         */
+        bool checkLoadAndStoreTypes ()
+        {
+            for (auto *xx: toMatchIRsMutClone)
+            {
+                if (llvm::LoadInst * yy=llvm::dyn_cast<llvm::LoadInst>(xx))
+                {
+                    if (llvm::cast<llvm::PointerType>(yy->getPointerOperand()->getType())->getElementType() != yy->getType())
+                    {
+                        llvm::errs() << "ERROR: LOAD value type does not match pointer pointee type\n";
+                        //for (auto *zz: toMatchIRsMutClone) zz->dump();
+                        yy->dump();
+                        //assert (false && "ERROR: LOAD value type does not match pointer pointee type");
+                        return false;
+                    }
+                }
+                if (llvm::StoreInst * yy=llvm::dyn_cast<llvm::StoreInst>(xx))
+                {
+                    if (llvm::cast<llvm::PointerType>(yy->getPointerOperand()->getType())->getElementType() != yy->getValueOperand()->getType() )
+                    {
+                        llvm::errs() << "ERROR: STORE value type does not match pointer pointee type\n";
+                        yy->dump();
+                        //assert (false && "ERROR: STORE value type does not match pointer pointee type");
+                        return false;
+                    }
+                }
+            }
+            return true;
+        }
     };
     
     struct RawMutantStmt

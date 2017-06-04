@@ -76,23 +76,29 @@ class PointerArithBinop_Base: public GenericMuOpBase
             
         std::vector<llvm::Value *> extraIdx;
         
+        /// \brief as gep will be split to have one Gep that only have the relevant index, 
+        /// 'preGep' will be the split gep before, and 'postGep' the split gep after
         llvm::GetElementPtrInst * preGep=nullptr, * postGep=nullptr;
         llvm::IRBuilder<> builder(MI.getContext());
+        
+        /// \brief indx is not the first, we can split before
         if (indx > 0)
         {
             llvm::GetElementPtrInst * curGI = llvm::dyn_cast<llvm::GetElementPtrInst>(DRU.toMatchMutant.getIRAt(oldPos));
             extraIdx.clear();
             for (auto i=0; i<indx;i++)
                 extraIdx.push_back(*(curGI->idx_begin() + i));
-            llvm::GetElementPtrInst * preGep = llvm::dyn_cast<llvm::GetElementPtrInst>(builder.CreateInBoundsGEP(curGI->getPointerOperand(), extraIdx));
+            preGep = llvm::dyn_cast<llvm::GetElementPtrInst>(builder.CreateInBoundsGEP(curGI->getPointerOperand(), extraIdx));
         }
+        
+        /// \brief indx is not the last, we can split after
         if (indx < llvm::dyn_cast<llvm::GetElementPtrInst>(DRU.toMatchMutant.getIRAt(oldPos))->getNumIndices()-1)
         {
             llvm::GetElementPtrInst * curGI = llvm::dyn_cast<llvm::GetElementPtrInst>(DRU.toMatchMutant.getIRAt(oldPos));
             extraIdx.clear();
             for (auto i=indx+1; i < llvm::dyn_cast<llvm::GetElementPtrInst>(DRU.toMatchMutant.getIRAt(oldPos))->getNumIndices();i++)
                 extraIdx.push_back(*(curGI->idx_begin() + i));
-            llvm::GetElementPtrInst * postGep = llvm::dyn_cast<llvm::GetElementPtrInst>(builder.CreateInBoundsGEP(curGI, extraIdx));
+            postGep = llvm::dyn_cast<llvm::GetElementPtrInst>(builder.CreateInBoundsGEP(curGI, extraIdx));
             std::vector<std::pair<llvm::User *, unsigned>> affectedUnO;
             //set uses of the matched IR to corresponding OPRD
 #if (LLVM_VERSION_MAJOR <= 3) && (LLVM_VERSION_MINOR < 5)
@@ -116,13 +122,29 @@ class PointerArithBinop_Base: public GenericMuOpBase
             DRU.toMatchMutant.insertIRAt(oldPos + 1, postGep);
         if (preGep)
             DRU.toMatchMutant.insertIRAt(oldPos, preGep);
+            
         llvm::Value * ptroprd = nullptr, *valoprd = nullptr;
+        
+        llvm::Value *tmpPtr = preGep? preGep: llvm::dyn_cast<llvm::GetElementPtrInst >(DRU.toMatchMutant.getIRAt(newPos))->getPointerOperand();
+        llvm::GetElementPtrInst *tmpGepVal = postGep? postGep: llvm::dyn_cast<llvm::GetElementPtrInst >(DRU.toMatchMutant.getIRAt(newPos));
+        
+        if (tmpPtr->getType() != tmpGepVal->getType())
+        {
+            /// probably 'tmpPtr' is an array or vector and 'tmpGepVal' is simple pointer. ex: [3 x i32]* and i32*  
+            /// This gep's pointer operand cannot be load, therefore this cannot match cpPOINTER type and can't be replaced by p++,p--,...
+            /// safely create a gep to make the transformation and insert at newpos
+            extraIdx.clear();
+            extraIdx.push_back(llvm::ConstantInt::get(llvm::Type::getIntNTy(MI.getContext(), MI.getDataLayout().getPointerTypeSizeInBits(tmpPtr->getType())), 0));
+            extraIdx.push_back(llvm::ConstantInt::get(llvm::Type::getIntNTy(MI.getContext(), MI.getDataLayout().getPointerTypeSizeInBits(tmpGepVal->getType())), 0));
+            tmpPtr = llvm::dyn_cast<llvm::GetElementPtrInst>(builder.CreateInBoundsGEP(tmpPtr, extraIdx));
+            llvm::dyn_cast<llvm::User>(DRU.toMatchMutant.getIRAt(newPos))->setOperand(0,tmpPtr);
+            DRU.toMatchMutant.insertIRAt(newPos, tmpPtr);
+            newPos++;
+        }
+            
         if (repl.getOprdIndexList().size() == 2)
         {
-            if (preGep)
-                ptroprd = preGep;
-            else
-                ptroprd = llvm::dyn_cast<llvm::GetElementPtrInst >(DRU.toMatchMutant.getIRAt(newPos))->getPointerOperand();
+            ptroprd = tmpPtr;
             if (! (valoprd = createIfConst (indxVal->getType(), repl.getOprdIndexList()[1])))
                 valoprd = indxVal;
         }
@@ -130,22 +152,19 @@ class PointerArithBinop_Base: public GenericMuOpBase
         {
             if (ptroprd = createIfConst (indxVal->getType(), repl.getOprdIndexList()[0]))    
             {   //The replacor should be CONST_VALUE_OF
-                ptroprd = builder.CreateIntToPtr(ptroprd, preGep? preGep->getType(): llvm::dyn_cast<llvm::GetElementPtrInst >(DRU.toMatchMutant.getIRAt(newPos))->getPointerOperand()->getType());
+                ptroprd = builder.CreateIntToPtr(ptroprd, tmpPtr->getType());
                 if (! llvm::isa<llvm::Constant>(ptroprd))
                     DRU.toMatchMutant.insertIRAt(newPos + 1, ptroprd);    //insert right after the instruction to remove
             }
             else if (repl.getOprdIndexList()[0] == 1)   //non pointer (integer)
-            {   //The replacor should be either KEEP_ONE_OPRD
-                ptroprd = builder.CreateIntToPtr(indxVal, preGep? preGep->getType(): llvm::dyn_cast<llvm::GetElementPtrInst >(DRU.toMatchMutant.getIRAt(newPos))->getPointerOperand()->getType());
+            {   //The replacor should be KEEP_ONE_OPRD
+                ptroprd = builder.CreateIntToPtr(indxVal, tmpPtr->getType());
                 if (! llvm::isa<llvm::Constant>(ptroprd))
                     DRU.toMatchMutant.insertIRAt(newPos + 1, ptroprd);    //insert right after the instruction to remove
             }
             else // pointer
             {
-                if (preGep)
-                    ptroprd = preGep;
-                else
-                    ptroprd = llvm::dyn_cast<llvm::GetElementPtrInst >(DRU.toMatchMutant.getIRAt(newPos))->getPointerOperand();
+                ptroprd = tmpPtr;
             }
         }
 
@@ -153,7 +172,7 @@ class PointerArithBinop_Base: public GenericMuOpBase
         DRU.appendHLOprds(ptroprd);
         DRU.appendHLOprds(valoprd);
         DRU.setOrigRelevantIRPos(MU.getRelevantIRPos());
-        DRU.setHLReturningIRPos(MU.getHLReturningIRPos());
+        DRU.setHLReturningIRPos(newPos);
     }
 };
 

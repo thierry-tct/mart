@@ -407,7 +407,7 @@ bool Mutation::getConfiguration(std::string &mutConfFile)
                 else if (matchRepl == 1)
                 {
                     std::string matchstr3(*iter);
-                    std::regex rgx3("\\s*;\\s*");        // Matcher --> Replacors
+                    std::regex rgx3("\\s*;\\s*");        // Replacors
                     std::sregex_token_iterator iter3(matchstr3.begin(),matchstr3.end(), rgx3, -1);
                     std::sregex_token_iterator end3;
                     for ( ; iter3 != end3; ++iter3)     //For each replacor
@@ -417,7 +417,12 @@ bool Mutation::getConfiguration(std::string &mutConfFile)
                         std::sregex_token_iterator iter4(tmprepl.begin(),tmprepl.end(), rgx4, -1);
                         std::sregex_token_iterator end4;
                         std::string mutName(*iter4);
-                        ++iter4; assert (iter4 != end4 && "only Mutant name, no info!");
+                        ++iter4; 
+                        if (!(iter4 != end4))
+                        {
+                            llvm::errs() << "only Mutant name, no info at line " << confLineNum << ", mutantion op name: " <<  mutName << "\n";
+                            assert (iter4 != end4 && "only Mutant name, no info!");
+                        }
                         std::string mutoperation(*iter4);
                         
                         //If replace with constant number, add it here
@@ -432,7 +437,15 @@ bool Mutation::getConfiguration(std::string &mutConfFile)
                             continue;
                         }
                            
-                        ++iter4; assert (iter4 != end4 && "no mutant operands");
+                        ++iter4; 
+                        if (!(iter4 != end4))
+                        {
+                            if (! usermaps.isDeleteStmtConfName(mutoperation))
+                            {
+                                llvm::errs() << "no mutant operands at line " << confLineNum << ", replacor: " << mutoperation << "\n";
+                                assert (iter4 != end4 && "no mutant operands");
+                            }
+                        }
                         
                         reploprd.clear();
                         
@@ -599,6 +612,20 @@ void Mutation::getMutantsOfStmt (MatchStmtIR const &stmtIR, MutantsOfStmt &ret_m
             default:    //Anything beside math anything and delete whole stmt
             {*/
         usermaps.getMatcherObject(mutator.getMatchOp())->matchAndReplace (stmtIR, mutator, ret_mutants, isDeleted, moduleInfo);
+        
+        // Check that load and stores type are okay
+        for (MuLL::MutantIDType i=0, ie=ret_mutants.getNumMuts(); i < ie; i++)
+        {
+            if (! ret_mutants.getMutantStmtIR(i).checkLoadAndStoreTypes())
+            {
+                llvm::errs() << "\nMutation: " << ret_mutants.getTypeName(i);
+                //for (auto &mn: mutator.getMutantReplacorsList())
+                //    llvm::errs() << mn.getMutOpName() << "; ";
+                llvm::errs() << "\n\n";
+                //for (auto *xx: stmtIR.getIRList()) xx->dump();
+                assert (false);
+            }
+        }
         
         // Verify that no constant is considered as instruction in the mutant (inserted in replacement vector)  TODO: Remove commented bellow
         /*# llvm::errs() << "\n@orig\n";   //DBG
@@ -2073,8 +2100,8 @@ Mutation::~Mutation ()
 {
     //mutantsInfos.printToStdout();
     
-    llvm::errs() << "\nNumber of Mutants:   PreTCE: " << preTCENumMuts << ", PostTCE: " << postTCENumMuts << ", ";
-    llvm::errs() << "Equivalent: " << numEquivalentMuts << ", Duplicates: " << numDuplicateMuts << "\n";
+    llvm::errs() << "\n# Number of Mutants:   PreTCE: " << preTCENumMuts << ", PostTCE: " << postTCENumMuts << ", ";
+    llvm::errs() << "Equivalent: " << numEquivalentMuts << ", Duplicates: " << numDuplicateMuts << "\n\n";
     
     //Clear the constant map to avoid double free
     llvmMutationOp::destroyPosConstValueMap();
