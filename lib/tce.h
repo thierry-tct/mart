@@ -1,6 +1,7 @@
 #include <unordered_map>
 #include <vector>
 
+#include "llvm/ADT/SmallVector.h"
 #include "llvm/Pass.h"
 #include "llvm/IR/Function.h"
 #include "llvm/Support/raw_ostream.h"
@@ -85,9 +86,9 @@ public:
      *  \brief Check function difference
      * @return true if there was a difference between the two functions
      */
-    bool functionDiff (llvm::Function *F1, llvm::Function *F2)
+    bool functionDiff (llvm::Function *F1, llvm::Function *F2, llvm::SmallVector<llvm::BasicBlock *, 2> *diffBBs)
     {
-        llvm::DiffConsumer Consumer;
+        llvm::DiffConsumer Consumer(diffBBs);
         llvm::DifferenceEngine Engine(Consumer);
         
         Engine.diff(F1, F2);
@@ -107,7 +108,7 @@ public:
             {
                 if (auto *mF = clonedM->getFunction(func.getName()))
                 {
-                    if (functionDiff(&func, mF))   //function differ, c
+                    if (functionDiff(&func, mF, nullptr))   //function differ, c
                     {
                         mutatedFuncsOfMID.push_back(&func);
                     }

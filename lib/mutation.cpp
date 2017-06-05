@@ -2,6 +2,8 @@
 #include <vector>
 #include <set>
 #include <queue>
+#include <stack>
+#include <tuple>
 #include <sstream>
 #include <regex>
 #include <fstream>
@@ -1456,7 +1458,7 @@ void Mutation::doTCE (std::unique_ptr<llvm::Module> &modWMLog, bool writeMuts, b
     std::vector<llvm::Module *> mutModules;
     std::vector<llvm::Function *> mutFunctions;
     
-    /// \brief the key of the map is the index (staring from 0) of thefunction in the original optimized module, or -1 for any function not present in original optimized
+    /// \brief the key of the map is the index (staring from 0) of the function in the original's optimized module, or -1 for any function not present in original optimized
     /// \brief the value is a vector of the ids of all the mutants (non dup) in duplicateMap for which the function is different than the orig's.
     std::unordered_map<llvm::Function *, std::vector<unsigned>> diffFuncs2Muts; 
     
@@ -1472,6 +1474,8 @@ void Mutation::doTCE (std::unique_ptr<llvm::Module> &modWMLog, bool writeMuts, b
     /// here we just need the function name, or the function to lookup module in 'clonedModByFunc' or 'inMemIRModBufByFunc'
     std::vector<llvm::Function *> funcMutByMutID(highestMutID+1, nullptr);   //nullptr mean more than 1 function mutated, or for the original(0 function mutated)
     
+    std::vector<llvm::SmallVector<llvm::BasicBlock *, 2>> diffBBWithOrig(highestMutID+1);
+    
     ///\brief keep the original's module up to end of this function
     llvm::Module *clonedOrig = nullptr;
     
@@ -1481,11 +1485,9 @@ void Mutation::doTCE (std::unique_ptr<llvm::Module> &modWMLog, bool writeMuts, b
         mutFunctions.resize(highestMutID+1, nullptr);
         llvm::errs() << "Cloning...\n";   //////DBG
         computeModuleBufsByFunc(module, nullptr, &clonedModByFunc, funcMutByMutID);
-#if (LLVM_VERSION_MAJOR <= 3) && (LLVM_VERSION_MINOR < 5)
-        clonedOrig = llvm::CloneModule(clonedModByFunc.at(funcMutByMutID[0]));
-#else
-        clonedOrig = llvm::CloneModule(clonedModByFunc.at(funcMutByMutID[0])).release();
-#endif
+        
+        clonedOrig = ReadWriteIRObj::cloneModuleAndRelease (clonedModByFunc.at(funcMutByMutID[0]));
+
         // The original
         assert (getMutant (*clonedOrig, 0, funcMutByMutID[0], 'A'/*optimizeAllFunctions*/) && "error: failed to get original");
         
@@ -1530,6 +1532,10 @@ void Mutation::doTCE (std::unique_ptr<llvm::Module> &modWMLog, bool writeMuts, b
         diffFuncs2Muts[&origFunc];
             
     //The mutants
+    
+    /// \brief since the mutants of the same function have sequential ID, we use this to trac function change and do some operation only then...
+    llvm::Function *curFunc_ForBetterPerf  = nullptr;    ////DBG
+    
     std::vector<llvm::Function *> mutatedFuncsOfMID;
     for (unsigned id=1; id <= highestMutID; id++)       //id==0 is the original
     {
@@ -1544,25 +1550,37 @@ void Mutation::doTCE (std::unique_ptr<llvm::Module> &modWMLog, bool writeMuts, b
         //Currently only support a mutant in a single funtion. TODO TODO: extent to mutant cros function
         assert(funcMutByMutID[id] != nullptr && "//Currently only support a mutant in a single funtion (funcMutByMutID[id]). TODO TODO: extent to mutant cros function");
         
-        llvm::errs()<<"processing "<<id<< ", Func: " << funcMutByMutID[id]->getName() << "\n";    ////DBG
-        
         //Check with original
         mutatedFuncsOfMID.clear();
         if (isTCEFunctionMode)
         {
-            clonedM = clonedModByFunc.at(funcMutByMutID[id]);;
+            clonedM = clonedModByFunc.at(funcMutByMutID[id]);
             llvm::Function *targetF = clonedM->getFunction(funcMutByMutID[id]->getName());
             llvm::Function *srcF = backedFuncsByMods.at(clonedM);
             
             //set the correct function for this mutant in the corresponding function module
             assert (getMutant (*clonedM, id, funcMutByMutID[id], 'F') && "error: failed to get mutant");
-            if (tce.functionDiff(clonedOrig->getFunction(funcMutByMutID[id]->getName()), targetF))
+            if (tce.functionDiff(clonedOrig->getFunction(funcMutByMutID[id]->getName()), targetF, &(diffBBWithOrig[id])))
                 mutatedFuncsOfMID.push_back (clonedOrig->getFunction(funcMutByMutID[id]->getName()));
                 
-            //restore clonedM module
             llvm::ValueToValueMapTy vmap;
             mutFunctions[id] = llvm::CloneFunction(targetF, vmap, true/*moduleLevelChanges*/);
-            setModFuncToFunction (clonedM, srcF, targetF);
+            
+            /// function has changed, restore clonedM module
+            if (curFunc_ForBetterPerf != funcMutByMutID[id])
+            {
+                /// restore clonedM module (bring back the backed function)
+                /// XXX: We do this once we are done with the function
+                if (curFunc_ForBetterPerf != nullptr)
+                {
+                    llvm::Module *correspM = clonedModByFunc.at(curFunc_ForBetterPerf);
+                    llvm::Function *corresptargetF = correspM->getFunction(curFunc_ForBetterPerf->getName());
+                    llvm::Function *correspsrcF = backedFuncsByMods.at(correspM);
+                    setModFuncToFunction (correspM, correspsrcF, corresptargetF);
+                }
+                curFunc_ForBetterPerf = funcMutByMutID[id];
+                llvm::errs()<<"processing Func: " << curFunc_ForBetterPerf->getName() << ", Starting at mutant: "<<id<<"/"<< highestMutID << "\n";
+            }
             
             //If there was difference with original process bellow
         }
@@ -1571,6 +1589,11 @@ void Mutation::doTCE (std::unique_ptr<llvm::Module> &modWMLog, bool writeMuts, b
             clonedM = mutModules[id];
             assert (getMutant (*clonedM, id, funcMutByMutID[id], 'M') && "error: failed to get mutant");
             tce.checkWithOrig(clonedOrig, clonedM, mutatedFuncsOfMID);
+            if (curFunc_ForBetterPerf != funcMutByMutID[id])
+            {
+                curFunc_ForBetterPerf = funcMutByMutID[id];
+                llvm::errs()<<"processing Func: " << curFunc_ForBetterPerf->getName() << ", Starting at mutant: "<<id<<"/"<< highestMutID << "\n";
+            }
         }
         
         if (mutatedFuncsOfMID.empty()) //equivalent with orig
@@ -1596,9 +1619,28 @@ void Mutation::doTCE (std::unique_ptr<llvm::Module> &modWMLog, bool writeMuts, b
                 {
                     llvm::Function *candFunc;
                     if (isTCEFunctionMode)
+                    {
+                        //prune useless comparisons
+                        if (diffBBWithOrig[id].size() != diffBBWithOrig[candID].size())
+                            continue;
+                        bool dbbdf = false;
+                        for (unsigned dbbInd=0, dbbe=diffBBWithOrig[id].size(); dbbInd < dbbe; dbbInd++)
+                        {
+                            if (diffBBWithOrig[id][dbbInd] != diffBBWithOrig[candID][dbbInd])
+                            {
+                                dbbdf = true;
+                                break;
+                            }
+                        }
+                        if (dbbdf)
+                            continue;
+                            
                         candFunc = mutFunctions[candID];
+                    }
                     else
+                    {    
                         candFunc = mutModules.at(candID)->getFunction(mF->getName());
+                    }
                         
                     if (!subjFunc)
                     {
@@ -1614,7 +1656,7 @@ void Mutation::doTCE (std::unique_ptr<llvm::Module> &modWMLog, bool writeMuts, b
                         if (!candFunc)
                             continue;
                         
-                        if (! tce.functionDiff(candFunc, subjFunc))
+                        if (! tce.functionDiff(candFunc, subjFunc, nullptr))
                         {
                             hasEq = true;
                             duplicateMap.at(candID).push_back(id);
@@ -1954,61 +1996,75 @@ void Mutation::computeModuleBufsByFunc(llvm::Module &module, std::unordered_map<
     TCE tce;
     
     /// \brief get the module for each function (when cleaning all other funcs)
-    if(inMemIRModBufByFunc != nullptr)
+    std::stack<std::tuple<llvm::Module *, unsigned/*From*/, unsigned/*To*/>> workStack;
+    std::vector<std::string> mutFuncList;
+    if (clonedModByFunc != nullptr)
     {
-        (*inMemIRModBufByFunc)[nullptr].setToModule(&module);
-        for (auto &modbufIt: *inMemIRModBufByFunc)
-        {
-            auto *funcPtr = modbufIt.first;
-            if (funcPtr == nullptr)
-                continue;
-            //llvm::errs() << "Func - " << funcPtr->getName() << "\n";   //////DBG
-            //clone read meta-mutant module to start with:
-            std::unique_ptr<llvm::Module> cloneMM((*inMemIRModBufByFunc)[nullptr].readIR());
-            llvm::GlobalVariable *mutantIDSelGlobMM = module.getNamedGlobal(mutantIDSelectorName); 
-            llvm::Function *mutantIDSelGlob_FuncMM = module.getFunction(mutantIDSelectorName_Func);
-            for (auto &Func: *cloneMM)
-            {
-                //do not clean the function of interest (funcPtr)
-                if (&Func == cloneMM->getFunction(funcPtr->getName()))
-                    continue;
-                
-                if (Func.isDeclaration())
-                    continue;
-                    
-                cleanFunctionToMut (Func, 0, mutantIDSelGlobMM, mutantIDSelGlob_FuncMM);
-            }
-            (*inMemIRModBufByFunc)[funcPtr].setToModule(cloneMM.get());
-        }
+        (*clonedModByFunc)[nullptr] = ReadWriteIRObj::cloneModuleAndRelease (&module);
+        for (auto &funcmodIt: *clonedModByFunc)
+            if (funcmodIt.first != nullptr)
+                mutFuncList.push_back(funcmodIt.first->getName());
     }
     else
     {
-        ReadWriteIRObj tmpBuf;
-        tmpBuf.setToModule(&module);
-        (*clonedModByFunc)[nullptr] = tmpBuf.readIR();
-        for (auto &modbufIt: *clonedModByFunc)
+        (*inMemIRModBufByFunc)[nullptr].setToModule(&module);
+        for (auto &funcmodIt: *inMemIRModBufByFunc)
+            if (funcmodIt.first != nullptr)
+                mutFuncList.push_back(funcmodIt.first->getName());
+    }
+    if (! mutFuncList.empty())
+        workStack.emplace(ReadWriteIRObj::cloneModuleAndRelease(&module), 0, mutFuncList.size()-1);
+    
+    /// \brief Use binary approach(divide and conquer) to quickly obtain the module for each function
+    while (! workStack.empty())
+    {
+        auto &stackElem = workStack.top();
+        unsigned min = std::get<1>(stackElem), max = std::get<2>(stackElem);
+        llvm::Module *cloneML = std::get<0>(stackElem);
+        workStack.pop();
+        
+        if (min == max)
         {
-            auto *funcPtr = modbufIt.first;
-            if (funcPtr == nullptr)
-                continue;
-            //llvm::errs() << "Func - " << funcPtr->getName() << "\n";   //////DBG
-            //clone read meta-mutant module to start with:
-            llvm::Module *cloneMM = tmpBuf.readIR();
-            llvm::GlobalVariable *mutantIDSelGlobMM = module.getNamedGlobal(mutantIDSelectorName); 
-            llvm::Function *mutantIDSelGlob_FuncMM = module.getFunction(mutantIDSelectorName_Func);
-            for (auto &Func: *cloneMM)
+            if (clonedModByFunc != nullptr)
             {
-                //do not clean the function of interest (funcPtr)
-                if (&Func == cloneMM->getFunction(funcPtr->getName()))
-                    continue;
-                if (Func.isDeclaration())
-                    continue;
-                
-                cleanFunctionToMut (Func, 0, mutantIDSelGlobMM, mutantIDSelGlob_FuncMM);
-                tce.optimize(Func, Mutation::funcModeOptLevel); 
+                (*clonedModByFunc)[module.getFunction(mutFuncList[min])] = cloneML;
             }
-            (*clonedModByFunc)[funcPtr] = cloneMM;
+            else
+            {
+                (*inMemIRModBufByFunc)[module.getFunction(mutFuncList[min])].setToModule(cloneML);
+                delete cloneML;
+            }
+            continue;
         }
+        
+        unsigned mid = min + (max-min)/2;
+        
+        llvm::Module *cloneMR = ReadWriteIRObj::cloneModuleAndRelease(cloneML);
+        
+        //llvm::errs() << "Func - " << funcPtr->getName() << "\n";   //////DBG
+        assert ((min <= mid && mid < max) && "shlould reach here only if we have at least 2 functions uncleaned");
+        
+        llvm::GlobalVariable *mutantIDSelGlobMM = cloneML->getNamedGlobal(mutantIDSelectorName); 
+        llvm::Function *mutantIDSelGlob_FuncMM = cloneML->getFunction(mutantIDSelectorName_Func);
+        for (auto fit = min; fit <= mid; fit++)
+        {
+            auto *Func = cloneML->getFunction(mutFuncList[fit]);
+            cleanFunctionToMut (*Func, 0, mutantIDSelGlobMM, mutantIDSelGlob_FuncMM);
+            tce.optimize(*Func, Mutation::funcModeOptLevel);
+        }
+        //left side has been cleaned, now add remaining right side to be processed next
+        workStack.emplace(cloneML, mid+1, max);
+        
+        mutantIDSelGlobMM = cloneMR->getNamedGlobal(mutantIDSelectorName); 
+        mutantIDSelGlob_FuncMM = cloneMR->getFunction(mutantIDSelectorName_Func);
+        for (auto fit = mid+1; fit <= max; fit++)
+        {
+            auto *Func = cloneMR->getFunction(mutFuncList[fit]);
+            cleanFunctionToMut (*Func, 0, mutantIDSelGlobMM, mutantIDSelGlob_FuncMM);
+            tce.optimize(*Func, Mutation::funcModeOptLevel);
+        }
+        //right side have been cleaned now add the remaining left side to be processed next
+        workStack.emplace(cloneMR, min, mid);
     }
 }
 

@@ -21,6 +21,8 @@
 #include "llvm/Support/Casting.h"
 #include "llvm/Support/raw_ostream.h"
 
+#include "llvm/IR/BasicBlock.h"
+
 namespace llvm {
   class Module;
   class Value;
@@ -69,18 +71,20 @@ namespace llvm {
     SmallVector<DiffContext, 5> contexts;
     bool Differences;
     unsigned Indent;
+    SmallVector<BasicBlock *, 2> *mull_diffBBs;   //MuLL
 
     void printValue(Value *V, bool isL);
     void header();
     void indent();
 
   public:
-    DiffConsumer()
+    DiffConsumer(SmallVector<BasicBlock *, 2> *mdiffBBs=nullptr)
 #ifdef KLEE_SEMu_GenMu_PRINTDIFF
-      : out(errs()), Differences(false), Indent(0) {}
+      : out(errs()), Differences(false), Indent(0), mull_diffBBs(mdiffBBs) {}
 #else
-      : out(nulls()), Differences(false), Indent(0) {}
+      : out(nulls()), Differences(false), Indent(0), mull_diffBBs(mdiffBBs) {}
 #endif
+    bool stopAtFirstDiff () {return (mull_diffBBs == nullptr);}
 
     bool hadDifferences() const;
     void enterContext(Value *L, Value *R);

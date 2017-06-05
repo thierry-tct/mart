@@ -29,6 +29,8 @@
 #include "llvm/Target/TargetOptions.h"
 #endif  //#ifdef KLEE_SEMU_GENMU_OBJECTFILE
 
+#include "llvm/Transforms/Utils/Cloning.h"  //for CloneModule
+
 class ReadWriteIRObj
 {
     std::unique_ptr<llvm::MemoryBuffer> mBuf;
@@ -54,6 +56,15 @@ public:
         return (llvm::ParseIR(*mBuf, SMD, llvm::getGlobalContext()));
 #else
         return llvm::parseIR(*mBuf, SMD, llvm::getGlobalContext()).release();
+#endif
+    }
+    
+    static inline llvm::Module * cloneModuleAndRelease (llvm::Module *M)
+    {
+#if (LLVM_VERSION_MAJOR <= 3) && (LLVM_VERSION_MINOR < 5)
+        return llvm::CloneModule(M);
+#else
+       return llvm::CloneModule(M).release();
 #endif
     }
     
