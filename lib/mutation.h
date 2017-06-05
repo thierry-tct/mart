@@ -51,7 +51,7 @@ class Mutation
     
 public:
     typedef bool (* DumpMutFunc_t)(Mutation *mutEng, std::map<unsigned, std::vector<unsigned>>*, std::vector<llvm::Module *>*, llvm::Module *, \
-                                        std::vector<llvm::Function *> const *mutFunctions, std::unordered_map<llvm::Module *, llvm::Function *> *backedFuncsByMods);
+                                        std::vector<llvm::Function *> const *mutFunctions);
     Mutation (llvm::Module &module, std::string mutConfFile, DumpMutFunc_t writeMutsF, std::string scopeJsonFile="");
     ~Mutation ();
     bool doMutate ();   //Transforms module
@@ -76,7 +76,8 @@ private:
     llvm::AllocaInst * MyDemoteRegToStack(llvm::Instruction &I, bool VolatileLoads, llvm::Instruction *AllocaPoint);
     inline bool skipFunc (llvm::Function &Func);
     
-    void cleanFunctionToMut (llvm::Function &Func, MuLL::MutantIDType mutantID, llvm::GlobalVariable *mutantIDSelGlob, llvm::Function *mutantIDSelGlob_Func);
+    void cleanFunctionSWmIDRange (llvm::Function &Func, MuLL::MutantIDType mIDFrom, MuLL::MutantIDType mIDTo, llvm::GlobalVariable *mutantIDSelGlob, llvm::Function *mutantIDSelGlob_Func);
+    void cleanFunctionToMut (llvm::Function &Func, MuLL::MutantIDType mutantID, llvm::GlobalVariable *mutantIDSelGlob, llvm::Function *mutantIDSelGlob_Func, bool verifyIfEnabled=true);
     void computeModuleBufsByFunc(llvm::Module &module, std::unordered_map<llvm::Function *, ReadWriteIRObj> *inMemIRModBufByFunc, \
                                                     std::unordered_map<llvm::Function *, llvm::Module *> *clonedModByFunc, std::vector<llvm::Function *> &funcMutByMutID);
     bool getMutant (llvm::Module &module, unsigned mutanatID, llvm::Function *mutFunc=nullptr, char optimizeModFuncNone='M'/* 'M', 'F', 'A', '0' */);

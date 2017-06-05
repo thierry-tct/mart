@@ -24,7 +24,7 @@ void insertMutSelectGetenv(llvm::Module *mod)
 
 //print all the modules of mutants, sorted from mutant 0(original) to mutant max
 bool dumpMutantsCallback (Mutation *mutEng, std::map<unsigned, std::vector<unsigned>> *poss, std::vector<llvm::Module *> *mods, llvm::Module *wmModule/*=nullptr*/, \
-                                std::vector<llvm::Function *> const *mutFunctions, std::unordered_map<llvm::Module *, llvm::Function *> *backedFuncsByMods)
+                                std::vector<llvm::Function *> const *mutFunctions)
 {
     llvm::outs() << "MuLL@Progress: writing mutants to files ...\n";
     clock_t curClockTime = clock();
@@ -41,6 +41,8 @@ bool dumpMutantsCallback (Mutation *mutEng, std::map<unsigned, std::vector<unsig
   //Strong Mutants  
     if (poss && mods)
     {
+        std::unordered_map<llvm::Module *, llvm::Function *> backedFuncsByMods;
+        
         std::string mutantsDir = outputDir+"//"+mutantsFolder;
         if (mkdir(mutantsDir.c_str(), 0777) != 0)
             assert (false && "Failed to create mutants output directory");
@@ -61,7 +63,16 @@ bool dumpMutantsCallback (Mutation *mutEng, std::map<unsigned, std::vector<unsig
         {
             formutsModule = mods->at(m.first);
             if (mutFunctions != nullptr)
+            {
+                std::string funcName = mutFunctions->at(m.first)->getName();
+                if (backedFuncsByMods.count(formutsModule) == 0)
+                {
+                    llvm::ValueToValueMapTy vmap;
+                    backedFuncsByMods.emplace(formutsModule, llvm::CloneFunction(formutsModule->getFunction(funcName), vmap, true/*moduleLevelChanges*/));
+                }
                 mutEng->setModFuncToFunction (formutsModule, mutFunctions->at(m.first));
+                //mutEng->checkFunctionValidity(formutsModule->getFunction(funcName), "The function was not well formed");
+            }
             mid = m.second.front();
             if (mkdir((mutantsDir+"/"+std::to_string(mid)).c_str(), 0777) != 0)
                 assert (false && "Failed to create output directory for mutant");
@@ -73,8 +84,11 @@ bool dumpMutantsCallback (Mutation *mutEng, std::map<unsigned, std::vector<unsig
         }
         if (mutFunctions != nullptr)
             // restore
-            for (auto &itt: *backedFuncsByMods)
+            for (auto &itt: backedFuncsByMods)
+            {
                 mutEng->setModFuncToFunction (itt.first, itt.second);
+                delete itt.second;  //the fuction just created above as clone..
+            }
     }
     llvm::outs() << "MuLL@Progress: writing mutants to file took: "<< (float)(clock() - curClockTime)/CLOCKS_PER_SEC <<" Seconds.\n";
     return true;
