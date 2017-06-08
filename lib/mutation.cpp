@@ -2272,6 +2272,7 @@ std::string Mutation::getMutationStats()
     std::string retstr;
     retstr += "\n# Number of Mutants:   PreTCE: "+std::to_string(preTCENumMuts)+", PostTCE: "+std::to_string(postTCENumMuts)+", ";
     retstr += "Equivalent: " + std::to_string(numEquivalentMuts)+", Duplicates: " +std::to_string(numDuplicateMuts)+"\n\n";
+    return retstr;
 }
 
 Mutation::~Mutation ()
