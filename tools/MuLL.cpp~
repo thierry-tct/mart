@@ -58,7 +58,7 @@ bool dumpMutantsCallback (Mutation *mutEng, std::map<unsigned, std::vector<unsig
         std::string tmpFunctionDir = outputDir + "/" + tmpFuncModuleFolder;   
         
         llvm::Module *formutsModule = mods->at(0);
-        bool separateFunctionModule = (formutsModule->size() > 1); //separate only if we have more than one function XXX
+        bool separateFunctionModule = (formutsModule->size() > 0); //separate only if we have more than one function XXX
         unsigned mid = 0;
         
         std::string infoFuncPathModPath;

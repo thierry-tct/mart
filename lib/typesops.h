@@ -291,11 +291,25 @@ public:
 class MutationScope
 {
   private:
+    static const bool matchOnlySrcFilePathBasename = true;
     bool mutateAllFuncs;
     std::unordered_set<llvm::Function *> funcsToMutate;
     bool initialized;
   public:
     MutationScope (): initialized(false){}
+    
+    std::string getBasename (std::string const &subjStr)
+    {
+        auto sep = subjStr.rfind('/');
+        if (sep == std::string::npos)
+            sep = subjStr.rfind('\\');
+        if (sep == std::string::npos)
+            sep = 0;
+        else
+            sep++;
+        return subjStr.substr (sep);
+    }
+    
     void Initialize (llvm::Module &module, std::string inJsonFilename="")
     {
         initialized = true;
@@ -327,9 +341,16 @@ class MutationScope
 	                for (auto &val: srcList)
 	                {
 	                    assert (val.isString() && "An element of the JSON array Source-Files is not a string. source file name must be string.");
-	                    if (! specSrcFiles.insert(val.getString()).second)
+	                    
+	                    std::string tmp;
+	                    if (matchOnlySrcFilePathBasename)
+	                        tmp.assign(getBasename(val.getString()));
+                        else
+                            tmp.assign(val.getString());
+                            
+	                    if (! specSrcFiles.insert(tmp).second)
 	                    {
-	                        llvm::errs() << "Failed to insert the source " << val.getString() << " into set of srcs. Probably specified twice.";
+	                        llvm::errs() << "Failed to insert the source " << tmp << " into set of srcs. Probably specified twice.";
 	                        assert (false);
 	                    }
 	                }
@@ -340,7 +361,7 @@ class MutationScope
 	            //Check if no function is specified, mutate all (from the selected sources), else only mutate those specified
 	            assert (inScope["Functions"].isArray() && "The list of Functions to mutate, if present, must be a JSON array of string");
 	            JsonBox::Array const &funcList = inScope["Functions"].getArray();
-	            if (funcList.size() > 0)     //If there are some srcs specified
+	            if (funcList.size() > 0)     //If there are some functions specified
 	            {
 	                for (auto &val: funcList)
 	                {
@@ -386,11 +407,18 @@ class MutationScope
                         {
                             hasDbgIfSrc = true;
                             std::size_t found = srcOfF.find(":");
-                            assert (found!=std::string::npos && "Problem with the src loc info");
-                            if (specSrcFiles.count(srcOfF.substr(0, found+1)))
+                            assert (found!=std::string::npos && found>0 && "Problem with the src loc info, didn't find the ':'.");
+                            
+                            std::string tmp;
+	                        if (matchOnlySrcFilePathBasename)
+	                            tmp.assign(getBasename(srcOfF.substr(0, found)));
+                            else
+                                tmp.assign(srcOfF.substr(0, found));
+                            
+                            if (specSrcFiles.count(tmp))
                             {
                                 canMutThisFunc = false;
-                                seenSrcs.insert(srcOfF.substr(0, found+1));
+                                seenSrcs.insert(tmp);
                             }
                             break;
                         }
@@ -400,7 +428,11 @@ class MutationScope
                 {
                     if (specFuncs.count(Func.getName()))
                     {
-                        assert (canMutThisFunc && "Error in input file: Function selected to be mutated but corresponding source file not selected.");
+                        if (! canMutThisFunc)
+                        {
+                            llvm::errs() << "Error in input file: Function selected to be mutated but corresponding source file not selected: "<<Func.getName()<<"\n";
+                            assert (false);
+                        }
                         funcsToMutate.insert(&Func);
                     }
                 }
@@ -410,9 +442,28 @@ class MutationScope
                 }
 	        }
 	        assert (hasDbgIfSrc && "No debug information in the module, but mutation source file scope given");
-	        if (specFuncs.empty())
+	        if (! specFuncs.empty())
+	        {
 	            assert (specFuncs.size() == funcsToMutate.size() && "Error: Either some specified function do not exist or Bug (non specified function is added).");
-	        assert (seenSrcs.size() == specSrcFiles.size() && "Some specified sources file are not found in the module.");
+	            for (auto *f: funcsToMutate)
+	            {
+	                if (! specFuncs.count(f->getName()))
+	                {
+	                    assert (specFuncs.count(f->getName()) && "a function specified is not in function to mutate. please report a bug");
+                    }
+                }
+	        }    
+	        if (seenSrcs.size() != specSrcFiles.size())
+	        {
+	            llvm::errs() << "Specified Srcs: ";
+	            for (auto &s: specSrcFiles)
+	                llvm::errs() << " " << s;
+                llvm::errs() << "\nSeen Srcs: ";
+	            for (auto &s: seenSrcs)
+	                llvm::errs() << " " << s;
+                llvm::errs() << "\n";
+	            assert (seenSrcs.size() == specSrcFiles.size() && "Some specified sources file are not found in the module.");
+	        }
 	    }
 	    mutateAllFuncs = funcsToMutate.empty();
     }

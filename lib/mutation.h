@@ -62,6 +62,7 @@ public:
     void loadMutantInfos (std::string filename);
     void dumpMutantInfos (std::string filename);
     //llvm::Module & getMetaMutantModule() {return currentMetaMutantModule;}
+    std::string getMutationStats();
     
 private:
     bool getConfiguration(std::string &mutconfFile);

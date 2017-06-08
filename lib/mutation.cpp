@@ -1546,7 +1546,7 @@ void Mutation::doTCE (std::unique_ptr<llvm::Module> &modWMLog, bool writeMuts, b
                 /// do this by using binary approach (divide an conquer) fo scalability (avoid cloning useles code)
                 
                 /// \brief get the module for each function (when cleaning all other funcs)
-                std::stack<std::tuple<llvm::Function *, unsigned/*From*/, unsigned/*To*/>> workStack;
+                std::queue<std::tuple<llvm::Function *, unsigned/*From*/, unsigned/*To*/>> workQueue;
                 
                 llvm::ValueToValueMapTy vmap;
                 
@@ -1570,15 +1570,15 @@ void Mutation::doTCE (std::unique_ptr<llvm::Module> &modWMLog, bool writeMuts, b
                 temporaryFname += std::to_string(uniq);
                 
                 vmap.clear();
-                workStack.emplace(llvm::CloneFunction(clonedM->getFunction(subjFunctionName), vmap, true/*moduleLevelChanges*/), id, maxIDOfFunc);
+                workQueue.emplace(llvm::CloneFunction(clonedM->getFunction(subjFunctionName), vmap, true/*moduleLevelChanges*/), id, maxIDOfFunc);
                 
-                /// \brief Use binary approach(divide and conquer) to quickly obtain the module for each function
-                while (! workStack.empty())
+                /// \brief Use binary approach(divide and conquer) to quickly obtain the module for each function. use BFS here
+                while (! workQueue.empty())
                 {
-                    auto &stackElem = workStack.top();
-                    unsigned min = std::get<1>(stackElem), max = std::get<2>(stackElem);
-                    llvm::Function *cloneFuncL = std::get<0>(stackElem);
-                    workStack.pop();
+                    auto &queueElem = workQueue.front();
+                    unsigned min = std::get<1>(queueElem), max = std::get<2>(queueElem);
+                    llvm::Function *cloneFuncL = std::get<0>(queueElem);
+                    workQueue.pop();
                     
                     if (min == max)
                     {
@@ -1616,12 +1616,12 @@ void Mutation::doTCE (std::unique_ptr<llvm::Module> &modWMLog, bool writeMuts, b
                         // [min, mid]
                         cleanFunctionSWmIDRange (*cloneFuncL, min, mid, mutantIDSelGlobFF, mutantIDSelGlob_FuncFF);
                         //left side has been cleaned, now add remaining right side to be processed next
-                        workStack.emplace(cloneFuncL, mid+1, max);
+                        workQueue.emplace(cloneFuncL, mid+1, max);
                         
                         // [mid+1, max]
                         cleanFunctionSWmIDRange (*cloneFuncR, mid+1, max, mutantIDSelGlobFF, mutantIDSelGlob_FuncFF);
                         //right side have been cleaned now add the remaining left side to be processed next
-                        workStack.emplace(cloneFuncR, min, mid);
+                        workQueue.emplace(cloneFuncR, min, mid);
                     }
                 }
                 
@@ -1915,13 +1915,18 @@ void Mutation::doTCE (std::unique_ptr<llvm::Module> &modWMLog, bool writeMuts, b
     }
 }
 
+/**
+ * \brief Clean switch of mutant for the muatnt ids in range from to
+ */
 void Mutation::cleanFunctionSWmIDRange (llvm::Function &Func, MuLL::MutantIDType mIDFrom, MuLL::MutantIDType mIDTo, llvm::GlobalVariable *mutantIDSelGlob, llvm::Function *mutantIDSelGlob_Func)
 {
     if (Func.isDeclaration())
         return;
+    std::vector<llvm::BasicBlock *> toBeRemovedBB;
+    std::vector<llvm::ConstantInt *> tmpCaseVals;
     for (auto &BB: Func)
     {
-        std::vector<llvm::BasicBlock *> toBeRemovedBB;
+        toBeRemovedBB.clear();
         for (llvm::BasicBlock::iterator Iit = BB.begin(), Iie = BB.end(); Iit != Iie;)
         {
             llvm::Instruction &Inst = *Iit++;   //we increment here so that 'eraseFromParent' bellow do not cause crash
@@ -1938,7 +1943,7 @@ void Mutation::cleanFunctionSWmIDRange (llvm::Function &Func, MuLL::MutantIDType
                 {
                     if (ld->getOperand(0) == mutantIDSelGlob)
                     {
-                        std::vector<llvm::ConstantInt *> tmpCaseVals;
+                        tmpCaseVals.clear();
                         for (auto csit = sw->case_begin(), cse = sw->case_end(); csit != cse; ++csit)
                         {
                             llvm::ConstantInt *curcase = csit.getCaseValue();
@@ -1952,6 +1957,20 @@ void Mutation::cleanFunctionSWmIDRange (llvm::Function &Func, MuLL::MutantIDType
                             llvm::SwitchInst::CaseIt csit = sw->findCaseValue(csv);
                             toBeRemovedBB.push_back(csit.getCaseSuccessor());
                             sw->removeCase (csit);
+                        }
+                        if (tmpCaseVals.size() == sw->getNumCases())            //in case all mutant at this swich should be removed
+                        {
+                            // Make all PHI nodes that referred to BB now refer to Pred as their
+                            // source...
+                            llvm::BasicBlock * citSucc = sw->case_default().getCaseSuccessor();
+                            llvm::BasicBlock * swBB = sw->getParent();
+                            citSucc->replaceAllUsesWith(swBB);
+                            // Move all definitions in the successor to the predecessor...
+                            sw->eraseFromParent();
+                            ld->eraseFromParent();
+                            
+                            swBB->getInstList().splice(swBB->end(), citSucc->getInstList());
+                            toBeRemovedBB.push_back(citSucc);
                         }
                     }
                 }
@@ -2248,12 +2267,18 @@ void Mutation::dumpMutantInfos (std::string filename)
     mutantsInfos.printToJsonFile(filename);
 }
 
+std::string Mutation::getMutationStats()
+{
+    std::string retstr;
+    retstr += "\n# Number of Mutants:   PreTCE: "+std::to_string(preTCENumMuts)+", PostTCE: "+std::to_string(postTCENumMuts)+", ";
+    retstr += "Equivalent: " + std::to_string(numEquivalentMuts)+", Duplicates: " +std::to_string(numDuplicateMuts)+"\n\n";
+}
+
 Mutation::~Mutation ()
 {
     //mutantsInfos.printToStdout();
     
-    llvm::errs() << "\n# Number of Mutants:   PreTCE: " << preTCENumMuts << ", PostTCE: " << postTCENumMuts << ", ";
-    llvm::errs() << "Equivalent: " << numEquivalentMuts << ", Duplicates: " << numDuplicateMuts << "\n\n";
+    llvm::errs() << getMutationStats();
     
     //Clear the constant map to avoid double free
     llvmMutationOp::destroyPosConstValueMap();
