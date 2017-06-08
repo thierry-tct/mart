@@ -75,6 +75,7 @@ if (KLEE_SEMU_GENMU)
 	  message(STATUS "Looking for libraries in: ${LLVM_LIBRARY_DIRS}")
 	endif(LLVM_BUILD_PATH)
 
+    add_definitions(-DLLVM_TOOLS_BINARY_DIR="${LLVM_TOOLS_BINARY_DIR}")
 	add_definitions(${LLVM_DEFINITIONS})
 
 ####

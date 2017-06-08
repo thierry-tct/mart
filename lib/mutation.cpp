@@ -1329,6 +1329,7 @@ llvm::Value * Mutation::getWMCondition (llvm::BasicBlock *orig, llvm::BasicBlock
  */
 void Mutation::computeWeakMutation(std::unique_ptr<llvm::Module> &cmodule, std::unique_ptr<llvm::Module> &modWMLog)
 {
+    llvm::errs()<<"Computing weak mutation labels...\n";    ////DBG
     /// Link cmodule with the corresponding driver module (actually only need c module)
 #if (LLVM_VERSION_MAJOR <= 3) && (LLVM_VERSION_MINOR < 5)
     llvm::Linker linker(cmodule.get());
@@ -1416,6 +1417,8 @@ void Mutation::computeWeakMutation(std::unique_ptr<llvm::Module> &cmodule, std::
     
     //verify WM module
     Mutation::checkModuleValidity(*cmodule, "ERROR: Misformed WM Module!");
+    
+    llvm::errs()<<"Computing weak mutation done!\n";    ////DBG
 }//~Mutation::computeWeakMutation
 
 /**
@@ -1722,6 +1725,8 @@ void Mutation::doTCE (std::unique_ptr<llvm::Module> &modWMLog, bool writeMuts, b
             //else    llvm::errs() << id << " is duplicate\n"; /////DBG
         }
     }
+    
+    llvm::errs()<<"Done processing Funcs!\n";    ////DBG
     
     // Store some statistics about the mutants
     preTCENumMuts = highestMutID;

@@ -67,7 +67,7 @@ fi
 # #~
 
 #mutate
-$ks_GenMu -gen-mutants -mutant-config $mutConf $inputBC 2>&1
+$ks_GenMu -write-mutants -mutant-config $mutConf $inputBC 2>&1
 
 #Compile the generated mutants
 for m in `find mull-out-0/mutants -type f -name "*.bc"`

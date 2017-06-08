@@ -104,7 +104,32 @@ bool dumpMutantsCallback (Mutation *mutEng, std::map<unsigned, std::vector<unsig
                             llvm::errs() << "Function " << funcName << "...\n";
                             assert (false && "Failed to output function's module IR file");
                         }
+                        
                         // now 'formutsModule' contain only the function of interest, delete it so that we can insert the mutants later
+                        
+                        if (! formutsModule->getFunction(funcName)->use_empty())    // The function has recursive call. all the mutants point here. Make them point on themselves
+                        {
+                            auto *tmpFF = formutsModule->getFunction(funcName);
+                            while (!tmpFF->use_empty())
+                            {
+                                if (llvm::Instruction *URInst = llvm::dyn_cast<llvm::Instruction>(tmpFF->user_back()))
+                                {
+                                    llvm::Function *fofi = URInst->getParent()->getParent();
+                                    assert (!fofi->getParent() && "the only users should be the mutant functions here, and thery have no parent.");
+                                    URInst->replaceUsesOfWith(tmpFF, fofi);
+                                }
+                                else
+                                {
+                                    llvm::errs() << "\nError: Function '" << funcName << "' should have NO use here, since in its own module. But still have " << tmpFF->getNumUses() << " uses\n";
+                                    llvm::errs() << "> Please report the bug.\n";
+                                    //llvm::errs() << UR << "\n";
+                                    //if (auto *Uinst = llvm::dyn_cast<llvm::Instruction>(UR))
+                                    ////Uinst->getParent()->getParent()->dump();
+                                    //    llvm::errs() << Uinst->getParent()->getParent() << "" << Uinst->getParent()->getParent()->getName() << " --- " << Uinst->getParent()->getParent()->getParent() << "\n";
+                                    assert (false);
+                                }
+                            }
+                        }
                         formutsModule->getFunction(funcName)->eraseFromParent();
                     }
                     else
@@ -183,6 +208,16 @@ bool dumpMutantsCallback (Mutation *mutEng, std::map<unsigned, std::vector<unsig
     return true;
 }
 
+void printVersion()
+{
+    llvm::outs() << "\nMuLL (Framework for Multi-Programming Language Mutation Testing based on LLVM)\n";
+    llvm::outs() << "\tMuLL 1.0\n";
+    llvm::outs() << "\nLLVM (http://llvm.org/):\n";
+    llvm::outs() << "\tLLVM version " << LLVM_VERSION_MAJOR << "." << LLVM_VERSION_MINOR << "." << LLVM_VERSION_PATCH << "\n";
+    llvm::outs() << "\tLLVM tools dir: " << LLVM_TOOLS_BINARY_DIR << "\n";
+    llvm::outs() << "\n";
+}
+
 int main (int argc, char ** argv)
 {
     time_t totalRunTime = time(NULL);
@@ -223,7 +258,7 @@ int main (int argc, char ** argv)
         {
             dumpPreTCEMeta = true;
         }
-        else if (strcmp(argv[i], "-gen-mutants") == 0)
+        else if (strcmp(argv[i], "-write-mutants") == 0)
         {
             dumpMutants = true;
         }
@@ -238,6 +273,11 @@ int main (int argc, char ** argv)
         else if (strcmp(argv[i], "-mutant-scope") == 0)
         {
             mutantScopeJsonfile = argv[++i];
+        }
+        else if (strcmp(argv[i], "-version") == 0)
+        {
+            printVersion();
+            return 0;
         }
         else
         {
