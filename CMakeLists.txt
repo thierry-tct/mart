@@ -21,7 +21,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED on)
 OPTION(KLEE_SEMU_GENMU "Support for Mutant Generation" ON)
 
 #Set this to ON for generation of mutants object file (note that this will increase the executable size:  4MB VS 400MB)
-OPTION(KLEE_SEMU_GENMU_OBJECTFILE "Support for object file generation" ON) 
+OPTION(KLEE_SEMU_GENMU_OBJECTFILE "Support for object file generation" OFF) 
 
 message(STATUS "Build type: ${CMAKE_BUILD_TYPE}")
 

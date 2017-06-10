@@ -415,9 +415,12 @@ class MutationScope
                             else
                                 tmp.assign(srcOfF.substr(0, found));
                             
-                            if (specSrcFiles.count(tmp))
+                            if (specSrcFiles.count(tmp) == 0)
                             {
                                 canMutThisFunc = false;
+                            }
+                            else
+                            {
                                 seenSrcs.insert(tmp);
                             }
                             break;
@@ -1009,7 +1012,7 @@ struct MutantInfoList
     struct MutantInfo
     {
         //Mutant id
-        unsigned id;
+        MuLL::MutantIDType id;
         
         //Mutant type
         std::string typeName;
@@ -1019,7 +1022,10 @@ struct MutantInfoList
         std::vector<unsigned> irLeveLocInFunc;
         std::string srcLevelLoc;
         
-        MutantInfo (unsigned mid, std::vector<llvm::Value *> const &toMatch, std::string const &mName, std::vector<unsigned> const &relpos, llvm::Function *curFunc, std::vector<unsigned> const & absPos)//:
+        MutantInfo (MuLL::MutantIDType mutant_id, std::string const &type, std::string const &funcName, std::vector<unsigned> const &irPos, std::string const &srcLoc)
+                        :id(mutant_id), typeName(type), locFuncName(funcName), irLeveLocInFunc(irPos), srcLevelLoc(srcLoc) {}
+
+        MutantInfo (MuLL::MutantIDType mid, std::vector<llvm::Value *> const &toMatch, std::string const &mName, std::vector<unsigned> const &relpos, llvm::Function *curFunc, std::vector<unsigned> const & absPos)//:
             //typeName (mName)
         {
             id = mid;
@@ -1058,10 +1064,22 @@ struct MutantInfoList
             }
         }
     };
-    
+  private:  
     std::vector<MutantInfo> mutants;
-    std::unordered_set<unsigned> containedMutsIDs;
-    
+    std::unordered_set<MuLL::MutantIDType> containedMutsIDs;
+  
+    void internalAdd (MuLL::MutantIDType mutant_id, std::string const &type, std::string const &funcName, std::vector<unsigned> const &irPos, std::string const &srcLoc)
+    {
+        if (wasAdded(mutant_id))
+        {
+            llvm::errs() << "Error: Mutant with ID " << mutant_id << "internally added several time (reading from JSON)\n";
+            assert (false);
+        }
+        mutants.emplace_back(mutant_id, type, funcName, irPos, srcLoc);
+        containedMutsIDs.insert(mutant_id);
+    }
+  
+  public:  
     /**
      * \brief This method add a new mutant's info.
      * \detail It computes the corresponding location using @param relpos and @param curFunc
@@ -1072,7 +1090,7 @@ struct MutantInfoList
      * @param curFunc is the function containing @param toMatch
      * @param toMatchIRPosInFunc is the list of positions of each IR in toMatch in the function @param curFunc
      */
-    void add (unsigned mid, std::vector<llvm::Value *> const &toMatch, std::string const &mName, std::vector<unsigned> const &relpos, llvm::Function *curFunc, std::vector<unsigned> const &  toMatchIRPosInFunc)
+    void add (MuLL::MutantIDType mid, std::vector<llvm::Value *> const &toMatch, std::string const &mName, std::vector<unsigned> const &relpos, llvm::Function *curFunc, std::vector<unsigned> const &  toMatchIRPosInFunc)
     {
         if (wasAdded(mid))
             return;
@@ -1080,7 +1098,7 @@ struct MutantInfoList
         containedMutsIDs.insert(mid);
     }
     
-    bool wasAdded (unsigned mid) {return (containedMutsIDs.count(mid) > 0);}
+    bool wasAdded (MuLL::MutantIDType mid) {return (containedMutsIDs.count(mid) > 0);}
     
     /**
      *  \brief remove the TCE's equivalent and duplicate mutants
@@ -1111,7 +1129,7 @@ struct MutantInfoList
     
     void printToStdout () 
     {
-        llvm::errs() << "\n~~~~~~~~~ MUTANTS INFOS ~~~~~~~~~\n\nID, Name, Location\n-------------------\n";
+        llvm::errs() << "\n~~~~~~~~~ MUTANTS INFOS ~~~~~~~~~\n\nID, Name, SRC Location\n-------------------\n";
         for (auto &info: mutants)
         {
             llvm::errs() << info.id << "," << info.typeName << "," << info.srcLevelLoc << "\n";
@@ -1139,18 +1157,58 @@ struct MutantInfoList
             
             //Fill in the mutant infos
             outJ[mid]["Type"] = JsonBox::Value(info.typeName);
-            outJ[mid]["SrcLoc"] = JsonBox::Value(info.srcLevelLoc);
             outJ[mid]["FuncName"] = JsonBox::Value(info.locFuncName);
             JsonBox::Array tmparr;
             for (auto pos: info.irLeveLocInFunc)
                 tmparr.push_back(JsonBox::Value((int)pos));
             outJ[mid]["IRPosInFunc"] = tmparr;
+            outJ[mid]["SrcLoc"] = JsonBox::Value(info.srcLevelLoc);
         }
     }
     
     void loadFromJsonFile (std::string filename)
     {
-        assert (false && "To Be Implemented");
+        JsonBox::Value value_in;
+	    value_in.loadFromFile(filename);
+	    assert (value_in.isObject() && "The JSON file data of mutants info must be a JSON object");
+	    JsonBox::Object object_in = value_in.getObject();
+	    MuLL::MutantIDType num_of_mutants = object_in.size();
+	    for (MuLL::MutantIDType mutant_id = 1; mutant_id <= num_of_mutants; ++mutant_id)
+	    {
+	         std::string mutant_id_string(std::to_string(mutant_id));
+	         if (object_in.count(mutant_id_string) == 0)
+	         {  //The mutants ID must go from 1 continuously upto num_mutants
+	            llvm::errs() << "Error: mutant " << mutant_id_string << " not present in mutant info (Total number of mutants is " << num_of_mutants << ")\n\n";
+	            assert(false);
+	         }    
+	         assert (object_in[mutant_id_string].isObject() && "Mutant Info must be JSON Object");
+	         JsonBox::Object mutant_info = object_in[mutant_id_string].getObject();
+	         
+	         JsonBox::Value &type_val = mutant_info["Type"];
+	         assert (type_val.isString() && "Mutant operator Type must be string in JSON");
+	         std::string type = type_val.getString();
+	         
+	         JsonBox::Value &funcname_val = mutant_info["FuncName"];
+	         assert (funcname_val.isString() && "Function Name must be string in JSON");
+	         std::string funcName = funcname_val.getString();
+	         
+	         JsonBox::Value &irpos_val = mutant_info["IRPosInFunc"];
+	         assert (irpos_val.isArray() && "IR pos must be array in JSON");
+	         std::vector<unsigned> irPos;
+	         for (JsonBox::Value pos_val: irpos_val.getArray())
+	         {
+	            assert (pos_val.isInteger() && "Pos of IR must be Integer");
+	            int pos = pos_val.getInteger();
+	            assert (pos >= 0 && "Pos if IR must be positive");
+	            irPos.push_back((unsigned) pos);
+	         }
+	         
+	         JsonBox::Value srcloc_val = mutant_info["SrcLoc"];
+	         assert (srcloc_val.isString() && "Source Level Loc must be string in JSON");
+	         std::string srcLoc = srcloc_val.getString();
+	         
+	         internalAdd (mutant_id, type, funcName, irPos, srcLoc);
+	    }
     }
 };
 

@@ -1,4 +1,14 @@
-
+/**
+ * -==== MuLL.cpp
+ *
+ *                MuLL Multi-Language LLVM Mutation Framework
+ *
+ * This file is distributed under the University of Illinois Open Source
+ * License. See LICENSE.TXT for details. 
+ *  
+ * \brief     Main source file that will be compiled to execute mutation and possibly selection.
+ */
+ 
 #include <string>
 #include <ctime>
 #include <fstream>
@@ -6,6 +16,9 @@
 #include <sys/stat.h>   //mkdir, stat
 #include <sys/types.h>  //mkdir, stat
 #include <libgen.h> //basename
+#include <unistd.h>  // fork, execl
+#include <sys/wait.h> //wait
+
 
 #include "ReadWriteIRObj.h"
 #include "../lib/mutation.h"
@@ -28,7 +41,10 @@ void insertMutSelectGetenv(llvm::Module *mod)
     //insert getenv and atol
 }
 
-//print all the modules of mutants, sorted from mutant 0(original) to mutant max
+/**
+ * \brief print all the modules of mutants, sorted from mutant 0(original) to mutant max
+ * XXX This function modifies the values in parameters 'mods' and 'mutFunctions'
+ */
 bool dumpMutantsCallback (Mutation *mutEng, std::map<unsigned, std::vector<unsigned>> *poss, std::vector<llvm::Module *> *mods, llvm::Module *wmModule/*=nullptr*/, \
                                 std::vector<llvm::Function *> const *mutFunctions)
 {
@@ -238,7 +254,7 @@ int main (int argc, char ** argv)
     bool isTCEFunctionMode = true;
     
 #ifdef KLEE_SEMU_GENMU_OBJECTFILE
-    bool dumpMetaObj = false; 
+    bool dumpMetaObj = false;
 #endif  //#ifdef KLEE_SEMU_GENMU_OBJECTFILE
     
     char *  tmpStr = nullptr;
@@ -466,8 +482,35 @@ int main (int argc, char ** argv)
     std::strcpy(tmpStr, argv[0]); 
     std::string compileMutsScript(dirname(tmpStr));  //dirname change the contain of its parameter
     delete [] tmpStr; tmpStr = nullptr;  //del tmpStr3
-    //llvm::errs() << "bash " + compileMutsScript+"/useful/CompileAllMuts.sh "+outputDir+" yes" <<"\n";
-    assert(!system(("bash " + compileMutsScript+"/useful/CompileAllMuts.sh "+outputDir+" "+tmpFuncModuleFolder+" yes").c_str()) && "Mutants Compile script failed");
+    //llvm::errs() << ("bash " + compileMutsScript+"/useful/CompileAllMuts.sh "+outputDir+" "+tmpFuncModuleFolder+" yes").c_str() <<"\n";
+    /*******/
+    //auto sc_code = system(("bash " + compileMutsScript+"/useful/CompileAllMuts.sh "+outputDir+" "+tmpFuncModuleFolder+" yes").c_str());
+    //if (sc_code != 0)
+    //{
+    //     llvm::errs() << "\n:( ERRORS: Mutants Compile script failed (probably not enough memory) with error: " << sc_code << "!\n\n";
+    //     assert (false);
+    //}
+    
+    //using fork - exec
+    pid_t my_pid;
+    if((my_pid = fork()) < 0 )
+    {
+        perror("fork failure");
+        exit(1);
+    }
+    if(my_pid == 0)
+    {
+        llvm::errs() << "## Child process: compiler\n";
+        execl ("/bin/bash", "bash", (compileMutsScript+"/useful/CompileAllMuts.sh").c_str(), outputDir.c_str(), tmpFuncModuleFolder.c_str(), "yes", (char *) NULL);
+        llvm::errs() << "\n:( ERRORS: Mutants Compile script failed (probably not enough memory)!!!" << "!\n\n";
+        assert (false && "Child's exec failed!");
+    }
+    else
+    {
+        llvm::errs() << "### Parent process: waiting\n";
+        wait (NULL);
+    }
+    /********/
     //llvm::outs() << "MuLL@Progress:  Compiling Mutants took: "<< (float)(clock() - curClockTime)/CLOCKS_PER_SEC <<" Seconds.\n";
     
     llvm::outs() << "MuLL@Progress:  Compiling Mutants took: "<< difftime(time(NULL), timer) <<" Seconds.\n";

@@ -43,6 +43,8 @@
 #include "llvm/Transforms/Utils/Local.h"  //for llvm::DemotePHIToStack   used to remove PHI nodes after mutation
 #include "llvm/Analysis/CFG.h"  // llvm::GetSuccessorNumber and  llvm::GetSuccessorNumber  
 
+#include "llvm/IR/DebugInfo.h"  //llvm::StripDebugInfo (llvm::Module &M)   //remove all debugging infos 
+
 /*#ifdef ENABLE_OPENMP_PARALLEL
 #include "omp.h"
 #endif*/
@@ -1330,6 +1332,11 @@ llvm::Value * Mutation::getWMCondition (llvm::BasicBlock *orig, llvm::BasicBlock
 void Mutation::computeWeakMutation(std::unique_ptr<llvm::Module> &cmodule, std::unique_ptr<llvm::Module> &modWMLog)
 {
     llvm::errs()<<"Computing weak mutation labels...\n";    ////DBG
+    
+    assert (!cmodule->getFunction(wmLogFuncName) && "Name clash for weak mutation log function Name, please change it from you program");
+    assert (!cmodule->getFunction(wmFFlushFuncName) && "Name clash for weak mutation FFlush function Name, please change it from you program");
+    assert (!cmodule->getGlobalVariable(wmHighestMutantIDConst) && "Name clash for weak mutation highest mutant ID Global Variable Name, please change it from you program");
+    
     /// Link cmodule with the corresponding driver module (actually only need c module)
 #if (LLVM_VERSION_MAJOR <= 3) && (LLVM_VERSION_MINOR < 5)
     llvm::Linker linker(cmodule.get());
@@ -1349,7 +1356,14 @@ void Mutation::computeWeakMutation(std::unique_ptr<llvm::Module> &cmodule, std::
 #endif
     
     llvm::Function *funcWMLog = cmodule->getFunction (wmLogFuncName);
-    assert (funcWMLog && "Weak Mutation Log Function absent in WM Module. Was it liked properly?");
+    llvm::Function *funcWMFflush = cmodule->getFunction (wmFFlushFuncName);
+    llvm::GlobalVariable *constWMHighestID = cmodule->getNamedGlobal(wmHighestMutantIDConst);
+    assert (funcWMLog && "Weak Mutation Log Function absent in WM Module. Was it linked properly?");
+    assert (funcWMFflush && "Weak Mutation FFlush Function absent in WM Module. Was it linked properly?");
+    assert (constWMHighestID && "Weak Mutation WM Highest mutant ID absent in WM Module. Was it linked properly?");
+    constWMHighestID->setInitializer(llvm::ConstantInt::get(moduleInfo.getContext(), llvm::APInt(32, (uint64_t) getHighestMutantID (cmodule.get()), false)));
+    constWMHighestID->setConstant(true);
+    
     for (auto &Func: *cmodule)
     {
         if (&Func == funcWMLog)
@@ -1374,6 +1388,8 @@ void Mutation::computeWeakMutation(std::unique_ptr<llvm::Module> &cmodule, std::
                         if (ld->getOperand(0) == cmodule->getNamedGlobal(mutantIDSelectorName))
                         {
                             std::vector<llvm::ConstantInt *> cases;
+                            llvm::IRBuilder<> sbuilder(sw);
+                            std::vector<llvm::Value*> argsv;
                             auto *defaultBB = sw->getDefaultDest ();    //original
                             for (llvm::SwitchInst::CaseIt i = sw->case_begin(), e = sw->case_end(); i != e; ++i) 
                             {
@@ -1386,12 +1402,16 @@ void Mutation::computeWeakMutation(std::unique_ptr<llvm::Module> &cmodule, std::
                                 toBeRemovedBB.push_back(caseiBB);
                                 
                                 llvm::Value *condVal = getWMCondition (defaultBB, caseiBB, sw);
-                                llvm::IRBuilder<> sbuilder(sw);
-                                std::vector<llvm::Value*> argsv;
+                                
+                                argsv.clear();
                                 argsv.push_back(mutIDConstInt);     //mutant ID
                                 argsv.push_back(condVal);           //weak kill condition
                                 sbuilder.CreateCall(funcWMLog, argsv);  //call WM log func
                             }
+                            // Now call fflush
+                            argsv.clear();
+                            sbuilder.CreateCall(funcWMFflush, argsv);
+                            
                             for (auto *caseval: cases)
                             {
                                 llvm::SwitchInst::CaseIt cit = sw->findCaseValue(caseval);
@@ -1478,12 +1498,16 @@ void Mutation::doTCE (std::unique_ptr<llvm::Module> &modWMLog, bool writeMuts, b
     ///\brief keep the original's module up to end of this function
     llvm::Module *clonedOrig = nullptr;
     
+    /// make the new module that will have no metadata, to hopefully make mutantion TCE and write/ comilation faster
+    std::unique_ptr<llvm::Module> subjModule (ReadWriteIRObj::cloneModuleAndRelease(&module));
+    llvm::StripDebugInfo (*subjModule);
+    
     if (isTCEFunctionMode)
     {
         mutFunctions.clear();
         mutFunctions.resize(highestMutID+1, nullptr);
         llvm::errs() << "Cloning...\n";   //////DBG
-        computeModuleBufsByFunc(module, nullptr, &clonedModByFunc, funcMutByMutID);
+        computeModuleBufsByFunc(*subjModule, nullptr, &clonedModByFunc, funcMutByMutID);
         
         clonedOrig = ReadWriteIRObj::cloneModuleAndRelease (clonedModByFunc.at(funcMutByMutID[0]));
 
@@ -1495,7 +1519,7 @@ void Mutation::doTCE (std::unique_ptr<llvm::Module> &modWMLog, bool writeMuts, b
         mutModules.clear();
         mutModules.resize(highestMutID+1, nullptr);
         llvm::errs() << "Cloning...\n";   //////DBG
-        computeModuleBufsByFunc(module, &inMemIRModBufByFunc, nullptr, funcMutByMutID);
+        computeModuleBufsByFunc(*subjModule, &inMemIRModBufByFunc, nullptr, funcMutByMutID);
         // Read all the mutantmodules possibly in parallel
        /*#ifdef ENABLE_OPENMP_PARALLEL
             omp_set_num_threads(std::min(atoi(std::getenv("OMP_NUM_THREADS")), std::max(omp_get_max_threads()/2, 1)));
@@ -1650,6 +1674,13 @@ void Mutation::doTCE (std::unique_ptr<llvm::Module> &modWMLog, bool writeMuts, b
         if (mutatedFuncsOfMID.empty()) //equivalent with orig
         {
             duplicateMap.at(0).push_back(id);
+            
+            // delete its function to free memory space
+            if (isTCEFunctionMode)
+            {
+                delete mutFunctions[id];
+                mutFunctions[id] = nullptr;
+            }
             //llvm::errs() << id << " is equivalent\n"; /////DBG
         }
         else
@@ -1722,7 +1753,16 @@ void Mutation::doTCE (std::unique_ptr<llvm::Module> &modWMLog, bool writeMuts, b
                 for (auto *mF: mutatedFuncsOfMID)
                     diffFuncs2Muts.at(mF).push_back(id);
             }
-            //else    llvm::errs() << id << " is duplicate\n"; /////DBG
+            else
+            {
+                // delete its function to free memory space
+                if (isTCEFunctionMode)
+                {
+                    delete mutFunctions[id];
+                    mutFunctions[id] = nullptr;
+                }
+                //llvm::errs() << id << " is duplicate\n"; /////DBG
+            }
         }
     }
     
@@ -1843,7 +1883,8 @@ void Mutation::doTCE (std::unique_ptr<llvm::Module> &modWMLog, bool writeMuts, b
         mutantIDSelGlob->setInitializer(llvm::ConstantInt::get(moduleInfo.getContext(), llvm::APInt(32, (uint64_t)1+highestMutID, false)));
     }
     
-    // Write mutants files and weak mutation file
+    /// Write mutants files and weak mutation file
+    /// XXX After writing the, do not use mutModules of mutFunctions, snce they are modified by the write mutants callback
     if (writeMuts || modWMLog)
     {
         std::unique_ptr<llvm::Module> wmModule(nullptr);
@@ -1857,7 +1898,7 @@ void Mutation::doTCE (std::unique_ptr<llvm::Module> &modWMLog, bool writeMuts, b
             computeWeakMutation(wmModule, modWMLog);
         }
         
-        if (writeMuts)
+        if (writeMuts)      //XXX After writing the, do not use mutModules of mutFunctions
         {
             if (isTCEFunctionMode)
             {
@@ -1908,7 +1949,8 @@ void Mutation::doTCE (std::unique_ptr<llvm::Module> &modWMLog, bool writeMuts, b
     if (isTCEFunctionMode)
     {
         for (auto *ff: mutFunctions)
-            delete ff;
+            if (ff)
+                delete ff;
         delete clonedOrig;
         for (auto &mmIt: clonedModByFunc)
             delete mmIt.second;
@@ -1957,12 +1999,6 @@ void Mutation::cleanFunctionSWmIDRange (llvm::Function &Func, MuLL::MutantIDType
                                 continue;
                             tmpCaseVals.push_back (curcase);
                         }
-                        for (auto csv: tmpCaseVals)
-                        {
-                            llvm::SwitchInst::CaseIt csit = sw->findCaseValue(csv);
-                            toBeRemovedBB.push_back(csit.getCaseSuccessor());
-                            sw->removeCase (csit);
-                        }
                         if (tmpCaseVals.size() == sw->getNumCases())            //in case all mutant at this swich should be removed
                         {
                             // Make all PHI nodes that referred to BB now refer to Pred as their
@@ -1976,6 +2012,15 @@ void Mutation::cleanFunctionSWmIDRange (llvm::Function &Func, MuLL::MutantIDType
                             
                             swBB->getInstList().splice(swBB->end(), citSucc->getInstList());
                             toBeRemovedBB.push_back(citSucc);
+                        }
+                        else
+                        {
+                            for (auto csv: tmpCaseVals)
+                            {
+                                llvm::SwitchInst::CaseIt csit = sw->findCaseValue(csv);
+                                toBeRemovedBB.push_back(csit.getCaseSuccessor());
+                                sw->removeCase (csit);
+                            }
                         }
                     }
                 }

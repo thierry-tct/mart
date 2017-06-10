@@ -42,7 +42,9 @@ class Mutation
     
     ModuleUserInfos moduleInfo;
     
-    const char * wmLogFuncName = "muLLVM_WM_Log_Function"; //This fuction take the mutant ID and the condition and print the mutant ID if the condition is true.
+    const char * wmLogFuncName = "muLLVM_WM_Log__Function"; //This fuction take the mutant ID and the condition and print the mutant ID if the condition is true.
+    const char * wmFFlushFuncName = "muLLVM_WM_Log__Function_Explicit_FFlush"; //This fuction flushes the logged mutant to file(call this before actual execution of the statement).
+    const char * wmHighestMutantIDConst = "muLLVM_WM_Log__Highest_Mutant_ID";
     
     static const bool verifyFuncModule = true;  //Change this to enable/disable verification after mutation
     
