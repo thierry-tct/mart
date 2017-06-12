@@ -92,6 +92,8 @@ public:
     
     bool isDeleteStmtConfName(llvm::StringRef s); 
     
+    static bool containsDeleteStmtConfName(llvm::StringRef s);
+    
     GenericMuOpBase * getMatcherObject(enum ExpElemKeys opKey);
     
     std::vector<enum ExpElemKeys> * getExpElemKeys(llvm::StringRef operation, std::string &confexp, unsigned confline);

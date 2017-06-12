@@ -601,20 +601,9 @@ void Mutation::getMutantsOfStmt (MatchStmtIR const &stmtIR, MutantsOfStmt &ret_m
     bool isDeleted = false;
     for (llvmMutationOp &mutator: configuration.mutators)
     {
-        /*switch (mutator.getMatchOp())
-        {
-            case mALLSTMT:
-            {
-                assert ((mutator.getNumReplacor() == 1 && mutator.getReplacor(0).first == mDELSTMT) && "only Delete Stmt affect whole statement and match anything");
-                if (!isDeleted && ! llvm::dyn_cast<llvm::Instruction>(stmtIR.back())->isTerminator())     //This to avoid deleting if condition or 'ret'
-                {
-                    ret_mutants.push_back(std::vector<llvm::Value *>());
-                    isDeleted = true;
-                }
-                break;
-            }
-            default:    //Anything beside math anything and delete whole stmt
-            {*/
+        //for (auto &mn: mutator.getMutantReplacorsList())    // DBG
+        //    llvm::errs() << mn.getMutOpName() << "; ";      // DBG
+            
         usermaps.getMatcherObject(mutator.getMatchOp())->matchAndReplace (stmtIR, mutator, ret_mutants, isDeleted, moduleInfo);
         
         // Check that load and stores type are okay

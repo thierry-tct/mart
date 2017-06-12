@@ -91,6 +91,11 @@ bool UserMaps::isDeleteStmtConfName(llvm::StringRef s)
     return s.equals_lower("delstmt");
 }
 
+/*static*/ bool UserMaps::containsDeleteStmtConfName(llvm::StringRef s) 
+{
+    return (s.lower().rfind("delstmt") != std::string::npos);
+}
+
 GenericMuOpBase * UserMaps::getMatcherObject(enum ExpElemKeys opKey)
 {
     auto val_iter = mapOperationMatcher.find(opKey);

@@ -71,8 +71,8 @@ class PointerArithBinop_Base: public GenericMuOpBase
         int oldPos = MU.getRelevantIRPosOf(0);
         int newPos = oldPos;
         int indx = MU.getHLOperandSourceIndexInIR(1) - 1;      //index according to Gep:   Get the in IR index of the Integer HLOprd (1) then remove 1
-        if (indx > 0)
-            newPos++;
+        //if (indx > 0)
+        //    newPos++;
             
         std::vector<llvm::Value *> extraIdx;
         
@@ -89,6 +89,14 @@ class PointerArithBinop_Base: public GenericMuOpBase
             for (auto i=0; i<indx;i++)
                 extraIdx.push_back(*(curGI->idx_begin() + i));
             preGep = llvm::dyn_cast<llvm::GetElementPtrInst>(builder.CreateInBoundsGEP(curGI->getPointerOperand(), extraIdx));
+            if (preGep)
+            {
+                newPos++;
+            }
+            else
+            { 
+                assert (llvm::isa<llvm::Constant>(curGI->getPointerOperand()) && "Newly created GEP (preGep) is NULL, but previous spointer oprd is not constant. Please report bug");
+            }
         }
         
         /// \brief indx is not the last, we can split after
@@ -99,6 +107,7 @@ class PointerArithBinop_Base: public GenericMuOpBase
             for (auto i=indx+1; i < llvm::dyn_cast<llvm::GetElementPtrInst>(DRU.toMatchMutant.getIRAt(oldPos))->getNumIndices();i++)
                 extraIdx.push_back(*(curGI->idx_begin() + i));
             postGep = llvm::dyn_cast<llvm::GetElementPtrInst>(builder.CreateInBoundsGEP(curGI, extraIdx));
+            assert (postGep && "Newly created GEP (postGep) is NULL, please report bug");
             std::vector<std::pair<llvm::User *, unsigned>> affectedUnO;
             //set uses of the matched IR to corresponding OPRD
 #if (LLVM_VERSION_MAJOR <= 3) && (LLVM_VERSION_MINOR < 5)
@@ -125,8 +134,8 @@ class PointerArithBinop_Base: public GenericMuOpBase
             
         llvm::Value * ptroprd = nullptr, *valoprd = nullptr;
         
-        llvm::Value *tmpPtr = preGep? preGep: llvm::dyn_cast<llvm::GetElementPtrInst >(DRU.toMatchMutant.getIRAt(newPos))->getPointerOperand();
-        llvm::GetElementPtrInst *tmpGepVal = postGep? postGep: llvm::dyn_cast<llvm::GetElementPtrInst >(DRU.toMatchMutant.getIRAt(newPos));
+        llvm::Value *tmpPtr = preGep? preGep: llvm::dyn_cast<llvm::GetElementPtrInst>(DRU.toMatchMutant.getIRAt(newPos))->getPointerOperand();
+        llvm::GetElementPtrInst *tmpGepVal = postGep? postGep: llvm::dyn_cast<llvm::GetElementPtrInst>(DRU.toMatchMutant.getIRAt(newPos));
         
         if (tmpPtr->getType() != tmpGepVal->getType())
         {
@@ -136,10 +145,13 @@ class PointerArithBinop_Base: public GenericMuOpBase
             extraIdx.clear();
             extraIdx.push_back(llvm::ConstantInt::get(llvm::Type::getIntNTy(MI.getContext(), MI.getDataLayout().getPointerTypeSizeInBits(tmpPtr->getType())), 0));
             extraIdx.push_back(llvm::ConstantInt::get(llvm::Type::getIntNTy(MI.getContext(), MI.getDataLayout().getPointerTypeSizeInBits(tmpGepVal->getType())), 0));
-            tmpPtr = llvm::dyn_cast<llvm::GetElementPtrInst>(builder.CreateInBoundsGEP(tmpPtr, extraIdx));
+            tmpPtr = builder.CreateInBoundsGEP(tmpPtr, extraIdx);
             llvm::dyn_cast<llvm::User>(DRU.toMatchMutant.getIRAt(newPos))->setOperand(0,tmpPtr);
-            DRU.toMatchMutant.insertIRAt(newPos, tmpPtr);
-            newPos++;
+            if (! llvm::isa<llvm::Constant>(tmpPtr))
+            {
+                DRU.toMatchMutant.insertIRAt(newPos, tmpPtr);
+                newPos++;
+            }
         }
             
         if (repl.getOprdIndexList().size() == 2)

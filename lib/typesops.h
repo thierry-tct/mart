@@ -1078,6 +1078,11 @@ struct MutantInfoList
         mutants.emplace_back(mutant_id, type, funcName, irPos, srcLoc);
         containedMutsIDs.insert(mutant_id);
     }
+    
+    /**
+     * \brief Check whether a mutant is already added
+     */
+    bool wasAdded (MuLL::MutantIDType mid) {return (containedMutsIDs.count(mid) > 0);}
   
   public:  
     /**
@@ -1090,15 +1095,14 @@ struct MutantInfoList
      * @param curFunc is the function containing @param toMatch
      * @param toMatchIRPosInFunc is the list of positions of each IR in toMatch in the function @param curFunc
      */
-    void add (MuLL::MutantIDType mid, std::vector<llvm::Value *> const &toMatch, std::string const &mName, std::vector<unsigned> const &relpos, llvm::Function *curFunc, std::vector<unsigned> const &  toMatchIRPosInFunc)
+    void add (MuLL::MutantIDType mid, std::vector<llvm::Value *> const &toMatch, std::string const &mName, \
+                std::vector<unsigned> const &relpos, llvm::Function *curFunc, std::vector<unsigned> const &  toMatchIRPosInFunc)
     {
         if (wasAdded(mid))
             return;
         mutants.emplace_back(mid, toMatch, mName, relpos, curFunc, toMatchIRPosInFunc);
         containedMutsIDs.insert(mid);
     }
-    
-    bool wasAdded (MuLL::MutantIDType mid) {return (containedMutsIDs.count(mid) > 0);}
     
     /**
      *  \brief remove the TCE's equivalent and duplicate mutants
@@ -1126,6 +1130,13 @@ struct MutantInfoList
             mutants.erase (mutants.begin() + (*it));
         }
     }
+    
+    MuLL::MutantIDType getMutantsNumber() {return mutants.size();}
+    const std::string &getMutantTypeName(MuLL::MutantIDType mutant_id) {return mutants[mutant_id].typeName;}
+    const std::string &getMutantSourceLoc(MuLL::MutantIDType mutant_id) {mutants[mutant_id].locFuncName;}
+    const std::vector<unsigned> &getMutantIrPosInFunction(MuLL::MutantIDType mutant_id) {mutants[mutant_id].irLeveLocInFunc;}
+    const std::string &getMutantFunction(MuLL::MutantIDType mutant_id) {mutants[mutant_id].srcLevelLoc;}
+     
     
     void printToStdout () 
     {

@@ -16,7 +16,7 @@
 
 class PointerAdd: public PointerArithBinop_Base
 {
-    protected:
+  protected:
     /**
      * \brief Implements from PointerArithBinop_Base
      */
@@ -38,8 +38,8 @@ class PointerAdd: public PointerArithBinop_Base
     {
         llvm::IRBuilder<> builder(MI.getContext());
         llvm::Value *valtmp = oprd2_intValOprd;
-        if (!llvm::dyn_cast<llvm::Constant>(valtmp))
-            replacement.push_back(valtmp);
+        //if (!llvm::dyn_cast<llvm::Constant>(valtmp))
+        //    replacement.push_back(valtmp);
 #if (LLVM_VERSION_MAJOR <= 3) && (LLVM_VERSION_MINOR < 5)
         llvm::Value *addsub_gep = builder.CreateInBoundsGEP(oprd1_addrOprd, valtmp);
 #else
