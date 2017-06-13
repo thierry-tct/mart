@@ -14,8 +14,11 @@
 //// install 'libcgraph6'
 //#include "cgraph.h"
 
+#ifndef __KLEE_SEMU_GENMU_mutantsSelection_MutantSelection__
+#define __KLEE_SEMU_GENMU_mutantsSelection_MutantSelection__
+
 #include "../usermaps.h"
-#include "../typesops.h"
+#include "../typesops.h"    //JsonBox
 
 #include "third-parties/dg/src/llvm/LLVMDependenceGraph.h"      //https://github.com/mchalupa/dg
 #include "third-parties/dg/src/llvm/analysis/DefUse.h"
@@ -108,6 +111,8 @@ class MutantDependenceGraph //: public DependenceGraph<MutantNode>
     std::unordered_set<llvm::Value *> &getIRsOfMut (MuLL::MutantIDType id) {return mutant2irset.at(id);}
     bool isBuilt () {return !mutant2irset.empty();}
     
+    MuLL::MutantIDType getMutantsNumber() {return mutantDGraphData.size()-1;}
+    
     const std_unordered_set<MuLL::MutantIDType> &getOutDataDependents(MuLL::MutantIDType mutant_id) {return mutantDGraphData[mutant_id].outDataDependents;}
     const std_unordered_set<MuLL::MutantIDType> &getInDataDependents(MuLL::MutantIDType mutant_id) {return mutantDGraphData[mutant_id].inDataDependents;}
     const std_unordered_set<MuLL::MutantIDType> &getOutCtrlDependents(MuLL::MutantIDType mutant_id) {return mutantDGraphData[mutant_id].outCtrlDependents;}
@@ -115,7 +120,7 @@ class MutantDependenceGraph //: public DependenceGraph<MutantNode>
     
     const std_unordered_set<MuLL::MutantIDType> &getTieDependents(MuLL::MutantIDType mutant_id) {return mutantDGraphData[mutant_id].tieDependents;}
     
-    bool build (llvm::Module const *mod, dg::LLVMDependenceGraph const &irDg, MutantInfoList const &mutInfos)
+    bool build (llvm::Module const *mod, dg::LLVMDependenceGraph const *irDg, MutantInfoList const &mutInfos, std::string mutant_depend_filename)
     {
         std::unordered_map<std::string, std::unordered_map<unsigned, llvm::Value *>> functionName_position2IR;
         
@@ -166,14 +171,106 @@ class MutantDependenceGraph //: public DependenceGraph<MutantNode>
         }
         
         //Add ctrl and data dependency
-        const std::map<llvm::Value *, LLVMDependenceGraph *>& CF = dg::getConstructedFunctions();
-        for (auto& funcdg: CF)
-            addDataCtrlFor (funcdg.second);
+        if (irDg)
+        {
+            //compute by using the dependence graph of dg and dump resulting mutant dependencies
+            const std::map<llvm::Value *, LLVMDependenceGraph *>& CF = dg::getConstructedFunctions();
+            for (auto& funcdg: CF)
+                addDataCtrlFor (funcdg.second);
+            
+            //dump to file for consecutive runs maybe tuning (for experiments)
+            dump(mutant_depend_filename);
+        }
+        else
+        {
+            //load from file
+            load(mutant_depend_filename, mutInfos);
+        }
     }
     
-    void dump();
+    void dump(std::string filename);
     {
-        assert (false && "To be implemented: store as different maps as JSON");
+        JsonBox::Array outListJSON;
+        auto nummuts = getMutantsNumber();
+        for (auto mutant_id = 1; mutant_id <= nummuts; ++mutant_id)
+        {
+            JsonBox::Object tmpobj;
+            JsonBox::Array tmparr;
+            for (auto odid: getOutDataDependents(mutant_id))
+                tmparr.push_back(JsonBox::Value(std::to_string(odid)));
+            tmpobj["outDataDependents"] = tmparr;
+            /*tmparr.clear();
+            for (auto idid: getInDataDependents(mutant_id))
+                tmparr.push_back(JsonBox::Value(std::to_string(idid)));
+            tmpobj["inDataDependents"] = tmparr;*/
+            tmparr.clear();
+            for (auto ocid: getOutCtrlDependents(mutant_id))
+                tmparr.push_back(JsonBox::Value(std::to_string(ocid)));
+            tmpobj["outCtrlDependents"] = tmparr;
+            /*tmparr.clear();
+            for (auto icid: getInCtrlDependents(mutant_id))
+                tmparr.push_back(JsonBox::Value(std::to_string(icid)));
+            tmpobj["inCtrlDependents"] = tmparr;*/
+            tmparr.clear();
+            for (auto tid: getTieDependents(mutant_id))
+                tmparr.push_back(JsonBox::Value(std::to_string(tid)));
+            tmpobj["tieDependents"] = tmparr;
+            
+            outListJSON.push_back(JsonBox::Value(tmpObj))
+        }
+        JsonBox::Value vout(outListJSON);
+	    vout.writeToFile(filename, false, false);        
+    }
+    
+    void load(std::string filename, MutantInfoList const &mutInfos);
+    {
+        JsonBox::Value value_in;
+	    value_in.loadFromFile(filename);
+	    assert (value_in.isArrayt() && "The JSON file data of mutants dependence must be a JSON Array");
+	    JsonBox::Array array_in = value_in.getArray();
+	    auto nummuts = mutInfos.getMutantsNumber();
+	    assert (nummuts == array_in.size() && "the number of mutants mismach, did you choose the right mutants dependence or info file?");
+	    
+	    //initialize mutantid_str2int
+	    std::unordered_map<std::string, MuLL::MutantIDType> mutantid_str2int;
+	    for (auto mutant_id = 1; mutant_id <= nummuts; ++mutant_id)
+	         mutantid_str2int[std::to_string(mutant_id)] = mutant_id;
+	    
+	    //Load
+        for (auto mutant_id = 1; mutant_id <= nummuts; ++mutant_id)
+        {
+            //Skip type checking, assume that the file hasn't been modified
+            JsonBox::Value tmpv = array_in[mutant_id];
+            assert (tmpv.isObject() && "each mutant dependence data is a JSON object");
+            JsonBox::Object tmpobj = tmpv.getObject();
+            assert (tmpobj.count("outDataDependents")>0 && "'outDataDependents' missing from mutand dependence data");
+            //assert (tmpobj.count("inDataDependents")>0 && "'inDataDependents' missing from mutand dependence data");
+            assert (tmpobj.count("outCtrlDependents")>0 && "'outCtrlDependents' missing from mutand dependence data");
+            //assert (tmpobj.count("inCtrlDependents")>0 && "'inCtrlDependents' missing from mutand dependence data");
+            assert (tmpobj.count("tieDependents")>0 && "'tieDependents' missing from mutand dependence data");
+            JsonBox::Array tmparr;
+            tmparr = tmpobj["outDataDependents"];
+            for (JsonBox::Value odid: tmparr)
+            {
+                assert (odid.isString() && "the mutant in each dependence set should be represented as an intger string (outDataDepends)")
+                std::string tmpstr = odid.getString();
+                addDataDependency(mutant_id, mutantid_str2int.at(tmpstr));      //out of bound if the value is not a mutant id as unsigned (Mull::MutantIDType)
+            }
+            tmparr = tmpobj["outCtrlDependents"];
+            for (JsonBox::Value ocid: tmparr)
+            {
+                assert (ocid.isString() && "the mutant in each dependence set should be represented as an intger string (outCtrlDepends)")
+                std::string tmpstr = ocid.getString();
+                addCtrlDependency(mutant_id, mutantid_str2int.at(tmpstr));      //out of bound if the value is not a mutant id as unsigned (Mull::MutantIDType)
+            }
+            tmparr = tmpobj["tieDependents"];
+            for (JsonBox::Value tid: tmparr)
+            {
+                assert (tid.isString() && "the mutant in each dependence set should be represented as an intger string (tieDependents)")
+                std::string tmpstr = tid.getString();
+                addTieDependency(mutant_id, mutantid_str2int.at(tmpstr));      //out of bound if the value is not a mutant id as unsigned (Mull::MutantIDType)
+            }
+        }
     }
 };
 
@@ -189,13 +286,19 @@ class MutantSelection
     MutantDependenceGraph mutantDGraph;
     
     ////
-    void buildDependenceGraphs();
-    void findFurthestMutants (std::vector<MuLL::MutantIDType> const &fromMuts, std::vector<MuLL::MutantIDType> &results);
+    void buildDependenceGraphs(std::string mutant_depend_filename, bool rerundg, bool isFlowSensitive = false, dg::CD_ALG cd_alg = dg::CLASSIC/*or dg::CONTROL_EXPRESSION*/);
+    MuLL::MutantIDType pickMutant (std::unorderd_set<MuLL::MutantIDType> const &candidates, std::vector<MuLL::MutantIDType> const &scores);
+    void relaxMutant (MuLL::MutantIDType mutant_id, std::vector<double> &scores);
     
   public:
-    MutantSelection (llvm::Module const &inMod, MutantInfoList const &mInf): subjectModule(inMod), mutantInfos(mInf) { buildDependenceGraphs(); }
-    void smartSelectMutants (std::vector<MuLL::MutantIDType> &selectedMutants);
+    MutantSelection (llvm::Module const &inMod, MutantInfoList const &mInf, std::string mutant_depend_filename, bool rerundg, bool isFlowSensitive): subjectModule(inMod), mutantInfos(mInf) 
+    { 
+        buildDependenceGraphs(mutant_depend_filename, rerundg, isFlowSensitive); 
+    }
+    void smartSelectMutants (std::vector<MuLL::MutantIDType> &selectedMutants, double score_threshold=0.5);
     void randomMutants (std::vector<MuLL::MutantIDType> &spreadSelectedMutants, std::vector<MuLL::MutantIDType> &dummySelectedMutants, unsigned long number);
     void randomSDLMutants (std::vector<MuLL::MutantIDType> &selectedMutants, unsigned long number);   //only statement deletion mutants
 };
+
+#endif //__KLEE_SEMU_GENMU_mutantsSelection_MutantSelection__
 

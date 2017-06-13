@@ -48,13 +48,7 @@ if (KLEE_SEMU_GENMU)
     add_subdirectory(third-parties/JsonBox)     #Add JsonBox build dir
     set(CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS__BACKUP})
     
-    
-    #Mutant Selection
     add_subdirectory(third-parties/dg)     #Add dg build dir
-    add_library(MutantSelection SHARED
-        mutantSelection/MutantSelection.cpp
-    )
-    target_link_libraries(MutantSelection LLVMdg)
     
 endif (KLEE_SEMU_GENMU)
 
