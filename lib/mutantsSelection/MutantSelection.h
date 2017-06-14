@@ -179,10 +179,13 @@ class MutantDependenceGraph //: public DependenceGraph<MutantNode>
                 addDataCtrlFor (funcdg.second);
             
             //dump to file for consecutive runs maybe tuning (for experiments)
-            dump(mutant_depend_filename);
+            if (!mutant_depend_filename.empty())
+                dump(mutant_depend_filename);
         }
         else
         {
+            assert (!mutant_depend_filename.empty() && "no mutnat dependency cache specified when dg is disabled");
+            
             //load from file
             load(mutant_depend_filename, mutInfos);
         }

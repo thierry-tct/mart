@@ -25,7 +25,7 @@ Dir=$(readlink -f $1)
 tmpFuncModuleFolder=$2
 removeMutsBCs=$3
 fdupesData=$Dir/"fdupes_duplicates.txt"
-mutantsFolder="mutants"
+mutantsFolder="mutants.out"
 
 test -d $Dir || error_exit "directory $Dir do not exist"
 cd $Dir

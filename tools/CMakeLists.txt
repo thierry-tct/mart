@@ -28,6 +28,12 @@ if (KLEE_SEMU_GENMU)
                  Compilewmlogdriver ALL
                  DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/useful/wmlog-driver.bc ${CMAKE_CURRENT_BINARY_DIR}/useful/CompileAllMuts.sh ${CMAKE_CURRENT_BINARY_DIR}/useful/create_mconf.py ${CMAKE_CURRENT_BINARY_DIR}/useful/mconf-scope/default_allmax.mconf
                 )
+            
+    # Selection
+    add_executable(mull-selection MuLL-Selection.cpp)
+	target_link_libraries(mull-selection MutantSelection)
+	install(TARGETS mull-selection
+		RUNTIME DESTINATION bin)
                 
 endif (KLEE_SEMU_GENMU)
 

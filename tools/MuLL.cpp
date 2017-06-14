@@ -30,11 +30,11 @@
 
 
 static std::string outputDir("mull-out-"); 
-static const std::string mutantsFolder("mutants");
+static const std::string mutantsFolder("mutants.out");
 static const std::string generalInfo("info");
 static std::stringstream loginfo;
 static std::string outFile;
-static const std::string tmpFuncModuleFolder("tmp-func-module-dir");
+static const std::string tmpFuncModuleFolder("tmp-func-module-dir.tmp");
     
 void insertMutSelectGetenv(llvm::Module *mod)
 {
@@ -401,6 +401,10 @@ int main (int argc, char ** argv)
     if (!outFile.substr(outFile.length()-3, 3).compare(".ll") || !outFile.substr(outFile.length()-3, 3).compare(".bc"))
         outFile.replace(outFile.length()-3, 3, "");
     
+    //ensure no name clash between executables and folders:
+    assert (outFile != mutantsFolder && "please change input IR's name, it clashes with mutants folder");
+    assert (outFile != tmpFuncModuleFolder && "please change input IR's name, it clashes with temporary Function Module Folder folder");
+    
     //@ Store Phi2Mem-preprocessed module with the same name of the input file
     if (! ReadWriteIRObj::writeIR (preProPhi2MemModule.get(), outputDir+"/"+outFile+".bc"))
         assert (false && "Failed to output Phi-preprocessed IR file");
@@ -527,7 +531,11 @@ int main (int argc, char ** argv)
         xxx << loginfo.str();
         xxx.close();
     }
-    else llvm::errs() << "Unable to create info file:" << outputDir+"/"+generalInfo;   
+    else 
+    {
+        llvm::errs() << "Unable to create info file:" << outputDir+"/"+generalInfo << "\n\n"; 
+        assert (false);
+    }  
     
     return 0;
 }
