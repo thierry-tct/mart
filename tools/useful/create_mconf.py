@@ -29,6 +29,7 @@ class GlobalDefs:
         assert myNumOfReplFuncs >= 1, "myNumOfReplFuncs must be higher than 0"
     
         self.ZERO = "0"
+        self.BOOLEAN_CONST = {"0", "1"}  # false and true
         self.SCALAR_CONST = {"-1", "1"} #COnstant for things likeincreasing, decreasing constant or expression
         self.COUNTERS = {"1"}    #counter for thins like SHUFFLE
         self.SCALAR_STRING = {"dirname", "basename"}    #string for things like callee replacement
@@ -73,7 +74,7 @@ class GlobalDefs:
         self.LOR = ("AND", "OR")
         
       #####
-        self.commutativeBinop = {"ADD", "MUL", "BITAND", "BITOR", "BITXOR", "EQ", "NEQ", "PEQ", "PNEQ"} | set(self.LOR) | set(self.P_AOR)
+        self.commutativeBinop = {"ADD", "MUL", "BITAND", "BITOR", "BITXOR", "EQ", "NEQ", "PEQ", "PNEQ"} | set(self.LOR) | set(self.P_AOR) #pointer AOR has one integer oprd on ptr oprd. LOR (TODO)
         # Key: operation, Value: list of operators 'types'
         self.FORMATS = {}
         self.FORMATS.update({opName: [self.arithVAL, self.arithVAL] for opName in self.AOR + self.BIT + self.ROR + self.LOR})
@@ -87,7 +88,7 @@ class GlobalDefs:
         self.FORMATS.update({opName: [] for opName in self.DELSTMT})                                                                             #Replace only's
 
         self.FORMATS.update({opName: [self.arithVAL|self.pointerVAL] for opName in self.KEEPOPERAND})
-        self.FORMATS.update({opName: [self.SCALAR_CONST|{self.ZERO}] for opName in self.CONSTVAL})
+        self.FORMATS.update({opName: [self.SCALAR_CONST|{self.ZERO}|self.BOOLEAN_CONST] for opName in self.CONSTVAL})
         self.FORMATS.update({opName: [self.SCALAR_STRING]*(1+myNumOfReplFuncs) for opName in self.NEWCALLEE})           # 1+... because of the matched function (param number 1)
         self.FORMATS.update({opName: [self.COUNTERS] for opName in self.SHUFFLE_ARGS_CASES})
          

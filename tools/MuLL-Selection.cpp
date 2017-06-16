@@ -61,7 +61,7 @@ void mutantListAsJsON(std::vector<MuLL::MutantIDType> const &list, std::string j
     }
     else 
     {
-        llvm::errs() << "Unable to create info file:" << outDir+"/"+generalInfo;  
+        llvm::errs() << "Unable to create info file:" << jsonName << "\n";  
         assert(false);
     } 
 }
@@ -77,17 +77,6 @@ int main (int argc, char ** argv)
     
     bool rundg = true;
     
-    
-    char *  tmpStr = nullptr;
-    
-    std::string useful_conf_dir;
-    
-    tmpStr = new char[1+std::strlen(argv[0])]; //Alocate tmpStr1
-    std::strcpy(tmpStr, argv[0]);   
-    useful_conf_dir.assign(dirname(tmpStr));      //TODO: check this for install, where to put useful. (see klee's)
-    delete [] tmpStr; tmpStr = nullptr;  //del tmpStr1
-    
-    useful_conf_dir += "/useful/";
     
     for (int i=1; i < argc; i++)
     {
@@ -137,8 +126,8 @@ int main (int argc, char ** argv)
     MutantInfoList mutantInfo;
     mutantInfo.loadFromJsonFile(mutantInfoJsonfile);
     
-    std::string outDir;
-    outDir += mullOutTopDir + "/" + selectionFolder;
+    std::string outDir(mullOutTopDir);
+    outDir = outDir + "/" + selectionFolder;
     struct stat st;
     if (stat(outDir.c_str(), &st) == -1)   //do not exists
     {
@@ -153,7 +142,7 @@ int main (int argc, char ** argv)
     std::string mutDepCacheName;
     if (mutantDependencyJsonfile)
     {
-        mutDepCacheName = outDir + "/"  mutantDependencyJsonfile;;
+        mutDepCacheName = outDir + "/" + mutantDependencyJsonfile;
         if (stat(mutDepCacheName.c_str(), &st) != -1)   //exists
         {
             rundg = false;
@@ -186,7 +175,7 @@ int main (int argc, char ** argv)
     curClockTime = clock();
     selectedMutants1.clear();
     selection.smartSelectMutants(selectedMutants1, 0.5 /*treshold score*/);
-    mutantListAsJsON(electedMutants1, smartSelectionOutJson);
+    mutantListAsJsON(selectedMutants1, smartSelectionOutJson);
     llvm::outs() << "MuLL@Progress: smart selection took: "<< (float)(clock() - curClockTime)/CLOCKS_PER_SEC <<" Seconds.\n";
     loginfo << "MuLL@Progress: smart selection took: "<< (float)(clock() - curClockTime)/CLOCKS_PER_SEC <<" Seconds.\n";
     
@@ -195,9 +184,9 @@ int main (int argc, char ** argv)
     llvm::outs() << "Doing dummy and spread random selection...\n";
     curClockTime = clock();
     selectedMutants1.clear(); selectedMutants2.clear();
-    selection.randomMutants (selectedMutants1, selectedMutants2, number)
-    mutantListAsJsON(electedMutants1, spreadRandomSelectionOutJson);
-    mutantListAsJsON(electedMutants2, dummyRandomSelectionOutJson);
+    selection.randomMutants (selectedMutants1, selectedMutants2, number);
+    mutantListAsJsON(selectedMutants1, spreadRandomSelectionOutJson);
+    mutantListAsJsON(selectedMutants2, dummyRandomSelectionOutJson);
     llvm::outs() << "MuLL@Progress: dummy and spread random took: "<< (float)(clock() - curClockTime)/CLOCKS_PER_SEC <<" Seconds.\n";
     loginfo << "MuLL@Progress: dummy and spread random took: "<< (float)(clock() - curClockTime)/CLOCKS_PER_SEC <<" Seconds.\n";
     
@@ -205,7 +194,7 @@ int main (int argc, char ** argv)
     curClockTime = clock();
     selectedMutants1.clear();
     selection.randomSDLMutants(selectedMutants1, number);
-    mutantListAsJsON(electedMutants1, randomSDLelectionOutJson);
+    mutantListAsJsON(selectedMutants1, randomSDLelectionOutJson);
     llvm::outs() << "MuLL@Progress: random SDL took: "<< (float)(clock() - curClockTime)/CLOCKS_PER_SEC <<" Seconds.\n";
     loginfo << "MuLL@Progress: random SDL took: "<< (float)(clock() - curClockTime)/CLOCKS_PER_SEC <<" Seconds.\n";
     

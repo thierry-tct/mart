@@ -158,11 +158,11 @@ UserMaps::UserMaps()
     addOpMatchObjectPair (mANYFCONST, CREATE_OBJ(FPNumericConstant));       //Matcher
     addOpMatchObjectPair (mANYICONST, CREATE_OBJ(IntNumericConstant));      //Matcher
     
-    /*addConfNameOpPair ("A", {mANYADDRESS, mANYADDRESS, mANYADDRESS, mANYADDRESS});
+    addConfNameOpPair ("A", {mANYADDRESS, mANYADDRESS, mANYADDRESS, mANYADDRESS});
     addOpMatchObjectPair (mANYADDRESS, CREATE_OBJ(MemoryAddressValue));       //Matcher     //Pointer
     
     addConfNameOpPair ("P", {mANYPOINTER, mANYPOINTER, mANYPOINTER, mANYPOINTER});
-    addOpMatchObjectPair (mANYPOINTER, CREATE_OBJ(MemoryPointerVariable));       //Matcher     //Pointer*/
+    addOpMatchObjectPair (mANYPOINTER, CREATE_OBJ(MemoryPointerVariable));       //Matcher     //Pointer
     
     //CONSTVAL Have no match function (cannot be a match -- something we want to mutate)
     //Same as just putting a constant value. EX: "ADD(@1,@2) ---> xx, CONSTVAL(0)" equivalent to "ADD(@1,@2) ---> xx, 0"
@@ -170,9 +170,10 @@ UserMaps::UserMaps()
     addOpMatchObjectPair (mCONST_VALUE_OF, CREATE_OBJ(ConstantValueOf));    //Replacer
     
     //DELSTMT Have no match function (cannot be a match -- something we want to mutate)
-    // XXX Do not add to map because it should not be used at all (use the doDeleteStmt method)
+    // XXX (Do not add to map because) it should not be used at all (use the doDeleteStmt method)
     addConfNameOpPair ("DELSTMT", {mDELSTMT, mDELSTMT, mDELSTMT, mDELSTMT});
-    
+    addOpMatchObjectPair (mDELSTMT, CREATE_OBJ(DeleteStatement));  //We add it herebut should not be used, this is just to raise erro upon use of its replacing methon. use doDeleteStmt instead
+     
     //OPERAND Have no match function (cannot be a match -- something we want to mutate)
     addConfNameOpPair ("OPERAND", {mKEEP_ONE_OPRD, mKEEP_ONE_OPRD, mKEEP_ONE_OPRD, mKEEP_ONE_OPRD});
     addOpMatchObjectPair (mKEEP_ONE_OPRD, CREATE_OBJ(KeepOneOperand));      //Replacer
@@ -323,12 +324,32 @@ UserMaps::UserMaps()
     addOpMatchObjectPair (mOR, CREATE_OBJ(LogicalOr));
     
     // Called function replacement: The two functions should have the same prototype
+    addConfNameOpPair ("SWITCH", {mSWITCH, mSWITCH, mSWITCH, mSWITCH});
+    addOpMatchObjectPair (mSWITCH, CREATE_OBJ(SwitchCases));     //Matcher
+    
+    // Replace only. This shuffle case destination (default as well), by swapping destination Basic Blocks of 2 or more cases (number specified)
+    // XXX (Do not add to map because) it should not be used at all (outside of SwitchCases)
+    addConfNameOpPair ("SHUFFLECASES", {mSHUFFLE_CASE_DESTS, mSHUFFLE_CASE_DESTS, mSHUFFLE_CASE_DESTS, mSHUFFLE_CASE_DESTS});   //TODO
+    addOpMatchObjectPair (mSHUFFLE_CASE_DESTS, CREATE_OBJ(ShuffleCaseDestinations));  //We add it here but should not be used, this is just to raise error upon use of its replacing methon. only Switch
+    
+    // Make one or more cases point to default basic block as destination
+    // XXX (Do not add to map because) it should not be used at all (outside of SwitchCases)
+    addConfNameOpPair ("REMOVECASES", {mREMOVE_CASES, mREMOVE_CASES, mREMOVE_CASES, mREMOVE_CASES}); //TODO
+    addOpMatchObjectPair (mREMOVE_CASES, CREATE_OBJ(RemoveCases));  //We add it here but should not be used, this is just to raise error upon use of its replacing methon. replacor only used by Switch
+    
+    // Called function replacement: The two functions should have the same prototype
     addConfNameOpPair ("CALL", {mCALL, mCALL, mCALL, mCALL});
-    addOpMatchObjectPair (mCALL, CREATE_OBJ(FunctionCallCallee));     //Matcher
+    addOpMatchObjectPair (mCALL, CREATE_OBJ(FunctionCall));     //Matcher
     
     // define what function should be changed to what when CALL is matched: 1st=matched callee; 2nd,3rd...=replacing callees
-    // XXX Do not add to map because it should not be used at all (outside of FunctionCallCallee)
+    // XXX (Do not add to map because) it should not be used at all (outside of FunctionCall)
     addConfNameOpPair ("NEWCALLEE", {mNEWCALLEE, mNEWCALLEE, mNEWCALLEE, mNEWCALLEE});
+    addOpMatchObjectPair (mNEWCALLEE, CREATE_OBJ(NewCallee));  //We add it herebut should not be used, this is just to raise error upon use of its replacing methon. this replacor is only used by Call
+    
+    //Shuffle function call arguments of the same type (swap them around)
+    // XXX (Do not add to map because) it should not be used at all (outside of FunctionCall)
+    addConfNameOpPair ("SHUFFLEARGS", {mSHUFFLE_ARGS, mSHUFFLE_ARGS, mSHUFFLE_ARGS, mSHUFFLE_ARGS}); //TODO
+    addOpMatchObjectPair (mSHUFFLE_ARGS, CREATE_OBJ(ShuffleArgs));  //We add it here but should not be used, this is just to raise error upon use of its replacing methon. replacor only used by Call
     
     // to delete the return, break and continue (actually replace the target BB of unconditional br, or replace the return value of ret by 0). Should be replcaced only by delstmt
     addConfNameOpPair ("RETURN_BREAK_CONTINUE", {mRETURN_BREAK_CONTINUE,  mRETURN_BREAK_CONTINUE,  mRETURN_BREAK_CONTINUE,  mRETURN_BREAK_CONTINUE});

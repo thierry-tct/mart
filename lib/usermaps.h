@@ -48,7 +48,7 @@ enum ExpElemKeys {mALLSTMT=0, mALLFEXPR, mALLIEXPR, mANYFVAR, mANYIVAR/*non poin
             mNOT,                                    //Logical Unary    TODO TODO: Add this to replace only
             
             mCALL, mNEWCALLEE, mSHUFFLE_ARGS,             // called function    TODO TODO: SHUffle-args
-            mSWITCH, mSHUFFLE_CASE_DESTS,   // exchange the destinations of switch   TODO TODO  
+            mSWITCH, mSHUFFLE_CASE_DESTS, mREMOVE_CASES,  // exchange the destinations of switch, remove cases(1,2,...)   TODO TODO  
             mRETURN_BREAK_CONTINUE,         // delete them by replacing unconditional 'br' target. for the final return with argument, set it to 0
             mPADD_DEREF, mPSUB_DEREF, mPDEREF_ADD, mPDEREF_SUB,     // Pointer/val operation combined with deref
             mPLEFTINC_DEREF, mPRIGHTINC_DEREF, mPLEFTDEC_DEREF, mPRIGHTDEC_DEREF, mPDEREF_LEFTINC, mPDEREF_RIGHTINC, mPDEREF_LEFTDEC, mPDEREF_RIGHTDEC,   // Pointer/val operation combined with deref

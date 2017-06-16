@@ -12,24 +12,234 @@
 #include <cstdlib>     /* srand, rand */
 #include <ctime> 
 #include <algorithm>
- 
+
+
 #include "MutantSelection.h"
 
-void MutantSelection::buildDependenceGraphs(std::string mutant_depend_filename, bool rerundg, bool isFlowSensitive, dg::CD_ALG cd_alg)
+#ifndef ENABLE_CFG
+#define ENABLE_CFG
+#endif
+#include "../third-parties/dg/src/llvm/LLVMDependenceGraph.h"      //https://github.com/mchalupa/dg
+#include "../third-parties/dg/src/llvm/analysis/DefUse.h"
+#include "../third-parties/dg/src/llvm/analysis/PointsTo/PointsTo.h"
+#include "../third-parties/dg/src/llvm/analysis/ReachingDefinitions/ReachingDefinitions.h"
+
+#include "../third-parties/dg/src/analysis/PointsTo/PointsToFlowSensitive.h"
+#include "../third-parties/dg/src/analysis/PointsTo/PointsToFlowInsensitive.h"
+
+
+//class MutantDependenceGraph
+
+void MutantDependenceGraph::addDataCtrlFor (dg::LLVMDependenceGraph const *subIRDg)
+{
+    for (auto nodeIt = subIRDg->begin(), ne = subIRDg->end(); nodeIt != ne; ++nodeIt)
+    {
+        auto *nodefrom = nodeIt->second;
+        llvm::Value *irFrom = nodefrom->getKey();
+        for (auto ndata = nodefrom->data_begin(), nde = nodefrom->data_end(); ndata != nde; ++ndata)
+        {
+            llvm::Value *irDataTo = (*ndata)->getKey();
+            for (MuLL::MutantIDType m_id_from: IR2mutantset[irFrom])
+                for (MuLL::MutantIDType m_id_datato: IR2mutantset[irDataTo])
+                    if (m_id_from != m_id_datato)
+                        addDataDependency (m_id_from, m_id_datato);
+        }
+        for (auto nctrl = nodefrom->control_begin(), nce = nodefrom->control_end(); nctrl != nce; ++nctrl)
+        {
+            llvm::Value *irCtrlTo = (*nctrl)->getKey();
+            for (MuLL::MutantIDType m_id_from: IR2mutantset[irFrom])
+                for (MuLL::MutantIDType m_id_ctrlto: IR2mutantset[irCtrlTo])
+                    if (m_id_from != m_id_ctrlto)
+                        addCtrlDependency (m_id_from, m_id_ctrlto);
+        }
+    }
+}
+    
+bool MutantDependenceGraph::build (llvm::Module const &mod, dg::LLVMDependenceGraph const *irDg, MutantInfoList const &mutInfos, std::string mutant_depend_filename)
+{
+    std::unordered_map<std::string, std::unordered_map<unsigned, llvm::Value const *>> functionName_position2IR;
+    
+    //First compute IR2mutantset
+    for (auto &Func: mod)
+    {
+        unsigned instPosition = 0;
+        std::string funcName = Func.getName();
+        functionName_position2IR.clear();        //XXX: Since each mutant belong to only one function
+        for (auto &BB: Func)
+        {
+            for (auto &Inst: BB)
+            {
+                if (! functionName_position2IR[funcName].insert(std::pair<unsigned, llvm::Value const *>(instPosition, &Inst)).second)
+                {
+                    llvm::errs() << "\nError: Each position must correspond to a single IR Instruction\n\n";
+                    assert (false);
+                }
+                ++instPosition;
+            }
+        }
+    }
+    
+  // Compute mutant2IRset and IR2mutantset
+    MuLL::MutantIDType mutants_number = mutInfos.getMutantsNumber();
+    for (MuLL::MutantIDType mutant_id = 1; mutant_id <= mutants_number; ++mutant_id)
+    {
+        auto &tmpPos2IRMap = functionName_position2IR[mutInfos.getMutantFunction(mutant_id)];
+        for (auto mutPos: mutInfos.getMutantIrPosInFunction(mutant_id))
+        {
+            llvm::Value const *ir_at_pos = tmpPos2IRMap.at(mutPos);
+            mutant2IRset[mutant_id].insert(ir_at_pos);
+            IR2mutantset[ir_at_pos].insert(mutant_id);
+        }
+    }
+
+  // Build the mutant dependence graph
+    //Add tie dependents
+    std::vector<MuLL::MutantIDType> tmpIds;
+    for (auto & pair_val: IR2mutantset)
+    {
+        llvm::Value const *inst = pair_val.first;
+        tmpIds.clear();
+        for (MuLL::MutantIDType mutant_id: IR2mutantset[inst])
+            tmpIds.push_back(mutant_id);
+        for (auto m_id_it = tmpIds.begin(), id_e = tmpIds.end(); m_id_it != id_e ; ++m_id_it)
+            for (auto tie_id_it = m_id_it + 1; tie_id_it != id_e; ++tie_id_it)
+                addTieDependency(*m_id_it, *tie_id_it);
+    }
+    
+    //Add ctrl and data dependency
+    if (irDg)
+    {
+        //compute by using the dependence graph of dg and dump resulting mutant dependencies
+        const std::map<llvm::Value *, dg::LLVMDependenceGraph *>& CF = dg::getConstructedFunctions();
+        for (auto& funcdg: CF)
+            addDataCtrlFor (funcdg.second);
+        
+        //dump to file for consecutive runs maybe tuning (for experiments)
+        if (!mutant_depend_filename.empty())
+            dump(mutant_depend_filename);
+    }
+    else
+    {
+        assert (!mutant_depend_filename.empty() && "no mutnat dependency cache specified when dg is disabled");
+        
+        //load from file
+        load(mutant_depend_filename, mutInfos);
+    }
+}
+
+void MutantDependenceGraph::dump(std::string filename)
+{
+    JsonBox::Array outListJSON;
+    auto nummuts = getMutantsNumber();
+    for (auto mutant_id = 1; mutant_id <= nummuts; ++mutant_id)
+    {
+        JsonBox::Object tmpobj;
+        JsonBox::Array tmparr;
+        for (auto odid: getOutDataDependents(mutant_id))
+            tmparr.push_back(JsonBox::Value(std::to_string(odid)));
+        tmpobj["outDataDependents"] = tmparr;
+        /*tmparr.clear();
+        for (auto idid: getInDataDependents(mutant_id))
+            tmparr.push_back(JsonBox::Value(std::to_string(idid)));
+        tmpobj["inDataDependents"] = tmparr;*/
+        tmparr.clear();
+        for (auto ocid: getOutCtrlDependents(mutant_id))
+            tmparr.push_back(JsonBox::Value(std::to_string(ocid)));
+        tmpobj["outCtrlDependents"] = tmparr;
+        /*tmparr.clear();
+        for (auto icid: getInCtrlDependents(mutant_id))
+            tmparr.push_back(JsonBox::Value(std::to_string(icid)));
+        tmpobj["inCtrlDependents"] = tmparr;*/
+        tmparr.clear();
+        for (auto tid: getTieDependents(mutant_id))
+            tmparr.push_back(JsonBox::Value(std::to_string(tid)));
+        tmpobj["tieDependents"] = tmparr;
+        
+        outListJSON.push_back(JsonBox::Value(tmpobj));
+    }
+    JsonBox::Value vout(outListJSON);
+    vout.writeToFile(filename, false, false);        
+}
+
+void MutantDependenceGraph::load(std::string filename, MutantInfoList const &mutInfos)
+{
+    JsonBox::Value value_in;
+    value_in.loadFromFile(filename);
+    assert (value_in.isArray() && "The JSON file data of mutants dependence must be a JSON Array");
+    JsonBox::Array array_in = value_in.getArray();
+    auto nummuts = mutInfos.getMutantsNumber();
+    assert (nummuts == array_in.size() && "the number of mutants mismach, did you choose the right mutants dependence or info file?");
+    
+    //initialize mutantid_str2int
+    std::unordered_map<std::string, MuLL::MutantIDType> mutantid_str2int;
+    for (auto mutant_id = 1; mutant_id <= nummuts; ++mutant_id)
+         mutantid_str2int[std::to_string(mutant_id)] = mutant_id;
+    
+    //Load
+    for (auto mutant_id = 1; mutant_id <= nummuts; ++mutant_id)
+    {
+        //Skip type checking, assume that the file hasn't been modified
+        JsonBox::Value tmpv = array_in[mutant_id];
+        assert (tmpv.isObject() && "each mutant dependence data is a JSON object");
+        JsonBox::Object tmpobj = tmpv.getObject();
+        assert (tmpobj.count("outDataDependents")>0 && "'outDataDependents' missing from mutand dependence data");
+        //assert (tmpobj.count("inDataDependents")>0 && "'inDataDependents' missing from mutand dependence data");
+        assert (tmpobj.count("outCtrlDependents")>0 && "'outCtrlDependents' missing from mutand dependence data");
+        //assert (tmpobj.count("inCtrlDependents")>0 && "'inCtrlDependents' missing from mutand dependence data");
+        assert (tmpobj.count("tieDependents")>0 && "'tieDependents' missing from mutand dependence data");
+        JsonBox::Array tmparr;
+        assert (tmpobj["outDataDependents"].isArray() && "'outDataDependents' must be an array");
+        tmparr = tmpobj["outDataDependents"].getArray();
+        for (JsonBox::Value odid: tmparr)
+        {
+            assert (odid.isString() && "the mutant in each dependence set should be represented as an intger string (outDataDepends)");
+            std::string tmpstr = odid.getString();
+            addDataDependency(mutant_id, mutantid_str2int.at(tmpstr));      //out of bound if the value is not a mutant id as unsigned (Mull::MutantIDType)
+        }
+        assert (tmpobj["outCtrlDependents"].isArray() && "'outCtrlDependents' must be an Array");
+        tmparr = tmpobj["outCtrlDependents"].getArray();
+        for (JsonBox::Value ocid: tmparr)
+        {
+            assert (ocid.isString() && "the mutant in each dependence set should be represented as an intger string (outCtrlDepends)");
+            std::string tmpstr = ocid.getString();
+            addCtrlDependency(mutant_id, mutantid_str2int.at(tmpstr));      //out of bound if the value is not a mutant id as unsigned (Mull::MutantIDType)
+        }
+        assert (tmpobj["tieDependents"].isArray() && "'tieDependents' must be an Array");
+        tmparr = tmpobj["tieDependents"].getArray();
+        for (JsonBox::Value tid: tmparr)
+        {
+            assert (tid.isString() && "the mutant in each dependence set should be represented as an intger string (tieDependents)");
+            std::string tmpstr = tid.getString();
+            addTieDependency(mutant_id, mutantid_str2int.at(tmpstr));      //out of bound if the value is not a mutant id as unsigned (Mull::MutantIDType)
+        }
+    }
+}
+/////
+
+//class MutantSelection
+
+void MutantSelection::buildDependenceGraphs(std::string mutant_depend_filename, bool rerundg, bool isFlowSensitive, bool isClassicCtrlDepAlgo)
 {
     if (rerundg)
     {
+        dg::CD_ALG cd_alg;
+        if (isClassicCtrlDepAlgo)
+            cd_alg = dg::CLASSIC;
+        else
+            cd_alg = dg::CONTROL_EXPRESSION;
+            
         //build IR DGraph
-        dg::LLVMPointerAnalysis *PTA = new dg::LLVMPointerAnalysis(subjectModule);
+        dg::LLVMDependenceGraph IRDGraph;
+        dg::LLVMPointerAnalysis *PTA = new dg::LLVMPointerAnalysis(&subjectModule);
         if (isFlowSensitive)
             PTA->run<dg::analysis::pta::PointsToFlowSensitive>();
         else
-            PTA->run<dg::analysis::pta::PointsToFlowInSensitive>();
+            PTA->run<dg::analysis::pta::PointsToFlowInsensitive>();
             
-        assert (IRDGraph.build(subjectModule, PTA) && "Error: failed to build dg dependence graph");
+        assert (IRDGraph.build(&subjectModule, PTA) && "Error: failed to build dg dependence graph");
         assert(PTA && "BUG: Need points-to analysis");
         
-        dg::analysis::rd::LLVMReachingDefinitions RDA(subjectMobule, PTA);
+        dg::analysis::rd::LLVMReachingDefinitions RDA(&subjectModule, PTA);
         RDA.run();  // compute reaching definitions
         
         dg::LLVMDefUseAnalysis DUA(&IRDGraph, &RDA, PTA);
@@ -49,7 +259,7 @@ void MutantSelection::buildDependenceGraphs(std::string mutant_depend_filename, 
     }
 }
 
-MuLL::MutantIDType MutantSelection::pickMutant (std::unorderd_set<MuLL::MutantIDType> const &candidates, std::vector<MuLL::MutantIDType> const &scores)
+MuLL::MutantIDType MutantSelection::pickMutant (std::unordered_set<MuLL::MutantIDType> const &candidates, std::vector<double> const &scores)
 {
     std::vector<MuLL::MutantIDType> topScored;
     
@@ -60,7 +270,7 @@ MuLL::MutantIDType MutantSelection::pickMutant (std::unorderd_set<MuLL::MutantID
         if (scores[mutant_id] >= top_score)
         {
             if (scores[mutant_id] > top_score)
-            [
+            {
                 top_score = scores[mutant_id];
                 topScored.clear();
             }
@@ -99,9 +309,9 @@ void MutantSelection::relaxMutant (MuLL::MutantIDType mutant_id, std::vector<dou
     const MuLL::MutantIDType ORIGINAL_ID = 0; //no mutant have id 0, that's the original's
     
     // at data dependency hop n (in and out), and the corresponding node having score x, set its value to x'={x - x*RELAX_STEP/n}, if (RELAX_STEP/n) >= RELAX_THRESHOLD
-    std::unorderd_set<MuLL::MutantIDType> visited;
+    std::unordered_set<MuLL::MutantIDType> visited;
     std::queue<MuLL::MutantIDType> workQueue;
-    MuLL::MutantIDType next_hop_first_mutant =mutant_id;
+    MuLL::MutantIDType next_hop_first_mutant = mutant_id;
     unsigned curhop = 0;
     double cur_relax_factor = 0.0;
     workQueue.push(mutant_id);
@@ -111,7 +321,7 @@ void MutantSelection::relaxMutant (MuLL::MutantIDType mutant_id, std::vector<dou
         auto elem = workQueue.front();
         workQueue.pop();
         
-        if (next_hop_frst_mutant == elem)
+        if (next_hop_first_mutant == elem)
         {
             ++curhop;
             cur_relax_factor = RELAX_STEP / curhop;
@@ -123,13 +333,13 @@ void MutantSelection::relaxMutant (MuLL::MutantIDType mutant_id, std::vector<dou
             break;
         
         //expand
-        for (auto inDatDepMut: mutantDGraph.getInDataDependents(elem)
+        for (auto inDatDepMut: mutantDGraph.getInDataDependents(elem))
         {
             //relax
             if (visited.count(inDatDepMut) == 0)
             {
-                if (next_hop_frst_mutant == elem)
-                    next_hop_frst_mutant = inDatDepMut;
+                if (next_hop_first_mutant == elem)
+                    next_hop_first_mutant = inDatDepMut;
                 workQueue.push(inDatDepMut);
             }
             
@@ -137,13 +347,13 @@ void MutantSelection::relaxMutant (MuLL::MutantIDType mutant_id, std::vector<dou
             //explore also the case where we increase back if it was already visited(see out bellow)
             scores[inDatDepMut] -=  scores[inDatDepMut] * cur_relax_factor;           
         }
-        for (auto outDatDepMut: mutantDGraph.getOutDataDependents(elem)
+        for (auto outDatDepMut: mutantDGraph.getOutDataDependents(elem))
         {
             //relax
             if (visited.count(outDatDepMut) == 0)
             {
-                if (next_hop_frst_mutant == elem)
-                    next_hop_frst_mutant = outDatDepMut;
+                if (next_hop_first_mutant == elem)
+                    next_hop_first_mutant = outDatDepMut;
                 workQueue.push(outDatDepMut);
             }
             
@@ -196,7 +406,7 @@ void MutantSelection::randomMutants (std::vector<MuLL::MutantIDType> &spreadSele
     assert (mutantDGraph.isBuilt() && "This function must be called after the mutantDGraph is build. We need mutants IRs");
     
     /// \brief Spread Random
-    std::unordered_set<llvm::Value *> seenIRs, mut_notSeen;
+    std::unordered_set<llvm::Value const *> seenIRs, mut_notSeen;
     std::vector<MuLL::MutantIDType> no_unselected_IR;  //mutants whose IR have all been selected at least once but have not yet been selected
     std::unordered_map<unsigned, std::vector<MuLL::MutantIDType>> work_map;   //key: number of IRs seen, value: mutants with corresponding number of IRs seen
     
@@ -205,7 +415,7 @@ void MutantSelection::randomMutants (std::vector<MuLL::MutantIDType> &spreadSele
         work_map[0].push_back(mutant_id);
     }
     
-    unsigned current_seen_index = 0
+    unsigned current_seen_index = 0;
     unsigned num_seen_index = 0;
     
     std::vector<MuLL::MutantIDType> curr_notSelected;
@@ -245,7 +455,7 @@ void MutantSelection::randomMutants (std::vector<MuLL::MutantIDType> &spreadSele
                 no_unselected_IR.push_back(mutant_id);
         }
         
-        ++current_seen_index
+        ++current_seen_index;
         ++num_seen_index;
     }
     
@@ -256,7 +466,7 @@ void MutantSelection::randomMutants (std::vector<MuLL::MutantIDType> &spreadSele
     }
     
     if (spreadSelectedMutants.size() > number)
-        spreadSelectedMutants.resize(size);
+        spreadSelectedMutants.resize(number);
         
     /******/
     
@@ -280,7 +490,7 @@ void MutantSelection::randomSDLMutants (std::vector<MuLL::MutantIDType> &selecte
     MuLL::MutantIDType mutants_number = mutantInfos.getMutantsNumber();
     for (MuLL::MutantIDType mutant_id = 1; mutant_id <= mutants_number; ++mutant_id)
     {
-        std::string nametype = mutantInfos.getMutantNameType(mutant_id);
+        std::string nametype = mutantInfos.getMutantTypeName(mutant_id);
         if (UserMaps::containsDeleteStmtConfName(nametype))
             selectedMutants.push_back(mutant_id);
     }

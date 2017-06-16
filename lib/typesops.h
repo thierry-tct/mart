@@ -1082,7 +1082,7 @@ struct MutantInfoList
     /**
      * \brief Check whether a mutant is already added
      */
-    bool wasAdded (MuLL::MutantIDType mid) {return (containedMutsIDs.count(mid) > 0);}
+    bool wasAdded (MuLL::MutantIDType mid) const {return (containedMutsIDs.count(mid) > 0);}
   
   public:  
     /**
@@ -1131,14 +1131,14 @@ struct MutantInfoList
         }
     }
     
-    MuLL::MutantIDType getMutantsNumber() {return mutants.size();}
-    const std::string &getMutantTypeName(MuLL::MutantIDType mutant_id) {return mutants[mutant_id].typeName;}
-    const std::string &getMutantSourceLoc(MuLL::MutantIDType mutant_id) {mutants[mutant_id].locFuncName;}
-    const std::vector<unsigned> &getMutantIrPosInFunction(MuLL::MutantIDType mutant_id) {mutants[mutant_id].irLeveLocInFunc;}
-    const std::string &getMutantFunction(MuLL::MutantIDType mutant_id) {mutants[mutant_id].srcLevelLoc;}
+    MuLL::MutantIDType getMutantsNumber() const {return mutants.size();}
+    const std::string &getMutantTypeName(MuLL::MutantIDType mutant_id) const {return mutants[mutant_id].typeName;}
+    const std::string &getMutantSourceLoc(MuLL::MutantIDType mutant_id) const {mutants[mutant_id].locFuncName;}
+    const std::vector<unsigned> &getMutantIrPosInFunction(MuLL::MutantIDType mutant_id) const {mutants[mutant_id].irLeveLocInFunc;}
+    const std::string &getMutantFunction(MuLL::MutantIDType mutant_id) const {mutants[mutant_id].srcLevelLoc;}
      
     
-    void printToStdout () 
+    void printToStdout ()  const
     {
         llvm::errs() << "\n~~~~~~~~~ MUTANTS INFOS ~~~~~~~~~\n\nID, Name, SRC Location\n-------------------\n";
         for (auto &info: mutants)
@@ -1150,7 +1150,7 @@ struct MutantInfoList
         //outJSON.writeToStream(std::cout, true, true);
     }
     
-    void printToJsonFile (std::string filename)
+    void printToJsonFile (std::string filename) const
     {
         JsonBox::Object outJSON;
         getJson (outJSON);
@@ -1158,7 +1158,7 @@ struct MutantInfoList
 	    vout.writeToFile(filename, false, false);
     }
     
-    void getJson (JsonBox::Object &outJ)
+    void getJson (JsonBox::Object &outJ) const
     {
         for (auto &info: mutants)
         {

@@ -31,7 +31,7 @@ if (KLEE_SEMU_GENMU)
             
     # Selection
     add_executable(mull-selection MuLL-Selection.cpp)
-	target_link_libraries(mull-selection MutantSelection)
+	target_link_libraries(mull-selection KLEE-SEMu-GenMu) #MutantSelection)
 	install(TARGETS mull-selection
 		RUNTIME DESTINATION bin)
                 

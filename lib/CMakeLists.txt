@@ -30,9 +30,17 @@ if (KLEE_SEMU_GENMU)
         llvm-diff/DifferenceEngine.cpp
     )
 
-    target_link_libraries(KLEE-SEMu-GenMu ${llvm_libs} JsonBox) #link with JsonBox
+    target_link_libraries(KLEE-SEMu-GenMu MutantSelection ${llvm_libs} JsonBox) #link with JsonBox
+    
+    #Mutant Selection
+    add_subdirectory(third-parties/dg)     #Add dg build dir
+    add_library(MutantSelection SHARED
+        mutantsSelection/MutantSelection.cpp
+    )
+    target_include_directories( MutantSelection PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/third-parties/dg/src )
+    target_link_libraries(MutantSelection JsonBox LLVMdg) #LLVMpta PTA RD 
         
-	install(TARGETS KLEE-SEMu-GenMu
+	install(TARGETS KLEE-SEMu-GenMu MutantSelection
 		LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR})
 
     install(FILES
@@ -48,13 +56,6 @@ if (KLEE_SEMU_GENMU)
     add_subdirectory(third-parties/JsonBox)     #Add JsonBox build dir
     set(CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS__BACKUP})
     
-    
-    #Mutant Selection
-    add_subdirectory(third-parties/dg)     #Add dg build dir
-    add_library(MutantSelection SHARED
-        mutantSelection/MutantSelection.cpp
-    )
-    target_link_libraries(MutantSelection LLVMdg)
     
 endif (KLEE_SEMU_GENMU)
 
