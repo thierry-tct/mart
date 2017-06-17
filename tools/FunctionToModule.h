@@ -22,10 +22,14 @@
 #include "llvm/IR/LLVMContext.h"
 #include "llvm/IR/LegacyPassManager.h"
 #include "llvm/IR/Module.h"
+#if (LLVM_VERSION_MAJOR <= 3) && (LLVM_VERSION_MINOR < 5)
+#include "llvm/Analysis/Verifier.h"
+#else
 #include "llvm/IR/Verifier.h"
+#endif
 #include "llvm/Pass.h"
 #include "llvm/Support/CommandLine.h"
-#include "llvm/Support/Debug.h"
+//#include "llvm/Support/Debug.h"
 #include "llvm/Support/FileUtilities.h"
 #include "llvm/Support/Path.h"
 #include "llvm/Support/Signals.h"
@@ -36,7 +40,9 @@
 #include "llvm/Transforms/Utils/CodeExtractor.h"
 #include <set>
 
-#define DEBUG_TYPE "bugpoint"
+//#define DEBUG_TYPE "bugpoint"
+
+#define MART_DEBUG(X)    //do nothing
 
 namespace FunctionToModule {
 
@@ -98,6 +104,17 @@ static void eliminateAliases(GlobalValue *GV) {
   }
 }
 
+#if (LLVM_VERSION_MAJOR <= 3) && (LLVM_VERSION_MINOR < 5)
+// DeleteFunctionBody - "Remove" the function by deleting all of its basic
+// blocks, making it external.
+//
+void DeleteFunctionBody(Function *F) {
+  // delete the body of the function...
+  F->deleteBody();
+  assert(F->isDeclaration() && "This didn't make the function external!");
+}
+#else
+
 //
 // DeleteGlobalInitializer - "Remove" the global variable by deleting its
 // initializer,
@@ -121,6 +138,7 @@ void DeleteFunctionBody(Function *F) {
   F->deleteBody();
   assert(F->isDeclaration() && "This didn't make the function external!");
 }
+#endif
 
 /// GetTorInit - Given a list of entries for static ctors/dtors, return them
 /// as a constant array.
@@ -201,6 +219,7 @@ static void SplitStaticCtorDtor(const char *GlobalName, Module *M1, Module *M2,
   }
 }
 
+/*
 std::unique_ptr<Module>
 SplitFunctionsOutOfModule(Module *M, const std::vector<Function *> &F,
                                 ValueToValueMapTy &VMap) {
@@ -216,7 +235,11 @@ SplitFunctionsOutOfModule(Module *M, const std::vector<Function *> &F,
   }
 
   ValueToValueMapTy NewVMap;
+#if (LLVM_VERSION_MAJOR <= 3) && (LLVM_VERSION_MINOR < 5)
+  std::unique_ptr<Module> New(CloneModule(M, NewVMap));
+#else
   std::unique_ptr<Module> New = CloneModule(M, NewVMap);
+#endif
 
   // Remove the Test functions from the Safe module
   std::set<Function *> TestFunctions;
@@ -248,11 +271,19 @@ SplitFunctionsOutOfModule(Module *M, const std::vector<Function *> &F,
                << TestFn->getName() << "'.\n";
         exit(1);
       }
+#if (LLVM_VERSION_MAJOR <= 3) && (LLVM_VERSION_MINOR < 5)
+       I->setInitializer(0);  // Delete the initializer to make it external
+    } else {
+      // If we keep it in the safe module, then delete it in the test module
+      GV->setInitializer(0);
+    }
+#else
       DeleteGlobalInitializer(&I); // Delete the initializer to make it external
     } else {
       // If we keep it in the safe module, then delete it in the test module
       DeleteGlobalInitializer(GV);
     }
+#endif
   }
 
   // Make sure that there is a global ctor/dtor array in both halves of the
@@ -261,7 +292,7 @@ SplitFunctionsOutOfModule(Module *M, const std::vector<Function *> &F,
   SplitStaticCtorDtor("llvm.global_dtors", M, New.get(), NewVMap);
 
   return New;
-}
+}*/
 
 /**
  * \brief MuLL's verion of split function out of module
@@ -282,16 +313,24 @@ mullSplitFunctionsOutOfModule(Module *M, const std::string &FName) {
   }
 
   ValueToValueMapTy NewVMap;
+#if (LLVM_VERSION_MAJOR <= 3) && (LLVM_VERSION_MINOR < 5)
+  std::unique_ptr<Module> New(CloneModule(M, NewVMap));
+#else
   std::unique_ptr<Module> New = CloneModule(M, NewVMap);
+#endif
 
   // Remove the Test functions from the Safe module
   std::set<Function *> TestFunctions;
   Function *F = cast<Function>(M->getFunction(FName));
   for (Function &I : *M) {
     if (&I != F) {
-      DEBUG(errs() << "Removing function ");
-      DEBUG(I.printAsOperand(errs(), false));
-      DEBUG(errs() << "\n");
+      MART_DEBUG(errs() << "Removing function ");
+#if (LLVM_VERSION_MAJOR <= 3) && (LLVM_VERSION_MINOR < 5)
+      MART_DEBUG(I.print(errs()));
+#else
+      MART_DEBUG(I.printAsOperand(errs(), false));
+#endif
+      MART_DEBUG(errs() << "\n");
       DeleteFunctionBody(&I); // Function is now external in this module!
     }
     else {
@@ -305,24 +344,43 @@ mullSplitFunctionsOutOfModule(Module *M, const std::string &FName) {
       DeleteFunctionBody(&I);
 
   // Try to split the global initializers evenly
-  for (GlobalVariable &I : M->globals()) {
+#if (LLVM_VERSION_MAJOR <= 3) && (LLVM_VERSION_MINOR < 5)
+  for (auto glIt = M->global_begin(), glE=M->global_end(); glIt != glE; ++glIt) 
+  {
+    GlobalVariable &I = *glIt;
+#else
+  for (GlobalVariable &I : M->globals()) 
+  {
+#endif
     GlobalVariable *GV = cast<GlobalVariable>(NewVMap[&I]);
     if (Function *TestFn = globalInitUsesExternalBA(&I)) {
       if (Function *SafeFn = globalInitUsesExternalBA(GV)) {
         errs() << "*** Error: when reducing functions, encountered "
                   "the global '";
+#if (LLVM_VERSION_MAJOR <= 3) && (LLVM_VERSION_MINOR < 5)
+        GV->print(errs());
+#else
         GV->printAsOperand(errs(), false);
+#endif
         errs() << "' with an initializer that references blockaddresses "
                   "from safe function '"
                << SafeFn->getName() << "' and from test function '"
                << TestFn->getName() << "'.\n";
         exit(1);
       }
+#if (LLVM_VERSION_MAJOR <= 3) && (LLVM_VERSION_MINOR < 5)
+       I.setInitializer(0);  // Delete the initializer to make it external
+    } else {
+      // If we keep it in the safe module, then delete it in the test module
+      GV->setInitializer(0);
+    }
+#else
       DeleteGlobalInitializer(&I); // Delete the initializer to make it external
     } else {
       // If we keep it in the safe module, then delete it in the test module
       DeleteGlobalInitializer(GV);
     }
+#endif
   }
 
   // Make sure that there is a global ctor/dtor array in both halves of the

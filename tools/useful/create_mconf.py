@@ -12,8 +12,8 @@ class GlobalDefs:
     def getMaxOprdsType (self, oprdTake, oprdCheck):
         if self.ARITHEXPR in oprdTake:
             tmp = [self.ARITHEXPR]+list(oprdTake - {self.ARITHEXPR})
-        elif self.POINTEREXPR in oprdTake:
-            tmp = [self.POINTEREXPR]+list(oprdTake - {self.POINTEREXPR})
+        elif self.ADDRESSEXPR in oprdTake:
+            tmp = [self.ADDRESSEXPR]+list(oprdTake - {self.ADDRESSEXPR})
         else:
             tmp =  list(oprdTake)
         if oprdCheck is None:
@@ -31,7 +31,7 @@ class GlobalDefs:
         self.ZERO = "0"
         self.BOOLEAN_CONST = {"0", "1"}  # false and true
         self.SCALAR_CONST = {"-1", "1"} #COnstant for things likeincreasing, decreasing constant or expression
-        self.COUNTERS = {"1"}    #counter for thins like SHUFFLE
+        self.COUNTERS = {"2"}    #counter for thins like SHUFFLE
         self.SCALAR_STRING = {"dirname", "basename"}    #string for things like callee replacement
       # Match only
         # Values
@@ -40,8 +40,8 @@ class GlobalDefs:
         self.ARITHCONST = "C"
         self.arithVAL = {self.ARITHEXPR, self.ARITHVAR, self.ARITHCONST}
         self.POINTERVAR = "P"
-        self.POINTEREXPR = "A"
-        self.pointerVAL = {self.POINTERVAR, self.POINTEREXPR}
+        self.ADDRESSEXPR = "A"
+        self.pointerVAL = {self.POINTERVAR, self.ADDRESSEXPR}
         # Structure
         self.MATCH_ONLY_DEL = ("STMT", "RETURN_BREAK_CONTINUE")
         self.CALL = ("CALL",)
@@ -53,10 +53,12 @@ class GlobalDefs:
         self.KEEPOPERAND = ("OPERAND",)
         self.CONSTVAL = ("CONSTVAL",)
         self.NEWCALLEE = ("NEWCALLEE",)
-        self.SHUFFLE_ARGS_CASES = ("SHUFFLE",)
+        self.SHUFFLE_ARGS = ("SHUFFLEARGS",)
+        self.SHUFFLE_CASESDESTS = ("SHUFFLECASESDESTS",)
+        self.REMOVE_CASES = ("REMOVECASES",)       #TODO TODO TODO : add also address match...
         
         self.ABS_UNARY = ("ABS",)
-        replaceOnlys = set(self.ABS_UNARY + self.DELSTMT + self.KEEPOPERAND + self.CONSTVAL + self.NEWCALLEE + self.SHUFFLE_ARGS_CASES) #local var just for internal check
+        replaceOnlys = set(self.ABS_UNARY + self.DELSTMT + self.KEEPOPERAND + self.CONSTVAL + self.NEWCALLEE + self.SHUFFLE_ARGS + self.SHUFFLE_CASESDESTS + self.REMOVE_CASES) #local var just for internal check
         
       # Both Match and Replace
         # Arithmetic
@@ -90,7 +92,7 @@ class GlobalDefs:
         self.FORMATS.update({opName: [self.arithVAL|self.pointerVAL] for opName in self.KEEPOPERAND})
         self.FORMATS.update({opName: [self.SCALAR_CONST|{self.ZERO}|self.BOOLEAN_CONST] for opName in self.CONSTVAL})
         self.FORMATS.update({opName: [self.SCALAR_STRING]*(1+myNumOfReplFuncs) for opName in self.NEWCALLEE})           # 1+... because of the matched function (param number 1)
-        self.FORMATS.update({opName: [self.COUNTERS] for opName in self.SHUFFLE_ARGS_CASES})
+        self.FORMATS.update({opName: [self.COUNTERS] for opName in self.SHUFFLE_ARGS + self.SHUFFLE_CASESDESTS + self.REMOVE_CASES})
          
         arithOps = self.AOR + self.BIT + self.ROR + self.ASSIGN + self.UNARY + self.P_INCDEC  # + self.LOR        #as for now, LOR can only be replaced(replacing) LOR TODO TODO: add here when supported
         arthExtraRepl = self.DELSTMT + self.KEEPOPERAND + self.CONSTVAL + self.ABS_UNARY
@@ -109,12 +111,12 @@ class GlobalDefs:
         self.RULES.update({self.ARITHVAR: set(arithOps + arthExtraRepl) - set(self.KEEPOPERAND)})
         self.RULES.update({self.ARITHCONST: set(arithOps + arthExtraRepl) - set(self.KEEPOPERAND) - set(self.INCDEC)})
 
-        self.RULES.update({self.POINTEREXPR: set(pointerOps + self.DELSTMT) - set(self.P_INCDEC)})
+        self.RULES.update({self.ADDRESSEXPR: set(pointerOps + self.DELSTMT + self.CONSTVAL) - set(self.P_INCDEC)})
         self.RULES.update({self.POINTERVAR: set(pointerOps + self.DELSTMT)})
 
         self.RULES.update({opName: set(self.DELSTMT) for opName in self.MATCH_ONLY_DEL})
-        self.RULES.update({opName: set(self.DELSTMT + self.NEWCALLEE + self.SHUFFLE_ARGS_CASES) for opName in self.CALL})
-        self.RULES.update({opName: set(self.DELSTMT + self.SHUFFLE_ARGS_CASES) for opName in self.SWITCH})
+        self.RULES.update({opName: set(self.DELSTMT + self.NEWCALLEE + self.SHUFFLE_ARGS) for opName in self.CALL})
+        self.RULES.update({opName: set(self.DELSTMT + self.SHUFFLE_CASESDESTS + self.REMOVE_CASES) for opName in self.SWITCH})
          
         for tmpM in self.RULES:
             assert tmpM not in replaceOnlys, "replaceOnlys considered as matcher in RULES"
@@ -171,20 +173,23 @@ def getAllPossibleMConf():
                 for rep in globalDefs.RULES[op]:
                     if rep in globalDefs.INCDEC:
                         processMR (op, (), rep, (op,), tmpStrsMap)
+            elif op == globalDefs.ADDRESSEXPR:  #skip for now (since constant relacement will do the A --> A + 1, A - 1. TODO: A --> 0)
+                #continue
+                for rep in globalDefs.RULES[op]:
+                    if rep in globalDefs.CONSTVAL:
+                        processMR (op, (), rep, (globalDefs.ZERO,), tmpStrsMap)     #replace any address by NULL
             elif op == globalDefs.POINTERVAR:  #pointer p --> ++p, --p,..
-                continue   #TODO TODO remove this when fixed for P
                 for rep in globalDefs.RULES[op]:
                     if rep in globalDefs.P_INCDEC:
                         processMR (op, (), rep, (op,), tmpStrsMap)
-            elif op == globalDefs.POINTEREXPR:
+            elif op == globalDefs.ADDRESSEXPR:
                 continue
             elif op in globalDefs.MATCH_ONLY_DEL: #both match and replacer have no oprds
                 for rep in globalDefs.RULES[op]:
                     processMR (op, (), rep, (), tmpStrsMap)
             elif op in globalDefs.CALL:
-                continue   #TODO TODO remove this when fixed for shuffle
                 for rep in globalDefs.RULES[op]:
-                    if rep in globalDefs.SHUFFLE_ARGS_CASES:
+                    if rep in globalDefs.SHUFFLE_ARGS:
                         for ct in globalDefs.COUNTERS:
                             processMR (op, (), rep, (ct,), tmpStrsMap)
                     elif rep in globalDefs.NEWCALLEE:
@@ -193,9 +198,11 @@ def getAllPossibleMConf():
                             for ncr in set(globalDefs.SCALAR_STRING) - {ncm}:
                                 processMR (op, (), rep, (ncm, ncr), tmpStrsMap)
             elif op in globalDefs.SWITCH:   #only shuffle is needed here
-                continue   #TODO TODO remove this when fixed for shuffle
                 for rep in globalDefs.RULES[op]:
-                    if rep in globalDefs.SHUFFLE_ARGS_CASES:
+                    if rep in globalDefs.SHUFFLE_CASESDESTS:
+                        for ct in globalDefs.COUNTERS:
+                            processMR (op, (), rep, (ct,), tmpStrsMap)
+                    elif rep in globalDefs.REMOVE_CASES:
                         for ct in globalDefs.COUNTERS:
                             processMR (op, (), rep, (ct,), tmpStrsMap)
             else:

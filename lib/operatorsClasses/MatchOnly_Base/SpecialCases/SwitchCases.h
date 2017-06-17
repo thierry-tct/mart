@@ -111,9 +111,15 @@ class SwitchCases: public MatchOnly_Base
                         unsigned numRemCases = std::stol (llvmMutationOp::getConstValueStr(repl.getOprdIndexList()[0]));
                         assert (numRemCases >= 1 && "the specified number of cases to remove must be at least 1");
                         assert (numRemCases == 1 && "For now we only support remove 1 case at the time. TODO: add support for more");
-                        
+                    
+#if (LLVM_VERSION_MAJOR <= 3) && (LLVM_VERSION_MINOR < 5)
+                        for (auto casei=sw->case_begin(), caseE=sw->case_end(); casei!=caseE; ++casei)
+                        {
+                            //auto &casei = *caseIt;
+#else    
                         for (auto &casei: sw->cases())
                         {
+#endif
                             if (casei.getCaseSuccessor() == sw->getDefaultDest())
                                 continue;
                                 

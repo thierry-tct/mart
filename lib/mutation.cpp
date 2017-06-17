@@ -43,11 +43,31 @@
 #include "llvm/Transforms/Utils/Local.h"  //for llvm::DemotePHIToStack   used to remove PHI nodes after mutation
 #include "llvm/Analysis/CFG.h"  // llvm::GetSuccessorNumber and  llvm::GetSuccessorNumber  
 
-#include "llvm/IR/DebugInfo.h"  //llvm::StripDebugInfo (llvm::Module &M)   //remove all debugging infos 
+#if (LLVM_VERSION_MAJOR <= 3) && (LLVM_VERSION_MINOR < 5)
+#include "llvm/DebugInfo.h"     //llvm::StripDebugInfo (llvm::Module &M)   //remove all debugging infos 
+#else
+#include "llvm/IR/DebugInfo.h"  //llvm::StripDebugInfo (llvm::Module &M)   //remove all debugging infos    (llvm/IR/DebugInfoMetadata.h)
+#endif
 
 /*#ifdef ENABLE_OPENMP_PARALLEL
 #include "omp.h"
 #endif*/
+
+#if (LLVM_VERSION_MAJOR <= 3) && (LLVM_VERSION_MINOR < 5)
+static bool oldVersionIsEHPad(llvm::Instruction const *Inst) 
+{
+     switch (Inst->getOpcode()) 
+     {
+         //case llvm::Instruction::CatchSwitch:
+         //case llvm::Instruction::CatchPad:
+         //case llvm::Instruction::CleanupPad:
+         case llvm::Instruction::LandingPad:
+           return true;
+         default:
+           return false;
+     }
+}
+#endif
 
 Mutation::Mutation(llvm::Module &module, std::string mutConfFile, DumpMutFunc_t writeMutsF, std::string scopeJsonFile): forKLEESEMu(true), funcForKLEESEMu(nullptr), writeMutantsCallback(writeMutsF), moduleInfo (&module, &usermaps)
 {
@@ -216,10 +236,17 @@ llvm::AllocaInst *Mutation::MYDemotePHIToStack(llvm::PHINode *P, llvm::Instructi
     }
 
     // Insert a load in place of the PHI and replace all uses.
+#if (LLVM_VERSION_MAJOR <= 3) && (LLVM_VERSION_MINOR < 5)
+    llvm::BasicBlock::iterator InsertPt = llvm::BasicBlock::iterator(P);
+    
+    for (; llvm::isa<llvm::PHINode>(InsertPt) || oldVersionIsEHPad(InsertPt); ++InsertPt)
+        /* empty */;   // Don't insert before PHI nodes or landingpad instrs.
+#else
     llvm::BasicBlock::iterator InsertPt = P->getIterator();
-
+    
     for (; llvm::isa<llvm::PHINode>(InsertPt) || InsertPt->isEHPad(); ++InsertPt)
         /* empty */;   // Don't insert before PHI nodes or landingpad instrs.
+#endif
 
     llvm::Value *V = new llvm::LoadInst(Slot, P->getName() + ".reload", &*InsertPt);
     P->replaceAllUsesWith(V);
@@ -305,9 +332,15 @@ llvm::AllocaInst *Mutation::MyDemoteRegToStack(llvm::Instruction &I, bool Volati
         llvm::BasicBlock::iterator InsertPt;
         if (!llvm::isa<llvm::TerminatorInst>(I)) 
         {
+#if (LLVM_VERSION_MAJOR <= 3) && (LLVM_VERSION_MINOR < 5)
+            InsertPt = ++(llvm::BasicBlock::iterator(I));
+            for (; llvm::isa<llvm::PHINode>(InsertPt) || oldVersionIsEHPad(InsertPt); ++InsertPt)
+              /* empty */;   // Don't insert before PHI nodes or landingpad instrs.
+#else
             InsertPt = ++I.getIterator();
             for (; llvm::isa<llvm::PHINode>(InsertPt) || InsertPt->isEHPad(); ++InsertPt)
               /* empty */;   // Don't insert before PHI nodes or landingpad instrs.
+#endif
         } 
         else 
         {
@@ -911,7 +944,11 @@ bool Mutation::doMutate()
                 instructionPosInFunc++;     // This should always be before anything else in this loop
                 
                 // For Now do not mutate Exeption handling code, TODO later. TODO (http://llvm.org/docs/doxygen/html/Instruction_8h_source.html#l00393)
+#if (LLVM_VERSION_MAJOR <= 3) && (LLVM_VERSION_MINOR < 5)
+                if (oldVersionIsEHPad(&Instr))
+#else
                 if (Instr.isEHPad())
+#endif
                 {
                     llvm::errs() << "(msg) Exception handling not mutated for now. TODO\n";
                     continue;
@@ -1081,8 +1118,13 @@ bool Mutation::doMutate()
             
             /// \brief mutate all the basic blocks between 'mutationStartingAtBB' and '&*itBBlock'
             srcStmtsSearchList.doneSearch();       //append the last nullptr to order...
+#if (LLVM_VERSION_MAJOR <= 3) && (LLVM_VERSION_MINOR < 5)
+            auto changingBBIt = llvm::Function::iterator(mutationStartingAtBB);
+            auto stopAtBBIt = llvm::Function::iterator(itBBlock); 
+#else
             auto changingBBIt = mutationStartingAtBB->getIterator();
             auto stopAtBBIt = itBBlock->getIterator(); 
+#endif
             ++stopAtBBIt;   //pass the current block
             llvm::BasicBlock * sstmtCurBB = nullptr;    //The loop bellow will be executed at least once
             auto curSrcStmtIt = srcStmtsSearchList.getSourceOrderedStmts().begin();
@@ -1217,7 +1259,16 @@ bool Mutation::doMutate()
                             for (auto *subBB: mutBlocks)
                             {
                                 subBB->setName(std::string("MuLL.Mutant_Mut")+mutIDstr/*+"-"+(*curSrcStmtIt)->mutantStmt_list.getTypeName(ms_ind)*/);
+#if (LLVM_VERSION_MAJOR <= 3) && (LLVM_VERSION_MINOR < 5)  //-----------
+                                assert(!subBB->getParent() && "Already has a parent");
+ 
+                                if (original)
+                                    Func.getBasicBlockList().insert(llvm::Function::iterator(original), subBB);
+                                else
+                                    Func.getBasicBlockList().push_back(subBB);
+#else                                                       //----------------
                                 subBB->insertInto (&Func, original);
+#endif                                                      //-----------------
                             }
                             
                             if (! llvm::dyn_cast<llvm::Instruction>(lastInst)->isTerminator())    //if we have another stmt after this in this BB
@@ -1245,7 +1296,11 @@ bool Mutation::doMutate()
                         mod_mutstmtcount++;
                     }//~ if(nMuts > 0)
                 }
+#if (LLVM_VERSION_MAJOR <= 3) && (LLVM_VERSION_MINOR < 5)
+                changingBBIt = llvm::Function::iterator(sstmtCurBB);     //make 'changeBBIt' foint to the last BB before the next one to explore
+#else
                 changingBBIt = sstmtCurBB->getIterator();   //make 'changeBBIt' foint to the last BB before the next one to explore
+#endif
             } //Actual mutation for
             
             //Get to the right block
@@ -1255,7 +1310,11 @@ bool Mutation::doMutate()
             }*/
             
             // Do not use changingBBIt here because it is advanced
+#if (LLVM_VERSION_MAJOR <= 3) && (LLVM_VERSION_MINOR < 5)
+            itBBlock = llvm::Function::iterator(sstmtCurBB);  //make 'changeBBIt' foint to the last BB before the next one to explore
+#else
             itBBlock = sstmtCurBB->getIterator();   //make 'changeBBIt' foint to the last BB before the next one to explore
+#endif
             
             ///\brief Mutation over for the current set of BB, reinitialize 'mutationStartingAtBB' for the coming ones
             mutationStartingAtBB = nullptr;
@@ -1442,9 +1501,18 @@ void Mutation::setModFuncToFunction (llvm::Module *Mod, llvm::Function *srcF, ll
     assert (targetF && "the function Fun do not have an instance in module Mod");
     llvm::ValueToValueMapTy vmap;
     llvm::Function::arg_iterator destI = targetF->arg_begin();
+#if (LLVM_VERSION_MAJOR <= 3) && (LLVM_VERSION_MINOR < 5)
+    for (auto argIt=srcF->arg_begin(), argE=srcF->arg_end(); argIt != argE; ++argIt)
+    {
+        const llvm::Argument &aII = *argIt;
+#else
     for (const llvm::Argument &aII: srcF->args())
+    {
+#endif
         if (vmap.count(&aII) == 0)
             vmap[&aII] = &*destI++;
+    }
+
     llvm::SmallVector<llvm::ReturnInst*, 8> Returns;
     targetF->dropAllReferences(); //deleteBody();
     llvm::CloneFunctionInto(targetF, srcF, vmap, true, Returns);
@@ -2242,7 +2310,11 @@ bool Mutation::getMutant (llvm::Module &module, unsigned mutantID, llvm::Functio
     if (mutFunc)
     {
         mutFuncInThisModule = module.getFunction(mutFunc->getName());
+#if (LLVM_VERSION_MAJOR <= 3) && (LLVM_VERSION_MINOR < 5)
+        modIter = llvm::Module::iterator(mutFuncInThisModule);
+#else
         modIter = mutFuncInThisModule->getIterator();
+#endif
         modend = modIter;
         ++modend;
     }

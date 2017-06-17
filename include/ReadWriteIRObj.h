@@ -1,4 +1,7 @@
 
+#ifndef ReadWriteIRObj_h__
+#define ReadWriteIRObj_h__
+
 #include <string>
 //#include <fstream>
 #include <system_error> //error_code
@@ -41,28 +44,36 @@ public:
         std::string data;
         llvm::raw_string_ostream OS(data);
         llvm::WriteBitcodeToFile(module, OS);
+#if (LLVM_VERSION_MAJOR <= 3) && (LLVM_VERSION_MINOR < 5)
+        mBuf.reset(llvm::MemoryBuffer::getMemBufferCopy(OS.str()));
+#else
         mBuf = llvm::MemoryBuffer::getMemBufferCopy(OS.str());
+#endif
     }
     
     ReadWriteIRObj(ReadWriteIRObj const &cp)
     {   
+#if (LLVM_VERSION_MAJOR <= 3) && (LLVM_VERSION_MINOR < 5)
+        mBuf.reset(llvm::MemoryBuffer::getMemBuffer(cp.mBuf->getBuffer(), cp.mBuf->getBufferIdentifier()));
+#else
         mBuf = llvm::MemoryBuffer::getMemBuffer(cp.mBuf->getMemBufferRef());
+#endif
     }
     
     inline llvm::Module * readIR ()// (std::unique_ptr<llvm::Module> &module)
     {
         llvm::SMDiagnostic SMD;
 #if (LLVM_VERSION_MAJOR <= 3) && (LLVM_VERSION_MINOR < 5)
-        return (llvm::ParseIR(*mBuf, SMD, llvm::getGlobalContext()));
+        return (llvm::ParseIR(mBuf.get(), SMD, llvm::getGlobalContext()));
 #else
-        return llvm::parseIR(*mBuf, SMD, llvm::getGlobalContext()).release();
+        return (llvm::parseIR(*mBuf, SMD, llvm::getGlobalContext()).release());
 #endif
     }
     
     static inline llvm::Module * cloneModuleAndRelease (llvm::Module *M)
     {
 #if (LLVM_VERSION_MAJOR <= 3) && (LLVM_VERSION_MINOR < 5)
-        return llvm::CloneModule(M);
+       return llvm::CloneModule(M);
 #else
        return llvm::CloneModule(M).release();
 #endif
@@ -177,3 +188,6 @@ public:
     }
 #endif  //#ifdef KLEE_SEMU_GENMU_OBJECTFILE  
 };
+
+#endif //#ifndef ReadWriteIRObj_h__
+

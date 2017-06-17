@@ -21,16 +21,19 @@ if (KLEE_SEMU_GENMU)
     #    add_definitions(-DENABLE_OPENMP_PARALLEL)
     #endif()
     
+    add_library(UserMaps SHARED usermaps.cpp)
+    target_link_libraries(UserMaps JsonBox)
+    
     add_library(KLEE-SEMu-GenMu SHARED
         mutation.cpp
-        usermaps.cpp
+        #usermaps.cpp
         #llvm-diff
         llvm-diff/DiffConsumer.cpp
         llvm-diff/DiffLog.cpp
         llvm-diff/DifferenceEngine.cpp
     )
 
-    target_link_libraries(KLEE-SEMu-GenMu MutantSelection ${llvm_libs} JsonBox) #link with JsonBox
+    target_link_libraries(KLEE-SEMu-GenMu UserMaps ${llvm_libs} JsonBox) #link with JsonBox
     
     #Mutant Selection
     add_subdirectory(third-parties/dg)     #Add dg build dir
@@ -38,7 +41,7 @@ if (KLEE_SEMU_GENMU)
         mutantsSelection/MutantSelection.cpp
     )
     target_include_directories( MutantSelection PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/third-parties/dg/src )
-    target_link_libraries(MutantSelection JsonBox LLVMdg) #LLVMpta PTA RD 
+    target_link_libraries(MutantSelection UserMaps JsonBox LLVMdg) #LLVMpta PTA RD 
         
 	install(TARGETS KLEE-SEMu-GenMu MutantSelection
 		LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR})

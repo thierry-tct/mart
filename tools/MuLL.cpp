@@ -128,7 +128,11 @@ bool dumpMutantsCallback (Mutation *mutEng, std::map<unsigned, std::vector<unsig
                             auto *tmpFF = formutsModule->getFunction(funcName);
                             while (!tmpFF->use_empty())
                             {
+#if (LLVM_VERSION_MAJOR <= 3) && (LLVM_VERSION_MINOR < 5)
+                                if (llvm::Instruction *URInst = llvm::dyn_cast<llvm::Instruction>(tmpFF->use_back()))
+#else
                                 if (llvm::Instruction *URInst = llvm::dyn_cast<llvm::Instruction>(tmpFF->user_back()))
+#endif
                                 {
                                     llvm::Function *fofi = URInst->getParent()->getParent();
                                     assert (!fofi->getParent() && "the only users should be the mutant functions here, and thery have no parent.");

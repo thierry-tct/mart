@@ -76,6 +76,10 @@ if (KLEE_SEMU_GENMU)
 	endif(LLVM_BUILD_PATH)
 
     add_definitions(-DLLVM_TOOLS_BINARY_DIR="${LLVM_TOOLS_BINARY_DIR}")
+    if (${LLVM_PACKAGE_VERSION} VERSION_LESS "3.5")
+        add_definitions(-DLLVM_VERSION_PATCH="${LLVM_VERSION_PATCH}")
+    endif()
+    
 	add_definitions(${LLVM_DEFINITIONS})
 
 ####
@@ -120,14 +124,14 @@ endif()
 # Debug Release RelWithDebInfo MinSizeRel.
 if (CMAKE_BUILD_TYPE STREQUAL "Debug")
 	add_definitions(-DDEBUG_ENABLED)
-	message(STATUS "Using compilation flags: ${CMAKE_CXX_FLAGS_DEBUG}")
+	message(STATUS "Using compilation flags (DEBUG): ${CMAKE_CXX_FLAGS_DEBUG}")
 elseif (CMAKE_BUILD_TYPE STREQUAL "Release")
-	message(STATUS "Using compilation flags: ${CMAKE_CXX_FLAGS_RELEASE}")
+	message(STATUS "Using compilation flags (RELEASE): ${CMAKE_CXX_FLAGS_RELEASE}")
 elseif (CMAKE_BUILD_TYPE STREQUAL "RelWithDebInfo")
 	message(STATUS
-		"Using compilation flags: ${CMAKE_CXX_FLAGS_RELWITHDEBINFO}")
+		"Using compilation flags (RELEASE-DEBUG): ${CMAKE_CXX_FLAGS_RELWITHDEBINFO}")
 elseif (CMAKE_BUILD_TYPE STREQUAL "MinSizeRel")
-	message(STATUS "Using compilation flags: ${CMAKE_CXX_FLAGS_MINSIZEREL}")
+	message(STATUS "Using compilation flags (MIN-SIZE-RELEASE): ${CMAKE_CXX_FLAGS_MINSIZEREL}")
 endif ()
 
 message(STATUS "Additional compilation flags: ${CMAKE_CXX_FLAGS}")

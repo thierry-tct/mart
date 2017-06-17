@@ -17,7 +17,7 @@ std::map<unsigned, std::string> llvmMutationOp::posConstValueMap;   //belong to 
 
 #include "operatorsClasses/mutation_op_headers.h.inc"
 
-#ifdef CREATE_OBJ(C) || DESTROY_OBJ(C)
+#if defined (CREATE_OBJ) || defined (DESTROY_OBJ)
     #error "The macros CREATE_OBJ(C) and DESTROY_OBJ(C) are already defined.." 
 #endif
 
@@ -329,7 +329,7 @@ UserMaps::UserMaps()
     
     // Replace only. This shuffle case destination (default as well), by swapping destination Basic Blocks of 2 or more cases (number specified)
     // XXX (Do not add to map because) it should not be used at all (outside of SwitchCases)
-    addConfNameOpPair ("SHUFFLECASES", {mSHUFFLE_CASE_DESTS, mSHUFFLE_CASE_DESTS, mSHUFFLE_CASE_DESTS, mSHUFFLE_CASE_DESTS});   //TODO
+    addConfNameOpPair ("SHUFFLECASESDESTS", {mSHUFFLE_CASE_DESTS, mSHUFFLE_CASE_DESTS, mSHUFFLE_CASE_DESTS, mSHUFFLE_CASE_DESTS});   //TODO
     addOpMatchObjectPair (mSHUFFLE_CASE_DESTS, CREATE_OBJ(ShuffleCaseDestinations));  //We add it here but should not be used, this is just to raise error upon use of its replacing methon. only Switch
     
     // Make one or more cases point to default basic block as destination

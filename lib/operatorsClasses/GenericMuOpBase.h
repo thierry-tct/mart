@@ -184,6 +184,7 @@ struct DoReplaceUseful
 class GenericMuOpBase
 {
   public:
+    virtual ~GenericMuOpBase() {}
     
     /**  A pure virtual member.
      * \brief Match the IR pattern that can be mutated by this operator, starting from the IR at position 'pos'. For those that create only, report an error.
