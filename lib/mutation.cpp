@@ -632,6 +632,7 @@ void Mutation::getMutantsOfStmt (MatchStmtIR const &stmtIR, MutantsOfStmt &ret_m
     assert ((ret_mutants.getNumMuts() == 0) && "Error (Mutation::getMutantsOfStmt): mutant list result vector is not empty!\n");
     
     bool isDeleted = false;
+    
     for (llvmMutationOp &mutator: configuration.mutators)
     {
         //for (auto &mn: mutator.getMutantReplacorsList())    // DBG
@@ -962,38 +963,38 @@ bool Mutation::doMutate()
                 if (auto *phiN = llvm::dyn_cast<llvm::PHINode>(&Instr))
                     phiProxy.handlePhi(phiN, moduleInfo);
                     
-                //In case this is not the beginig of a stmt search (there are live stmts)
-                if (curLiveStmtSearch)
+                //Skip llvm debugging functions void @llvm.dbg.declare and void @llvm.dbg.value, and klee special function...
+                if (auto * callinst = llvm::dyn_cast<llvm::CallInst>(&Instr))
                 {
-                    //Skip llvm debugging functions void @llvm.dbg.declare and void @llvm.dbg.value
-                    if (auto * callinst = llvm::dyn_cast<llvm::CallInst>(&Instr))
+                    if (llvm::Function *fun = callinst->getCalledFunction())    //TODO: handle function alias
                     {
-                        if (llvm::Function *fun = callinst->getCalledFunction())    //TODO: handle function alias
+                        if(fun->getName().startswith("llvm.dbg.") && fun->getReturnType()->isVoidTy())
                         {
-                            if(fun->getName().startswith("llvm.dbg.") && fun->getReturnType()->isVoidTy())
+                            if((/*callinst->getNumArgOperands()==2 && */fun->getName().equals("llvm.dbg.declare")) ||
+                                (/*callinst->getNumArgOperands()==3 && */fun->getName().equals("llvm.dbg.value")))
                             {
-                                if((/*callinst->getNumArgOperands()==2 && */fun->getName().equals("llvm.dbg.declare")) ||
-                                    (/*callinst->getNumArgOperands()==3 && */fun->getName().equals("llvm.dbg.value")))
+                                if (curLiveStmtSearch && curLiveStmtSearch->isVisited(&Instr)) 
                                 {
-                                    if (curLiveStmtSearch->isVisited(&Instr)) 
-                                    {
-                                        assert (false && "The debug statement should not have been in visited (cause no dependency on others stmts...)");
-                                        srcStmtsSearchList.remove(curLiveStmtSearch);
-                                    }
-                                    continue;
-                                }
-                            }
-                            if (forKLEESEMu && fun->getName().equals("klee_make_symbolic") && callinst->getNumArgOperands() == 3 && fun->getReturnType()->isVoidTy())
-                            {
-                                if (curLiveStmtSearch->isVisited(&Instr)) 
-                                {
-                                    srcStmtsSearchList.remove(curLiveStmtSearch);     //do not mutate klee_make_symbolic
+                                    assert (false && "The debug statement should not have been in visited (cause no dependency on others stmts...)"); //DBG
+                                    srcStmtsSearchList.remove(curLiveStmtSearch);
                                 }
                                 continue;
                             }
                         }
+                        if (forKLEESEMu && fun->getName().equals("klee_make_symbolic") && callinst->getNumArgOperands() == 3 && fun->getReturnType()->isVoidTy())
+                        {
+                            if (curLiveStmtSearch && curLiveStmtSearch->isVisited(&Instr)) 
+                            {
+                                srcStmtsSearchList.remove(curLiveStmtSearch);     //do not mutate klee_make_symbolic
+                            }
+                            continue;
+                        }
                     }
-                   
+                }
+                
+                //In case this is not the begining of a stmt search (there are live stmts)
+                if (curLiveStmtSearch)
+                {
                     if (curLiveStmtSearch->isVisited(&Instr))  //is it visited?
                     {
                         curLiveStmtSearch->checkCountLogic();
@@ -1433,7 +1434,7 @@ void Mutation::computeWeakMutation(std::unique_ptr<llvm::Module> &cmodule, std::
                 {
                     if (auto *ld = llvm::dyn_cast<llvm::LoadInst>(sw->getCondition()))
                     {
-                        if (ld->getOperand(0) == cmodule->getNamedGlobal(mutantIDSelectorName))
+                        if (ld->getOperand(0) == cmodule->getNamedGlobal(mutantIDSelectorName) && sw->getNumCases() > 0) //No case means that all the mutant there were duplicate, no need to add label
                         {
                             std::vector<llvm::ConstantInt *> cases;
                             llvm::IRBuilder<> sbuilder(sw);

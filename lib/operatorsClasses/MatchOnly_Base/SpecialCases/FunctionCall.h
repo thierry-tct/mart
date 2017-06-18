@@ -29,8 +29,8 @@ class FunctionCall: public MatchOnly_Base
     {
         unsigned fin = invector.size();
         assert (select_size <= fin && "selecting more elements than there are in the input vector");
-        assert (select_size > 0 && "select_size must be at least 1");
-        if (select_size == 1)
+        //assert (select_size > 0 && "select_size must be at least 1");
+        if (select_size == 0)
         {
             if (workVector.size() > 1)
             {
@@ -54,7 +54,7 @@ class FunctionCall: public MatchOnly_Base
             {
                 std::vector<unsigned> workVectorCopy(workVector);
                 workVectorCopy.push_back(i);
-                getCombinations (invector, select_size - 1, startpos + 1, workVector, combinations);
+                getCombinations (invector, select_size - 1, i + 1, workVectorCopy, combinations);
             }
         }
     }

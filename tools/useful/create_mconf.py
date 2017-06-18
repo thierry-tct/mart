@@ -31,7 +31,8 @@ class GlobalDefs:
         self.ZERO = "0"
         self.BOOLEAN_CONST = {"0", "1"}  # false and true
         self.SCALAR_CONST = {"-1", "1"} #COnstant for things likeincreasing, decreasing constant or expression
-        self.COUNTERS = {"2"}    #counter for thins like SHUFFLE
+        self.SHUFFLE_COUNTERS = {"2"}    #counter for like SHUFFLE
+        self.CASEREMOVE_COUNTERS = {"1"}    #counter for case remove
         self.SCALAR_STRING = {"dirname", "basename"}    #string for things like callee replacement
       # Match only
         # Values
@@ -92,7 +93,8 @@ class GlobalDefs:
         self.FORMATS.update({opName: [self.arithVAL|self.pointerVAL] for opName in self.KEEPOPERAND})
         self.FORMATS.update({opName: [self.SCALAR_CONST|{self.ZERO}|self.BOOLEAN_CONST] for opName in self.CONSTVAL})
         self.FORMATS.update({opName: [self.SCALAR_STRING]*(1+myNumOfReplFuncs) for opName in self.NEWCALLEE})           # 1+... because of the matched function (param number 1)
-        self.FORMATS.update({opName: [self.COUNTERS] for opName in self.SHUFFLE_ARGS + self.SHUFFLE_CASESDESTS + self.REMOVE_CASES})
+        self.FORMATS.update({opName: [self.SHUFFLE_COUNTERS] for opName in self.SHUFFLE_ARGS + self.SHUFFLE_CASESDESTS})
+        self.FORMATS.update({opName: [self.CASEREMOVE_COUNTERS] for opName in self.REMOVE_CASES})
          
         arithOps = self.AOR + self.BIT + self.ROR + self.ASSIGN + self.UNARY + self.P_INCDEC  # + self.LOR        #as for now, LOR can only be replaced(replacing) LOR TODO TODO: add here when supported
         arthExtraRepl = self.DELSTMT + self.KEEPOPERAND + self.CONSTVAL + self.ABS_UNARY
@@ -190,7 +192,7 @@ def getAllPossibleMConf():
             elif op in globalDefs.CALL:
                 for rep in globalDefs.RULES[op]:
                     if rep in globalDefs.SHUFFLE_ARGS:
-                        for ct in globalDefs.COUNTERS:
+                        for ct in globalDefs.SHUFFLE_COUNTERS:
                             processMR (op, (), rep, (ct,), tmpStrsMap)
                     elif rep in globalDefs.NEWCALLEE:
                         assert len(globalDefs.FORMATS[rep]) == 2, "FIXME: fix bellow to support more than one function replaced"
@@ -200,10 +202,10 @@ def getAllPossibleMConf():
             elif op in globalDefs.SWITCH:   #only shuffle is needed here
                 for rep in globalDefs.RULES[op]:
                     if rep in globalDefs.SHUFFLE_CASESDESTS:
-                        for ct in globalDefs.COUNTERS:
+                        for ct in globalDefs.SHUFFLE_COUNTERS:
                             processMR (op, (), rep, (ct,), tmpStrsMap)
                     elif rep in globalDefs.REMOVE_CASES:
-                        for ct in globalDefs.COUNTERS:
+                        for ct in globalDefs.CASEREMOVE_COUNTERS:
                             processMR (op, (), rep, (ct,), tmpStrsMap)
             else:
                 print "match op:", op

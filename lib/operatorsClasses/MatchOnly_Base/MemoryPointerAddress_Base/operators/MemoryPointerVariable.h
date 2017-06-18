@@ -23,7 +23,7 @@ class MemoryPointerVariable: public MemoryPointerAddress_Base
      */
     inline bool isMatched(llvm::Value *val)
     {
-        return (llvm::isa<llvm::LoadInst>(val) && val->getType()->isPointerTy());
+        return (llvm::isa<llvm::LoadInst>(val) && val->getType()->isPointerTy() && canGep(val));
     }
 };
 

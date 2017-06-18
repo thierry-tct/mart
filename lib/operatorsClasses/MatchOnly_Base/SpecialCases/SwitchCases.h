@@ -29,8 +29,8 @@ class SwitchCases: public MatchOnly_Base
     {
         unsigned fin = invector.size();
         assert (select_size <= fin && "selecting more elements than there are in the input vector");
-        assert (select_size > 0 && "select_size must be at least 1");
-        if (select_size == 1)
+        //assert (select_size > 0 && "select_size must be at least 1");
+        if (select_size == 0)
         {
             if (workVector.size() > 1)
             {
@@ -54,7 +54,7 @@ class SwitchCases: public MatchOnly_Base
             {
                 std::vector<unsigned> workVectorCopy(workVector);
                 workVectorCopy.push_back(i);
-                getCombinations (invector, select_size - 1, startpos + 1, workVector, combinations);
+                getCombinations (invector, select_size - 1, i + 1, workVectorCopy, combinations);
             }
         }
     }
@@ -66,12 +66,39 @@ class SwitchCases: public MatchOnly_Base
         unsigned numSuccs = sw->getNumSuccessors();
         if (shuffle_size <= numSuccs)
         {
+            assert (shuffle_size == 2 && "shuffle size must be 2");  //Do onlywith 2 to avoid very large number of mutants on programs with very large number of cases
             std::vector<unsigned> succsindexes;
             for (unsigned i=0; i < numSuccs; ++i)
-            {
                 succsindexes.push_back(i);
+            for (unsigned i=0; i<numSuccs;++i)
+            {
+                for (unsigned j=i+1; j<numSuccs;++j)
+                {
+                    if (sw->getSuccessor(i) != sw->getSuccessor(j))
+                    {
+                        results.push_back(succsindexes);
+                        std::vector<unsigned> &tmp = results.back();
+                        tmp[i] = j;
+                        tmp[j] = i;
+                    }
+                }
             }
-            getCombinations (succsindexes, shuffle_size, 0, std::vector<unsigned>(), results);
+            
+            /*getCombinations (succsindexes, shuffle_size, 0, std::vector<unsigned>(), results);
+            
+            // remove redundancy (when multiple cases have same successor and are swaped between each others
+            for (long int pos = results.size()-1; pos >= 0; --pos)
+            {
+                auto &comb = results[pos];
+                for (unsigned i=0; i < comb.size();++i)
+                {
+                    if (comb[i] != succsindexes[i] && sw->getSuccessor(comb[i]) == sw->getSuccessor(succsindexes[i]))
+                    {
+                        results.erase(results.begin() + pos);
+                        break;
+                    }
+                }
+            }*/
         }
     }
     

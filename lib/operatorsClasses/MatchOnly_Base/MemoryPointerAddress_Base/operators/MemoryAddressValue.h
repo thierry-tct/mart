@@ -23,7 +23,7 @@ class MemoryAddressValue: public MemoryPointerAddress_Base
      */
     inline bool isMatched(llvm::Value *val)
     {  
-        return val->getType()->isPointerTy();
+        return (val->getType()->isPointerTy() && canGep(val));
     }
 };
 

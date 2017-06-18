@@ -385,8 +385,18 @@ class GenericMuOpBase
                     nc = llvm::ConstantInt::get (type->getContext(), xx.trunc(bitwidth));
                 }
             }
+            else if (type->isPointerTy())
+            {
+                if (llvmMutationOp::getConstValueStr(posConstValueMap_POS) != "0")
+                {
+                    llvm::errs() << "The only constant that replace a memory address must be 0 (NULL). But passed " << llvmMutationOp::getConstValueStr(posConstValueMap_POS) << "\n";
+                    assert (false);
+                }
+                nc = llvm::ConstantPointerNull::get (llvm::dyn_cast<llvm::PointerType>(type));
+            }
             else
             {
+                type->dump();
                 assert (false && "unreachable!!");
             }
         }
