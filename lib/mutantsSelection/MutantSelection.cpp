@@ -64,7 +64,7 @@ bool MutantDependenceGraph::build (llvm::Module const &mod, dg::LLVMDependenceGr
     {
         unsigned instPosition = 0;
         std::string funcName = Func.getName();
-        functionName_position2IR.clear();        //XXX: Since each mutant belong to only one function
+        //functionName_position2IR.clear();        //XXX: Since each mutant belong to only one function
         for (auto &BB: Func)
         {
             for (auto &Inst: BB)
@@ -83,7 +83,7 @@ bool MutantDependenceGraph::build (llvm::Module const &mod, dg::LLVMDependenceGr
     MuLL::MutantIDType mutants_number = mutInfos.getMutantsNumber();
     for (MuLL::MutantIDType mutant_id = 1; mutant_id <= mutants_number; ++mutant_id)
     {
-        auto &tmpPos2IRMap = functionName_position2IR[mutInfos.getMutantFunction(mutant_id)];
+        auto &tmpPos2IRMap = functionName_position2IR.at(mutInfos.getMutantFunction(mutant_id));
         for (auto mutPos: mutInfos.getMutantIrPosInFunction(mutant_id))
         {
             llvm::Value const *ir_at_pos = tmpPos2IRMap.at(mutPos);
@@ -179,7 +179,7 @@ void MutantDependenceGraph::load(std::string filename, MutantInfoList const &mut
     for (auto mutant_id = 1; mutant_id <= nummuts; ++mutant_id)
     {
         //Skip type checking, assume that the file hasn't been modified
-        JsonBox::Value tmpv = array_in[mutant_id];
+        JsonBox::Value tmpv = array_in[mutant_id - 1];
         assert (tmpv.isObject() && "each mutant dependence data is a JSON object");
         JsonBox::Object tmpobj = tmpv.getObject();
         assert (tmpobj.count("outDataDependents")>0 && "'outDataDependents' missing from mutand dependence data");
@@ -358,7 +358,7 @@ void MutantSelection::relaxMutant (MuLL::MutantIDType mutant_id, std::vector<dou
             }
             
             //the score still decrease if there are many dependency path to this mutants (ex: a=1; b=a+3; c=a+b;). here inDatDepMut is at 'c=a+b'
-            scores[outDatDepMut] +=  scores[outDatDepMut] * cur_relax_factor; 
+            scores[outDatDepMut] -=  scores[outDatDepMut] * cur_relax_factor; 
         }
     }
 }
@@ -369,13 +369,14 @@ void MutantSelection::relaxMutant (MuLL::MutantIDType mutant_id, std::vector<dou
 void MutantSelection::smartSelectMutants (std::vector<MuLL::MutantIDType> &selectedMutants, double score_threshold)
 {
     const double MAX_SCORE = 1.0;
+    
+    MuLL::MutantIDType mutants_number = mutantInfos.getMutantsNumber();
 
     //Choose starting mutants (random for now: 1 mutant per dependency cluster)
-    std::vector<double> mutant_scores;
+    std::vector<double> mutant_scores(mutants_number + 1);
     std::unordered_set<MuLL::MutantIDType> visited_mutants;
     std::unordered_set<MuLL::MutantIDType> candidate_mutants;
     
-    MuLL::MutantIDType mutants_number = mutantInfos.getMutantsNumber();
     for (MuLL::MutantIDType mutant_id = 1; mutant_id <= mutants_number; ++mutant_id)
     {
         mutant_scores[mutant_id] = MAX_SCORE;
@@ -385,7 +386,7 @@ void MutantSelection::smartSelectMutants (std::vector<MuLL::MutantIDType> &selec
     while (! candidate_mutants.empty())
     {
         auto mutant_id = pickMutant(candidate_mutants, mutant_scores);
-        
+        //-----llvm::errs()<<candidate_mutants.size()<<" "<<mutant_scores[mutant_id]<<"\n";
         // Stop if the selected mutant has a score less than the threshold
         if (mutant_scores[mutant_id] < score_threshold)
             break;
@@ -396,6 +397,11 @@ void MutantSelection::smartSelectMutants (std::vector<MuLL::MutantIDType> &selec
         // insert the picked mutants and its tie-dependents into visited set
         visited_mutants.insert(mutant_id);
         visited_mutants.insert(mutantDGraph.getTieDependents(mutant_id).begin(), mutantDGraph.getTieDependents(mutant_id).end());
+        
+        // Remove picked mutants and its tie dependents from candidates
+        candidate_mutants.erase(mutant_id);
+        for (auto tie_ids: mutantDGraph.getTieDependents(mutant_id))
+            candidate_mutants.erase(tie_ids);
     }
 }
 

@@ -79,6 +79,8 @@ class MutantDependenceGraph //: public DependenceGraph<MutantNode>
     void addDataCtrlFor (dg::LLVMDependenceGraph const *subIRDg);
     
   public:
+    MutantDependenceGraph(MuLL::MutantIDType nMuts) {mutantDGraphData.resize(nMuts + 1);}
+    
     std::unordered_set<llvm::Value const *> &getIRsOfMut (MuLL::MutantIDType id) {return mutant2IRset.at(id);}
     bool isBuilt () {return (! mutant2IRset.empty());}
     
@@ -115,7 +117,8 @@ class MutantSelection
     void relaxMutant (MuLL::MutantIDType mutant_id, std::vector<double> &scores);
     
   public:
-    MutantSelection (llvm::Module &inMod, MutantInfoList const &mInf, std::string mutant_depend_filename, bool rerundg, bool isFlowSensitive): subjectModule(inMod), mutantInfos(mInf) 
+    MutantSelection (llvm::Module &inMod, MutantInfoList const &mInf, std::string mutant_depend_filename, bool rerundg, bool isFlowSensitive)
+                            : subjectModule(inMod), mutantInfos(mInf), mutantDGraph(mInf.getMutantsNumber()) 
     { 
         buildDependenceGraphs(mutant_depend_filename, rerundg, isFlowSensitive); 
     }

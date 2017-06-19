@@ -1006,6 +1006,7 @@ struct StatementSearch
 
 /**
  * \brief This class define the final list of all mutant and their informations. @Note: This is increased after each statement mutation and modifed (reduced) during TCE equivalent mutant removal
+ * Ensure that the mutant in the vector at position 'i' has ID 'i+1' (mutant with ID 'j' is found at position 'j-1'). Note that positions start from 0.
  */
 struct MutantInfoList  
 {
@@ -1132,18 +1133,17 @@ struct MutantInfoList
     }
     
     MuLL::MutantIDType getMutantsNumber() const {return mutants.size();}
-    const std::string &getMutantTypeName(MuLL::MutantIDType mutant_id) const {return mutants[mutant_id].typeName;}
-    const std::string &getMutantSourceLoc(MuLL::MutantIDType mutant_id) const {mutants[mutant_id].locFuncName;}
-    const std::vector<unsigned> &getMutantIrPosInFunction(MuLL::MutantIDType mutant_id) const {mutants[mutant_id].irLeveLocInFunc;}
-    const std::string &getMutantFunction(MuLL::MutantIDType mutant_id) const {mutants[mutant_id].srcLevelLoc;}
+    const std::string &getMutantTypeName(MuLL::MutantIDType mutant_id) const {return mutants[mutant_id-1].typeName;}
+    const std::string &getMutantFunction(MuLL::MutantIDType mutant_id) const {return mutants[mutant_id-1].locFuncName;}
+    const std::vector<unsigned> &getMutantIrPosInFunction(MuLL::MutantIDType mutant_id) const {return mutants[mutant_id-1].irLeveLocInFunc;}
+    const std::string &getMutantSourceLoc(MuLL::MutantIDType mutant_id) const {return mutants[mutant_id-1].srcLevelLoc;}
      
-    
     void printToStdout ()  const
     {
-        llvm::errs() << "\n~~~~~~~~~ MUTANTS INFOS ~~~~~~~~~\n\nID, Name, SRC Location\n-------------------\n";
+        llvm::errs() << "\n~~~~~~~~~ MUTANTS INFOS ~~~~~~~~~\n\nID, Name, SRC Location, Function Name\n-------------------\n";
         for (auto &info: mutants)
         {
-            llvm::errs() << info.id << "," << info.typeName << "," << info.srcLevelLoc << "\n";
+            llvm::errs() << info.id << "," << info.typeName << "," << info.srcLevelLoc << "," << info.locFuncName << "\n";
         }
         //JsonBox::Object outJSON;
         //getJson (outJSON);
