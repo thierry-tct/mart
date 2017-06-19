@@ -313,7 +313,7 @@ mullSplitFunctionsOutOfModule(Module *M, const std::string &FName) {
   }
 
   ValueToValueMapTy NewVMap;
-#if (LLVM_VERSION_MAJOR <= 3) && (LLVM_VERSION_MINOR < 5)
+#if (LLVM_VERSION_MAJOR <= 3) && (LLVM_VERSION_MINOR < 8)
   std::unique_ptr<Module> New(CloneModule(M, NewVMap));
 #else
   std::unique_ptr<Module> New = CloneModule(M, NewVMap);

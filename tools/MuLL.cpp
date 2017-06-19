@@ -368,7 +368,7 @@ int main (int argc, char ** argv)
     Mutation mut(*moduleM, mutantConfigfile?mutantConfigfile:(useful_conf_dir + defaultMconfFile), dumpMutantsCallback, mutantScopeJsonfile ? mutantScopeJsonfile : "");
     
     // Keep Phi2Mem-preprocessed module
-#if (LLVM_VERSION_MAJOR <= 3) && (LLVM_VERSION_MINOR < 5)
+#if (LLVM_VERSION_MAJOR <= 3) && (LLVM_VERSION_MINOR < 8)
     std::unique_ptr<llvm::Module> preProPhi2MemModule (llvm::CloneModule(moduleM));
 #else
     std::unique_ptr<llvm::Module> preProPhi2MemModule = llvm::CloneModule(moduleM);

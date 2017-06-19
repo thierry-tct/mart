@@ -65,6 +65,8 @@ public:
         llvm::SMDiagnostic SMD;
 #if (LLVM_VERSION_MAJOR <= 3) && (LLVM_VERSION_MINOR < 5)
         return (llvm::ParseIR(mBuf.get(), SMD, llvm::getGlobalContext()));
+#elif (LLVM_VERSION_MAJOR <= 3) && (LLVM_VERSION_MINOR < 8)
+        return (llvm::parseIR(llvm::MemoryBufferRef(mBuf->getBuffer(), mBuf->getBufferIdentifier()), SMD, llvm::getGlobalContext()).release());
 #else
         return (llvm::parseIR(*mBuf, SMD, llvm::getGlobalContext()).release());
 #endif
@@ -72,7 +74,7 @@ public:
     
     static inline llvm::Module * cloneModuleAndRelease (llvm::Module *M)
     {
-#if (LLVM_VERSION_MAJOR <= 3) && (LLVM_VERSION_MINOR < 5)
+#if (LLVM_VERSION_MAJOR <= 3) && (LLVM_VERSION_MINOR < 8)
        return llvm::CloneModule(M);
 #else
        return llvm::CloneModule(M).release();

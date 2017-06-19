@@ -53,7 +53,7 @@
 #include "omp.h"
 #endif*/
 
-#if (LLVM_VERSION_MAJOR <= 3) && (LLVM_VERSION_MINOR < 5)
+#if (LLVM_VERSION_MAJOR <= 3) && (LLVM_VERSION_MINOR < 8)
 static bool oldVersionIsEHPad(llvm::Instruction const *Inst) 
 {
      switch (Inst->getOpcode()) 
@@ -236,7 +236,7 @@ llvm::AllocaInst *Mutation::MYDemotePHIToStack(llvm::PHINode *P, llvm::Instructi
     }
 
     // Insert a load in place of the PHI and replace all uses.
-#if (LLVM_VERSION_MAJOR <= 3) && (LLVM_VERSION_MINOR < 5)
+#if (LLVM_VERSION_MAJOR <= 3) && (LLVM_VERSION_MINOR < 8)
     llvm::BasicBlock::iterator InsertPt = llvm::BasicBlock::iterator(P);
     
     for (; llvm::isa<llvm::PHINode>(InsertPt) || oldVersionIsEHPad(InsertPt); ++InsertPt)
@@ -332,7 +332,7 @@ llvm::AllocaInst *Mutation::MyDemoteRegToStack(llvm::Instruction &I, bool Volati
         llvm::BasicBlock::iterator InsertPt;
         if (!llvm::isa<llvm::TerminatorInst>(I)) 
         {
-#if (LLVM_VERSION_MAJOR <= 3) && (LLVM_VERSION_MINOR < 5)
+#if (LLVM_VERSION_MAJOR <= 3) && (LLVM_VERSION_MINOR < 8)
             InsertPt = ++(llvm::BasicBlock::iterator(I));
             for (; llvm::isa<llvm::PHINode>(InsertPt) || oldVersionIsEHPad(InsertPt); ++InsertPt)
               /* empty */;   // Don't insert before PHI nodes or landingpad instrs.
@@ -945,7 +945,7 @@ bool Mutation::doMutate()
                 instructionPosInFunc++;     // This should always be before anything else in this loop
                 
                 // For Now do not mutate Exeption handling code, TODO later. TODO (http://llvm.org/docs/doxygen/html/Instruction_8h_source.html#l00393)
-#if (LLVM_VERSION_MAJOR <= 3) && (LLVM_VERSION_MINOR < 5)
+#if (LLVM_VERSION_MAJOR <= 3) && (LLVM_VERSION_MINOR < 8)
                 if (oldVersionIsEHPad(&Instr))
 #else
                 if (Instr.isEHPad())
@@ -1119,7 +1119,7 @@ bool Mutation::doMutate()
             
             /// \brief mutate all the basic blocks between 'mutationStartingAtBB' and '&*itBBlock'
             srcStmtsSearchList.doneSearch();       //append the last nullptr to order...
-#if (LLVM_VERSION_MAJOR <= 3) && (LLVM_VERSION_MINOR < 5)
+#if (LLVM_VERSION_MAJOR <= 3) && (LLVM_VERSION_MINOR < 8)
             auto changingBBIt = llvm::Function::iterator(mutationStartingAtBB);
             auto stopAtBBIt = llvm::Function::iterator(itBBlock); 
 #else
@@ -1297,7 +1297,7 @@ bool Mutation::doMutate()
                         mod_mutstmtcount++;
                     }//~ if(nMuts > 0)
                 }
-#if (LLVM_VERSION_MAJOR <= 3) && (LLVM_VERSION_MINOR < 5)
+#if (LLVM_VERSION_MAJOR <= 3) && (LLVM_VERSION_MINOR < 8)
                 changingBBIt = llvm::Function::iterator(sstmtCurBB);     //make 'changeBBIt' foint to the last BB before the next one to explore
 #else
                 changingBBIt = sstmtCurBB->getIterator();   //make 'changeBBIt' foint to the last BB before the next one to explore
@@ -1311,7 +1311,7 @@ bool Mutation::doMutate()
             }*/
             
             // Do not use changingBBIt here because it is advanced
-#if (LLVM_VERSION_MAJOR <= 3) && (LLVM_VERSION_MINOR < 5)
+#if (LLVM_VERSION_MAJOR <= 3) && (LLVM_VERSION_MINOR < 8)
             itBBlock = llvm::Function::iterator(sstmtCurBB);  //make 'changeBBIt' foint to the last BB before the next one to explore
 #else
             itBBlock = sstmtCurBB->getIterator();   //make 'changeBBIt' foint to the last BB before the next one to explore
@@ -1387,7 +1387,7 @@ void Mutation::computeWeakMutation(std::unique_ptr<llvm::Module> &cmodule, std::
     assert (!cmodule->getGlobalVariable(wmHighestMutantIDConst) && "Name clash for weak mutation highest mutant ID Global Variable Name, please change it from you program");
     
     /// Link cmodule with the corresponding driver module (actually only need c module)
-#if (LLVM_VERSION_MAJOR <= 3) && (LLVM_VERSION_MINOR < 5)
+#if (LLVM_VERSION_MAJOR <= 3) && (LLVM_VERSION_MINOR < 8)
     llvm::Linker linker(cmodule.get());
     std::string ErrorMsg;
     if (linker.linkInModule(modWMLog.get(), &ErrorMsg))
@@ -1986,7 +1986,7 @@ void Mutation::doTCE (std::unique_ptr<llvm::Module> &modWMLog, bool writeMuts, b
         std::unique_ptr<llvm::Module> wmModule(nullptr);
         if (modWMLog)
         {
-#if (LLVM_VERSION_MAJOR <= 3) && (LLVM_VERSION_MINOR < 5)
+#if (LLVM_VERSION_MAJOR <= 3) && (LLVM_VERSION_MINOR < 8)
             wmModule.reset (llvm::CloneModule(&module));
 #else
             wmModule = llvm::CloneModule(&module);
@@ -2349,7 +2349,7 @@ bool Mutation::getMutant (llvm::Module &module, unsigned mutantID, llvm::Functio
     if (mutFunc)
     {
         mutFuncInThisModule = module.getFunction(mutFunc->getName());
-#if (LLVM_VERSION_MAJOR <= 3) && (LLVM_VERSION_MINOR < 5)
+#if (LLVM_VERSION_MAJOR <= 3) && (LLVM_VERSION_MINOR < 8)
         modIter = llvm::Module::iterator(mutFuncInThisModule);
 #else
         modIter = mutFuncInThisModule->getIterator();

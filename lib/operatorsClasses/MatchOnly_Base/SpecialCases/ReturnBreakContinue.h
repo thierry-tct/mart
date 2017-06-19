@@ -38,7 +38,7 @@ class ReturnBreakContinue: public MatchOnly_Base
         llvm::Instruction * retbr = llvm::dyn_cast<llvm::Instruction>(toMatch.getIRList().back());
         MutantsOfStmt::MutantStmtIR toMatchMutant;
         assert (mutationOp.getMutantReplacorsList().size() == 1 && "Return, Break and Continue can only be deleted");
-#if (LLVM_VERSION_MAJOR <= 3) && (LLVM_VERSION_MINOR < 5)
+#if (LLVM_VERSION_MAJOR <= 3) && (LLVM_VERSION_MINOR < 8)
         llvm::Function *curFunc = retbr->getParent()->getParent(); 
 #else
         llvm::Function *curFunc = retbr->getFunction();
@@ -88,7 +88,7 @@ class ReturnBreakContinue: public MatchOnly_Base
                 return;
             assert (toMatch.getTotNumIRs() == 1 && "unconditional break should be the only instruction in the statement");
             llvm::BasicBlock *targetBB = br->getSuccessor(0);
-    #if (LLVM_VERSION_MAJOR <= 3) && (LLVM_VERSION_MINOR < 5)
+    #if (LLVM_VERSION_MAJOR <= 3) && (LLVM_VERSION_MINOR < 8)
             llvm::Function::iterator FI = br->getParent()->getNextNode();//Iterator();
             if (FI) //!= br->getFunction()->end() && FI )
             {
