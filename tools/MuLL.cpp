@@ -31,6 +31,7 @@
 
 static std::string outputDir("mull-out-"); 
 static const std::string mutantsFolder("mutants.out");
+static const std::string mutantsInfosFileName("mutantsInfos.json");
 static const std::string generalInfo("info");
 static std::stringstream loginfo;
 static std::string outFile;
@@ -430,7 +431,7 @@ int main (int argc, char ** argv)
     
     /// Mutants Infos into json
     if (dumpMutantInfos)
-        mut.dumpMutantInfos (outputDir+"//"+outFile+"-mutantInfos.json");
+        mut.dumpMutantInfos (outputDir+"//"+mutantsInfosFileName);
     
     //@ Print post-TCE meta-mutant
     if (dumpMetaIRbc) 

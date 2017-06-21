@@ -41,22 +41,31 @@ void printVersion()
     llvm::outs() << "\n";
 }
 
-void mutantListAsJsON(std::vector<MuLL::MutantIDType> const &list, std::string jsonName)
+template<typename T>
+void mutantListAsJsON(std::vector<std::vector<T>> const &lists, std::string jsonName)
 {
     std::ofstream xxx (jsonName);
     if (xxx.is_open())
     {
-        xxx << "[\n";
-        bool isNotFirst = false;
-        for (MuLL::MutantIDType mutant_id: list) 
+        xxx << "{\n";
+        for (unsigned repet = 0, repeat_last = lists.size() - 1; repet <= repeat_last; ++repet)
         {
-            if (isNotFirst)
-                xxx << ",\n";
+            xxx << "\t" << repet << ": [";
+            bool isNotFirst = false;
+            for (T data: lists[repet]) 
+            {
+                if (isNotFirst)
+                    xxx << ", ";
+                else
+                    isNotFirst = true;
+                xxx << data;
+            } 
+            if (repet == repeat_last)
+                xxx << "]\n";
             else
-                isNotFirst = true;
-            xxx << mutant_id;
-        }          
-        xxx << "\n]\n";
+                xxx << "],\n";
+        }  
+        xxx << "\n}\n";
         xxx.close();
     }
     else 
@@ -77,6 +86,7 @@ int main (int argc, char ** argv)
     
     bool rundg = true;
     
+    unsigned numberOfRandomSelections = 100;  //How many time do we repead random
     
     for (int i=1; i < argc; i++)
     {
@@ -91,6 +101,10 @@ int main (int argc, char ** argv)
         else if (strcmp(argv[i], "-out-topdir") == 0)
         {
             mullOutTopDir = argv[++i];
+        }
+        else if (strcmp(argv[i], "-rand-repeat-num") == 0)
+        {
+            numberOfRandomSelections = std::stoul(argv[++i]);
         }
         else if (strcmp(argv[i], "-version") == 0)
         {
@@ -164,39 +178,48 @@ int main (int argc, char ** argv)
     loginfo << "MuLL@Progress: dependencies construction took: "<< (float)(clock() - curClockTime)/CLOCKS_PER_SEC <<" Seconds.\n";
     
     std::string smartSelectionOutJson = outDir + "/" + "smartSelection.json";
+    std::string scoresForSmartSelectionOutJson = outDir + "/" + "scoresForSmartSelection.json";
     std::string randomSDLelectionOutJson = outDir + "/" + "randomSDLSelection.json";
     std::string spreadRandomSelectionOutJson = outDir + "/" + "spreadRandomSelection.json";
     std::string dummyRandomSelectionOutJson = outDir + "/" + "dummyRandomSelection.json";
     
-    std::vector<MuLL::MutantIDType> selectedMutants1, selectedMutants2;
+    std::vector<std::vector<MuLL::MutantIDType>> selectedMutants1, selectedMutants2;
     unsigned long number=0;
     
     llvm::outs() << "Doing Smart Selection...\n";
     curClockTime = clock();
     selectedMutants1.clear();
-    selection.smartSelectMutants(selectedMutants1, 0.5 /*treshold score*/);
-    mutantListAsJsON(selectedMutants1, smartSelectionOutJson);
+    selectedMutants1.push_back(std::vector<MuLL::MutantIDType>());
+    std::vector<double> selectedScores;
+    selection.smartSelectMutants(selectedMutants1.back(), selectedScores);
+    mutantListAsJsON<MuLL::MutantIDType>(selectedMutants1, smartSelectionOutJson);
+    mutantListAsJsON<double>(std::vector<std::vector<double>>({selectedScores}), scoresForSmartSelectionOutJson);
     llvm::outs() << "MuLL@Progress: smart selection took: "<< (float)(clock() - curClockTime)/CLOCKS_PER_SEC <<" Seconds.\n";
     loginfo << "MuLL@Progress: smart selection took: "<< (float)(clock() - curClockTime)/CLOCKS_PER_SEC <<" Seconds.\n";
     
-    number = selectedMutants1.size();
+    number = selectedMutants1.back().size();
+    assert (number == mutantInfo.getMutantsNumber() && "The number of mutants mismatch. Bug in Selection function!");
     
     llvm::outs() << "Doing dummy and spread random selection...\n";
     curClockTime = clock();
     selectedMutants1.clear(); selectedMutants2.clear();
-    selection.randomMutants (selectedMutants1, selectedMutants2, number);
-    mutantListAsJsON(selectedMutants1, spreadRandomSelectionOutJson);
-    mutantListAsJsON(selectedMutants2, dummyRandomSelectionOutJson);
-    llvm::outs() << "MuLL@Progress: dummy and spread random took: "<< (float)(clock() - curClockTime)/CLOCKS_PER_SEC <<" Seconds.\n";
-    loginfo << "MuLL@Progress: dummy and spread random took: "<< (float)(clock() - curClockTime)/CLOCKS_PER_SEC <<" Seconds.\n";
+    selectedMutants1.resize(numberOfRandomSelections); selectedMutants2.resize(numberOfRandomSelections);
+    for (unsigned si=0; si<numberOfRandomSelections; ++si)
+        selection.randomMutants (selectedMutants1[si], selectedMutants2[si], number);
+    mutantListAsJsON<MuLL::MutantIDType>(selectedMutants1, spreadRandomSelectionOutJson);
+    mutantListAsJsON<MuLL::MutantIDType>(selectedMutants2, dummyRandomSelectionOutJson);
+    llvm::outs() << "MuLL@Progress: dummy and spread random took: "<< (float)(clock() - curClockTime)/CLOCKS_PER_SEC <<" Seconds. (" << numberOfRandomSelections << " repetitions)\n";
+    loginfo << "MuLL@Progress: dummy and spread random took: "<< (float)(clock() - curClockTime)/CLOCKS_PER_SEC <<" Seconds. (" << numberOfRandomSelections << " repetitions)\n";
     
     llvm::outs() << "Doing random SDL selection...\n";  //select only SDL mutants
     curClockTime = clock();
     selectedMutants1.clear();
-    selection.randomSDLMutants(selectedMutants1, number);
-    mutantListAsJsON(selectedMutants1, randomSDLelectionOutJson);
-    llvm::outs() << "MuLL@Progress: random SDL took: "<< (float)(clock() - curClockTime)/CLOCKS_PER_SEC <<" Seconds.\n";
-    loginfo << "MuLL@Progress: random SDL took: "<< (float)(clock() - curClockTime)/CLOCKS_PER_SEC <<" Seconds.\n";
+    selectedMutants1.resize(numberOfRandomSelections); 
+    for (unsigned si=0; si<numberOfRandomSelections; ++si)
+        selection.randomSDLMutants(selectedMutants1[si], number);
+    mutantListAsJsON<MuLL::MutantIDType>(selectedMutants1, randomSDLelectionOutJson);
+    llvm::outs() << "MuLL@Progress: random SDL took: "<< (float)(clock() - curClockTime)/CLOCKS_PER_SEC <<" Seconds. (" << numberOfRandomSelections << " repetitions)\n";
+    loginfo << "MuLL@Progress: random SDL took: "<< (float)(clock() - curClockTime)/CLOCKS_PER_SEC <<" Seconds. (" << numberOfRandomSelections << " repetitions)\n";
     
     std::ofstream xxx (outDir+"/"+generalInfo);
     if (xxx.is_open())

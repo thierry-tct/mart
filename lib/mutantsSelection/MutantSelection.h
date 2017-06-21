@@ -81,6 +81,7 @@ class MutantDependenceGraph //: public DependenceGraph<MutantNode>
   public:
     MutantDependenceGraph(MuLL::MutantIDType nMuts) {mutantDGraphData.resize(nMuts + 1);}
     
+    std::unordered_map<llvm::Value const *, std::unordered_set<MuLL::MutantIDType>> const &getIR2mutantsetMap() const {return IR2mutantset;}
     std::unordered_set<llvm::Value const *> &getIRsOfMut (MuLL::MutantIDType id) {return mutant2IRset.at(id);}
     bool isBuilt () {return (! mutant2IRset.empty());}
     
@@ -122,7 +123,7 @@ class MutantSelection
     { 
         buildDependenceGraphs(mutant_depend_filename, rerundg, isFlowSensitive); 
     }
-    void smartSelectMutants (std::vector<MuLL::MutantIDType> &selectedMutants, double score_threshold=0.5);
+    void smartSelectMutants (std::vector<MuLL::MutantIDType> &selectedMutants, std::vector<double> &selectedScores);
     void randomMutants (std::vector<MuLL::MutantIDType> &spreadSelectedMutants, std::vector<MuLL::MutantIDType> &dummySelectedMutants, unsigned long number);
     void randomSDLMutants (std::vector<MuLL::MutantIDType> &selectedMutants, unsigned long number);   //only statement deletion mutants
 };

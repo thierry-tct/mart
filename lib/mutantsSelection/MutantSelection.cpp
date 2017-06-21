@@ -306,7 +306,7 @@ void MutantSelection::relaxMutant (MuLL::MutantIDType mutant_id, std::vector<dou
 {
     const double RELAX_STEP = 0.5;
     const double RELAX_THRESHOLD = 0.1;  // 5 hops
-    const MuLL::MutantIDType ORIGINAL_ID = 0; //no mutant have id 0, that's the original's
+    //const MuLL::MutantIDType ORIGINAL_ID = 0; //no mutant have id 0, that's the original's
     
     // at data dependency hop n (in and out), and the corresponding node having score x, set its value to x'={x - x*RELAX_STEP/n}, if (RELAX_STEP/n) >= RELAX_THRESHOLD
     std::unordered_set<MuLL::MutantIDType> visited;
@@ -336,7 +336,7 @@ void MutantSelection::relaxMutant (MuLL::MutantIDType mutant_id, std::vector<dou
         for (auto inDatDepMut: mutantDGraph.getInDataDependents(elem))
         {
             //relax
-            if (visited.count(inDatDepMut) == 0)
+            if (visited.insert(inDatDepMut).second)
             {
                 if (next_hop_first_mutant == elem)
                     next_hop_first_mutant = inDatDepMut;
@@ -350,7 +350,7 @@ void MutantSelection::relaxMutant (MuLL::MutantIDType mutant_id, std::vector<dou
         for (auto outDatDepMut: mutantDGraph.getOutDataDependents(elem))
         {
             //relax
-            if (visited.count(outDatDepMut) == 0)
+            if (visited.insert(outDatDepMut).second)
             {
                 if (next_hop_first_mutant == elem)
                     next_hop_first_mutant = outDatDepMut;
@@ -366,12 +366,15 @@ void MutantSelection::relaxMutant (MuLL::MutantIDType mutant_id, std::vector<dou
 /**
  * \brief Stop when the best selected mutant's score is less to the score_threshold or there are no mutant left
  */
-void MutantSelection::smartSelectMutants (std::vector<MuLL::MutantIDType> &selectedMutants, double score_threshold)
+void MutantSelection::smartSelectMutants (std::vector<MuLL::MutantIDType> &selectedMutants, std::vector<double> &selectedScores)
 {
     const double MAX_SCORE = 1.0;
     
     MuLL::MutantIDType mutants_number = mutantInfos.getMutantsNumber();
 
+    selectedMutants.reserve(mutants_number);
+    selectedScores.reserve(mutants_number);
+    
     //Choose starting mutants (random for now: 1 mutant per dependency cluster)
     std::vector<double> mutant_scores(mutants_number + 1);
     std::unordered_set<MuLL::MutantIDType> visited_mutants;
@@ -383,93 +386,106 @@ void MutantSelection::smartSelectMutants (std::vector<MuLL::MutantIDType> &selec
         candidate_mutants.insert(mutant_id);
     }
     
+    std::unordered_set<MuLL::MutantIDType> tiesTemporal;   //For now put all ties here and append to list at the end
+    
     while (! candidate_mutants.empty())
     {
         auto mutant_id = pickMutant(candidate_mutants, mutant_scores);
         //-----llvm::errs()<<candidate_mutants.size()<<" "<<mutant_scores[mutant_id]<<"\n";
         // Stop if the selected mutant has a score less than the threshold
-        if (mutant_scores[mutant_id] < score_threshold)
-            break;
+        //if (mutant_scores[mutant_id] < score_threshold)
+        //    break;
             
         selectedMutants.push_back(mutant_id);
+        selectedScores.push_back(mutant_scores[mutant_id]);
         relaxMutant (mutant_id, mutant_scores);
         
         // insert the picked mutants and its tie-dependents into visited set
         visited_mutants.insert(mutant_id);
         visited_mutants.insert(mutantDGraph.getTieDependents(mutant_id).begin(), mutantDGraph.getTieDependents(mutant_id).end());
         
+        tiesTemporal.insert(mutantDGraph.getTieDependents(mutant_id).begin(), mutantDGraph.getTieDependents(mutant_id).end());
+        
         // Remove picked mutants and its tie dependents from candidates
         candidate_mutants.erase(mutant_id);
         for (auto tie_ids: mutantDGraph.getTieDependents(mutant_id))
             candidate_mutants.erase(tie_ids);
     }
+    
+    //append the ties temporal to selection
+    selectedMutants.insert(selectedMutants.end(), tiesTemporal.begin(), tiesTemporal.end());
+    for (auto mid: tiesTemporal)    
+        selectedScores.push_back(-1e-100);   //default score for ties (very low value)
+    
+    if (selectedMutants.size() != mutants_number || selectedScores.size() != mutants_number)
+    {
+        llvm::errs() << "\nError: Bug in Selection: some mutants left out or added many times: Mutants number = ";
+        llvm::errs() << mutants_number << ", Selected number = " << selectedMutants.size() << ", selected scores number = " << selectedScores.size() << "\n\n";
+    }
 }
 
 void MutantSelection::randomMutants (std::vector<MuLL::MutantIDType> &spreadSelectedMutants, std::vector<MuLL::MutantIDType> &dummySelectedMutants, unsigned long number)
-{  ///TODO TODO: test this function
+{
     MuLL::MutantIDType mutants_number = mutantInfos.getMutantsNumber();
     
     assert (mutantDGraph.isBuilt() && "This function must be called after the mutantDGraph is build. We need mutants IRs");
     
+    spreadSelectedMutants.reserve(mutants_number);
+    dummySelectedMutants.reserve(mutants_number);
+    
     /// \brief Spread Random
-    std::unordered_set<llvm::Value const *> seenIRs, mut_notSeen;
-    std::vector<MuLL::MutantIDType> no_unselected_IR;  //mutants whose IR have all been selected at least once but have not yet been selected
-    std::unordered_map<unsigned, std::vector<MuLL::MutantIDType>> work_map;   //key: number of IRs seen, value: mutants with corresponding number of IRs seen
+    std::vector<llvm::Value const *> mutatedIRs;
+    std::unordered_map<llvm::Value const *, std::unordered_set<MuLL::MutantIDType>> work_map(mutantDGraph.getIR2mutantsetMap());   
     
-    for (MuLL::MutantIDType mutant_id = 1; mutant_id <= mutants_number; ++mutant_id)
+    mutatedIRs.reserve(work_map.size());
+    for (auto &ir2mutset: work_map)
     {
-        work_map[0].push_back(mutant_id);
+        mutatedIRs.push_back(ir2mutset.first);
     }
     
-    unsigned current_seen_index = 0;
-    unsigned num_seen_index = 0;
-    
-    std::vector<MuLL::MutantIDType> curr_notSelected;
-    while (num_seen_index <= work_map.size())
+    bool someselected = true;
+    while (someselected)
     {
-        while (work_map.count(current_seen_index) == 0) ++current_seen_index;
+        someselected = false;
         
-        std::random_shuffle (work_map[current_seen_index].begin(), work_map[current_seen_index].end());
-        for (auto mutant_id: work_map[current_seen_index])
+        //shuflle IRs
+        std::srand (std::time(NULL) + clock());  //+ clock() because fast running program will generate same sequence with only time(NULL)
+        std::random_shuffle (mutatedIRs.begin(), mutatedIRs.end());
+        
+        unsigned long numberofnulled = 0;
+        std::srand (std::time(NULL) + clock());  //+ clock() because fast running program will generate same sequence with only time(NULL)
+        for (unsigned long irPos=0, irE=mutatedIRs.size(); irPos < irE; ++irPos)
         {
-            auto &mutant_irs = mutantDGraph.getIRsOfMut(mutant_id);
-            mut_notSeen.clear();
-            for (auto *ir: mutant_irs)
-                if (seenIRs.count(ir) == 0) 
-                    mut_notSeen.insert(ir);
-            if (mutant_irs.size() - mut_notSeen.size() <= current_seen_index)
+            //randomly select one of its mutant
+            auto & mutSet = work_map.at(mutatedIRs[irPos]);
+            if (mutSet.empty())
             {
-                spreadSelectedMutants.push_back(mutant_id);
-                seenIRs.insert(mut_notSeen.begin(), mut_notSeen.end());
+                mutatedIRs[irPos] = nullptr;
+                ++numberofnulled;
+                continue;
             }
             else
             {
-                curr_notSelected.push_back (mutant_id);
+                auto rnd = std::rand() % mutSet.size();
+                auto sit = mutSet.begin();
+                std::advance(sit, rnd);
+                auto selMut = *sit;
+                spreadSelectedMutants.push_back(selMut);
+                someselected = true;
+                
+                for (auto *m_ir: mutantDGraph.getIRsOfMut(selMut))
+                    work_map.at(m_ir).erase(selMut);
             }
         }
-        
-        for (auto mutant_id: curr_notSelected)
+        // remove those that are null
+        if (numberofnulled>0)
         {
-            auto &mutant_irs = mutantDGraph.getIRsOfMut(mutant_id);
-            unsigned seen = 0;
-            for (auto *ir: mutant_irs)
-                if (seenIRs.count(ir) > 0) 
-                    ++seen;
-            if (seen < mutant_irs.size())
-                work_map[seen].push_back(mutant_id);
-            else
-                no_unselected_IR.push_back(mutant_id);
+            std::sort(mutatedIRs.rbegin(), mutatedIRs.rend());  //reverse sort (the null are at  the end: the last numberofnulled values)
+            mutatedIRs.erase(mutatedIRs.begin()+(mutatedIRs.size() - numberofnulled), mutatedIRs.end());
         }
-        
-        ++current_seen_index;
-        ++num_seen_index;
     }
     
-    if (! no_unselected_IR.empty())
-    {
-        std::random_shuffle (no_unselected_IR.begin(), no_unselected_IR.end());
-        spreadSelectedMutants.insert(spreadSelectedMutants.end(), no_unselected_IR.begin(), no_unselected_IR.end()); //append
-    }
+    assert (spreadSelectedMutants.size() == mutants_number && "Bug in the selection program");   //DBG
     
     if (spreadSelectedMutants.size() > number)
         spreadSelectedMutants.resize(number);
@@ -483,6 +499,7 @@ void MutantSelection::randomMutants (std::vector<MuLL::MutantIDType> &spreadSele
     }
     
     //shuffle
+    std::srand (std::time(NULL) + clock());  //+ clock() because fast running program will generate same sequence with only time(NULL)
     std::random_shuffle (dummySelectedMutants.begin(), dummySelectedMutants.end());
     
     //keep only the needed number
@@ -502,6 +519,7 @@ void MutantSelection::randomSDLMutants (std::vector<MuLL::MutantIDType> &selecte
     }
     
     //shuffle
+    std::srand (std::time(NULL) + clock());  //+ clock() because fast running program will generate same sequence with only time(NULL)
     std::random_shuffle (selectedMutants.begin(), selectedMutants.end());
     
     //keep only the needed number
