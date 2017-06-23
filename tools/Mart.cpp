@@ -1,7 +1,7 @@
 /**
- * -==== MuLL.cpp
+ * -==== Mart.cpp
  *
- *                MuLL Multi-Language LLVM Mutation Framework
+ *                Mart Multi-Language LLVM Mutation Framework
  *
  * This file is distributed under the University of Illinois Open Source
  * License. See LICENSE.TXT for details. 
@@ -29,7 +29,7 @@
 #include "FunctionToModule.h"
 
 
-static std::string outputDir("mull-out-"); 
+static std::string outputDir("mart-out-"); 
 static const std::string mutantsFolder("mutants.out");
 static const std::string mutantsInfosFileName("mutantsInfos.json");
 static const std::string generalInfo("info");
@@ -53,7 +53,7 @@ bool dumpMutantsCallback (Mutation *mutEng, std::map<unsigned, std::vector<unsig
   //weak mutation
     if (wmModule)
     {
-        llvm::outs() << "MuLL@Progress: writing weak mutation...\n";
+        llvm::outs() << "Mart@Progress: writing weak mutation...\n";
         std::string wmFilePath = outputDir+"/"+outFile+".WM.bc";
         if (! ReadWriteIRObj::writeIR (wmModule, wmFilePath))
         {
@@ -64,7 +64,7 @@ bool dumpMutantsCallback (Mutation *mutEng, std::map<unsigned, std::vector<unsig
   //Strong Mutants  
     if (poss && mods)
     {
-        llvm::outs() << "MuLL@Progress: writing mutants to files (" << poss->size() <<")...\n";
+        llvm::outs() << "Mart@Progress: writing mutants to files (" << poss->size() <<")...\n";
         
         std::unordered_map<llvm::Module *, llvm::Function *> backedFuncsByMods;
         
@@ -114,7 +114,7 @@ bool dumpMutantsCallback (Mutation *mutEng, std::map<unsigned, std::vector<unsig
                     {
                         backedFuncsByMods[formutsModule];  //just insert function
                         formutsModule->getFunction(funcName)->dropAllReferences(); 
-                        std::unique_ptr<llvm::Module> tmpM = FunctionToModule::mullSplitFunctionsOutOfModule(formutsModule, funcName);
+                        std::unique_ptr<llvm::Module> tmpM = FunctionToModule::martSplitFunctionsOutOfModule(formutsModule, funcName);
                         // wrtite the function's IR in tmpFunctionDir
                         if (! ReadWriteIRObj::writeIR (tmpM.get(), funcFile))
                         {
@@ -224,15 +224,15 @@ bool dumpMutantsCallback (Mutation *mutEng, std::map<unsigned, std::vector<unsig
             
         }
     }
-    llvm::outs() << "MuLL@Progress: writing mutants to file took: "<< (float)(clock() - curClockTime)/CLOCKS_PER_SEC <<" Seconds.\n";
-    loginfo << "MuLL@Progress: writing mutants to file took: "<< (float)(clock() - curClockTime)/CLOCKS_PER_SEC <<" Seconds.\n";
+    llvm::outs() << "Mart@Progress: writing mutants to file took: "<< (float)(clock() - curClockTime)/CLOCKS_PER_SEC <<" Seconds.\n";
+    loginfo << "Mart@Progress: writing mutants to file took: "<< (float)(clock() - curClockTime)/CLOCKS_PER_SEC <<" Seconds.\n";
     return true;
 }
 
 void printVersion()
 {
-    llvm::outs() << "\nMuLL (Framework for Multi-Programming Language Mutation Testing based on LLVM)\n";
-    llvm::outs() << "\tMuLL 1.0\n";
+    llvm::outs() << "\nMart (Framework for Multi-Programming Language Mutation Testing based on LLVM)\n";
+    llvm::outs() << "\tMart 1.0\n";
     llvm::outs() << "\nLLVM (http://llvm.org/):\n";
     llvm::outs() << "\tLLVM version " << LLVM_VERSION_MAJOR << "." << LLVM_VERSION_MINOR << "." << LLVM_VERSION_PATCH << "\n";
     llvm::outs() << "\tLLVM tools dir: " << LLVM_TOOLS_BINARY_DIR << "\n";
@@ -254,6 +254,8 @@ int main (int argc, char ** argv)
     bool dumpMutants = false;
     bool enabledWeakMutation = true;
     bool dumpMutantInfos = true;
+    
+    bool removeMutantsBCs = true;
     
     /// \brief set this to false if the module is small enough, that all mutants will fit in memory
     bool isTCEFunctionMode = true;
@@ -282,6 +284,10 @@ int main (int argc, char ** argv)
         else if (strcmp(argv[i], "-write-mutants") == 0)
         {
             dumpMutants = true;
+        }
+        else if (strcmp(argv[i], "-keep-mutants-bc") == 0)
+        {
+            removeMutantsBCs = false;
         }
         else if (strcmp(argv[i], "-noWM") == 0)
         {
@@ -376,15 +382,15 @@ int main (int argc, char ** argv)
 #endif
     
     // do mutation
-    llvm::outs() << "MuLL@Progress: Mutating...\n";
+    llvm::outs() << "Mart@Progress: Mutating...\n";
     curClockTime = clock();
     if (! mut.doMutate())
     {
         llvm::errs() << "\nMUTATION FAILED!!\n\n";
         return 1;
     }
-    llvm::outs() << "MuLL@Progress: Mutation took: "<< (float)(clock() - curClockTime)/CLOCKS_PER_SEC <<" Seconds.\n";
-    loginfo << "MuLL@Progress: Mutation took: "<< (float)(clock() - curClockTime)/CLOCKS_PER_SEC <<" Seconds.\n";
+    llvm::outs() << "Mart@Progress: Mutation took: "<< (float)(clock() - curClockTime)/CLOCKS_PER_SEC <<" Seconds.\n";
+    loginfo << "Mart@Progress: Mutation took: "<< (float)(clock() - curClockTime)/CLOCKS_PER_SEC <<" Seconds.\n";
     
     // @Output setup
     struct stat st;// = {0};
@@ -423,11 +429,11 @@ int main (int argc, char ** argv)
     }
     
     //@ Remove equivalent mutants and //@ print mutants in case on
-    llvm::outs() << "MuLL@Progress: Removing TCE Duplicates & WM & writing mutants IRs (with initially " << mut.getHighestMutantID() <<" mutants)...\n";
+    llvm::outs() << "Mart@Progress: Removing TCE Duplicates & WM & writing mutants IRs (with initially " << mut.getHighestMutantID() <<" mutants)...\n";
     curClockTime = clock();
     mut.doTCE(modWMLog, dumpMutants, isTCEFunctionMode);
-    llvm::outs() << "MuLL@Progress: Removing TCE Duplicates  & WM & writing mutants IRs took: "<< (float)(clock() - curClockTime)/CLOCKS_PER_SEC <<" Seconds.\n";
-    loginfo << "MuLL@Progress: Removing TCE Duplicates  & WM & writing mutants IRs took: "<< (float)(clock() - curClockTime)/CLOCKS_PER_SEC <<" Seconds.\n";
+    llvm::outs() << "Mart@Progress: Removing TCE Duplicates  & WM & writing mutants IRs took: "<< (float)(clock() - curClockTime)/CLOCKS_PER_SEC <<" Seconds.\n";
+    loginfo << "Mart@Progress: Removing TCE Duplicates  & WM & writing mutants IRs took: "<< (float)(clock() - curClockTime)/CLOCKS_PER_SEC <<" Seconds.\n";
     
     /// Mutants Infos into json
     if (dumpMutantInfos)
@@ -484,7 +490,7 @@ int main (int argc, char ** argv)
 #endif  //#ifdef KLEE_SEMU_GENMU_OBJECTFILE
     //llvm::errs() << "@After Mutation->TCE\n"; moduleM->dump(); llvm::errs() << "\n";
     
-    llvm::outs() << "MuLL@Progress: Compiling Mutants ...\n";
+    llvm::outs() << "Mart@Progress: Compiling Mutants ...\n";
     //curClockTime = clock();
     time_t timer = time(NULL);  //clock_t do not measure time when calling a script
     tmpStr = new char[1+std::strlen(argv[0])]; //Alocate tmpStr3
@@ -510,7 +516,7 @@ int main (int argc, char ** argv)
     if(my_pid == 0)
     {
         llvm::errs() << "## Child process: compiler\n";
-        execl ("/bin/bash", "bash", (compileMutsScript+"/useful/CompileAllMuts.sh").c_str(), outputDir.c_str(), tmpFuncModuleFolder.c_str(), "yes", (char *) NULL);
+        execl ("/bin/bash", "bash", (compileMutsScript+"/useful/CompileAllMuts.sh").c_str(), outputDir.c_str(), tmpFuncModuleFolder.c_str(), removeMutantsBCs?"yes":"no", (char *) NULL);
         llvm::errs() << "\n:( ERRORS: Mutants Compile script failed (probably not enough memory)!!!" << "!\n\n";
         assert (false && "Child's exec failed!");
     }
@@ -520,13 +526,13 @@ int main (int argc, char ** argv)
         wait (NULL);
     }
     /********/
-    //llvm::outs() << "MuLL@Progress:  Compiling Mutants took: "<< (float)(clock() - curClockTime)/CLOCKS_PER_SEC <<" Seconds.\n";
+    //llvm::outs() << "Mart@Progress:  Compiling Mutants took: "<< (float)(clock() - curClockTime)/CLOCKS_PER_SEC <<" Seconds.\n";
     
-    llvm::outs() << "MuLL@Progress:  Compiling Mutants took: "<< difftime(time(NULL), timer) <<" Seconds.\n";
-    loginfo << "MuLL@Progress:  Compiling Mutants took: "<< difftime(time(NULL), timer) <<" Seconds.\n";
+    llvm::outs() << "Mart@Progress:  Compiling Mutants took: "<< difftime(time(NULL), timer) <<" Seconds.\n";
+    loginfo << "Mart@Progress:  Compiling Mutants took: "<< difftime(time(NULL), timer) <<" Seconds.\n";
     
-    llvm::outs() << "\nMuLL@Progress:  TOTAL RUNTIME: "<< (difftime(time(NULL), totalRunTime)/60) <<" min.\n";
-    loginfo << "\nMuLL@Progress:  TOTAL RUNTIME: "<< (difftime(time(NULL), totalRunTime)/60) <<" min.\n";
+    llvm::outs() << "\nMart@Progress:  TOTAL RUNTIME: "<< (difftime(time(NULL), totalRunTime)/60) <<" min.\n";
+    loginfo << "\nMart@Progress:  TOTAL RUNTIME: "<< (difftime(time(NULL), totalRunTime)/60) <<" min.\n";
     
     loginfo << mut.getMutationStats();
     

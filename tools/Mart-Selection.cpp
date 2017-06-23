@@ -1,7 +1,7 @@
 /**
- * -==== MuLL-Selection.cpp
+ * -==== Mart-Selection.cpp
  *
- *                MuLL Multi-Language LLVM Mutation Framework
+ *                Mart Multi-Language LLVM Mutation Framework
  *
  * This file is distributed under the University of Illinois Open Source
  * License. See LICENSE.TXT for details. 
@@ -33,8 +33,8 @@ static std::string outFile;
 
 void printVersion()
 {
-    llvm::outs() << "\nMuLL (Framework for Multi-Programming Language Mutation Testing based on LLVM)\n";
-    llvm::outs() << "\tMuLL-Selection 1.0\n";
+    llvm::outs() << "\nMart (Framework for Multi-Programming Language Mutation Testing based on LLVM)\n";
+    llvm::outs() << "\tMart-Selection 1.0\n";
     llvm::outs() << "\nLLVM (http://llvm.org/):\n";
     llvm::outs() << "\tLLVM version " << LLVM_VERSION_MAJOR << "." << LLVM_VERSION_MINOR << "." << LLVM_VERSION_PATCH << "\n";
     llvm::outs() << "\tLLVM tools dir: " << LLVM_TOOLS_BINARY_DIR << "\n";
@@ -50,7 +50,7 @@ void mutantListAsJsON(std::vector<std::vector<T>> const &lists, std::string json
         xxx << "{\n";
         for (unsigned repet = 0, repeat_last = lists.size() - 1; repet <= repeat_last; ++repet)
         {
-            xxx << "\t" << repet << ": [";
+            xxx << "\t\"" << repet << "\": [";
             bool isNotFirst = false;
             for (T data: lists[repet]) 
             {
@@ -82,7 +82,7 @@ int main (int argc, char ** argv)
     char * inputIRfile = nullptr;
     char * mutantInfoJsonfile = nullptr;
     char * mutantDependencyJsonfile = nullptr;
-    char * mullOutTopDir;
+    char * martOutTopDir;
     
     bool rundg = true;
     
@@ -100,7 +100,7 @@ int main (int argc, char ** argv)
         }
         else if (strcmp(argv[i], "-out-topdir") == 0)
         {
-            mullOutTopDir = argv[++i];
+            martOutTopDir = argv[++i];
         }
         else if (strcmp(argv[i], "-rand-repeat-num") == 0)
         {
@@ -125,7 +125,7 @@ int main (int argc, char ** argv)
     
     assert (inputIRfile && "Error: No input llvm IR file passed!");
     assert (mutantInfoJsonfile && "Error: No mutant infos file passed!");
-    assert (mullOutTopDir && "Error: No output topdir passed!");
+    assert (martOutTopDir && "Error: No output topdir passed!");
     
     llvm::Module *moduleM;
     std::unique_ptr<llvm::Module> _M;
@@ -140,7 +140,7 @@ int main (int argc, char ** argv)
     MutantInfoList mutantInfo;
     mutantInfo.loadFromJsonFile(mutantInfoJsonfile);
     
-    std::string outDir(mullOutTopDir);
+    std::string outDir(martOutTopDir);
     outDir = outDir + "/" + selectionFolder;
     struct stat st;
     if (stat(outDir.c_str(), &st) == -1)   //do not exists
@@ -174,8 +174,8 @@ int main (int argc, char ** argv)
     llvm::outs() << "Computing mutant dependencies...\n";
     curClockTime = clock();
     MutantSelection selection (*moduleM, mutantInfo, mutDepCacheName, rundg, false/*is flow-sensitive?*/);
-    llvm::outs() << "MuLL@Progress: dependencies construction took: "<< (float)(clock() - curClockTime)/CLOCKS_PER_SEC <<" Seconds.\n";
-    loginfo << "MuLL@Progress: dependencies construction took: "<< (float)(clock() - curClockTime)/CLOCKS_PER_SEC <<" Seconds.\n";
+    llvm::outs() << "Mart@Progress: dependencies construction took: "<< (float)(clock() - curClockTime)/CLOCKS_PER_SEC <<" Seconds.\n";
+    loginfo << "Mart@Progress: dependencies construction took: "<< (float)(clock() - curClockTime)/CLOCKS_PER_SEC <<" Seconds.\n";
     
     std::string smartSelectionOutJson = outDir + "/" + "smartSelection.json";
     std::string scoresForSmartSelectionOutJson = outDir + "/" + "scoresForSmartSelection.json";
@@ -194,8 +194,8 @@ int main (int argc, char ** argv)
     selection.smartSelectMutants(selectedMutants1.back(), selectedScores);
     mutantListAsJsON<MuLL::MutantIDType>(selectedMutants1, smartSelectionOutJson);
     mutantListAsJsON<double>(std::vector<std::vector<double>>({selectedScores}), scoresForSmartSelectionOutJson);
-    llvm::outs() << "MuLL@Progress: smart selection took: "<< (float)(clock() - curClockTime)/CLOCKS_PER_SEC <<" Seconds.\n";
-    loginfo << "MuLL@Progress: smart selection took: "<< (float)(clock() - curClockTime)/CLOCKS_PER_SEC <<" Seconds.\n";
+    llvm::outs() << "Mart@Progress: smart selection took: "<< (float)(clock() - curClockTime)/CLOCKS_PER_SEC <<" Seconds.\n";
+    loginfo << "Mart@Progress: smart selection took: "<< (float)(clock() - curClockTime)/CLOCKS_PER_SEC <<" Seconds.\n";
     
     number = selectedMutants1.back().size();
     assert (number == mutantInfo.getMutantsNumber() && "The number of mutants mismatch. Bug in Selection function!");
@@ -208,8 +208,8 @@ int main (int argc, char ** argv)
         selection.randomMutants (selectedMutants1[si], selectedMutants2[si], number);
     mutantListAsJsON<MuLL::MutantIDType>(selectedMutants1, spreadRandomSelectionOutJson);
     mutantListAsJsON<MuLL::MutantIDType>(selectedMutants2, dummyRandomSelectionOutJson);
-    llvm::outs() << "MuLL@Progress: dummy and spread random took: "<< (float)(clock() - curClockTime)/CLOCKS_PER_SEC <<" Seconds. (" << numberOfRandomSelections << " repetitions)\n";
-    loginfo << "MuLL@Progress: dummy and spread random took: "<< (float)(clock() - curClockTime)/CLOCKS_PER_SEC <<" Seconds. (" << numberOfRandomSelections << " repetitions)\n";
+    llvm::outs() << "Mart@Progress: dummy and spread random took: "<< (float)(clock() - curClockTime)/CLOCKS_PER_SEC <<" Seconds. (" << numberOfRandomSelections << " repetitions)\n";
+    loginfo << "Mart@Progress: dummy and spread random took: "<< (float)(clock() - curClockTime)/CLOCKS_PER_SEC <<" Seconds. (" << numberOfRandomSelections << " repetitions)\n";
     
     llvm::outs() << "Doing random SDL selection...\n";  //select only SDL mutants
     curClockTime = clock();
@@ -218,8 +218,8 @@ int main (int argc, char ** argv)
     for (unsigned si=0; si<numberOfRandomSelections; ++si)
         selection.randomSDLMutants(selectedMutants1[si], number);
     mutantListAsJsON<MuLL::MutantIDType>(selectedMutants1, randomSDLelectionOutJson);
-    llvm::outs() << "MuLL@Progress: random SDL took: "<< (float)(clock() - curClockTime)/CLOCKS_PER_SEC <<" Seconds. (" << numberOfRandomSelections << " repetitions)\n";
-    loginfo << "MuLL@Progress: random SDL took: "<< (float)(clock() - curClockTime)/CLOCKS_PER_SEC <<" Seconds. (" << numberOfRandomSelections << " repetitions)\n";
+    llvm::outs() << "Mart@Progress: random SDL took: "<< (float)(clock() - curClockTime)/CLOCKS_PER_SEC <<" Seconds. (" << numberOfRandomSelections << " repetitions)\n";
+    loginfo << "Mart@Progress: random SDL took: "<< (float)(clock() - curClockTime)/CLOCKS_PER_SEC <<" Seconds. (" << numberOfRandomSelections << " repetitions)\n";
     
     std::ofstream xxx (outDir+"/"+generalInfo);
     if (xxx.is_open())

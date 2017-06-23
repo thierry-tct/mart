@@ -5,10 +5,10 @@ if (KLEE_SEMU_GENMU)
 	string(REGEX REPLACE "\n$" "" GITVERSION "${GITVERSION}")
 	add_definitions(-DGIT_VERSION="${GITVERSION}")
 
-	add_executable(mull MuLL.cpp)
-	target_link_libraries(mull KLEE-SEMu-GenMu)
+	add_executable(mart Mart.cpp)
+	target_link_libraries(mart KLEE-SEMu-GenMu)
 
-	install(TARGETS mull
+	install(TARGETS mart
 		RUNTIME DESTINATION bin)
 		
 	# WM Log Driver
@@ -30,9 +30,9 @@ if (KLEE_SEMU_GENMU)
                 )
             
     # Selection
-    add_executable(mull-selection MuLL-Selection.cpp)
-	target_link_libraries(mull-selection MutantSelection)
-	install(TARGETS mull-selection
+    add_executable(mart-selection Mart-Selection.cpp)
+	target_link_libraries(mart-selection MutantSelection)
+	install(TARGETS mart-selection
 		RUNTIME DESTINATION bin)
                 
 endif (KLEE_SEMU_GENMU)

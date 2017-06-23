@@ -1747,7 +1747,7 @@ void Mutation::doTCE (std::unique_ptr<llvm::Module> &modWMLog, bool writeMuts, b
         if (curFunc_ForDebug != dup_eq_processor.funcMutByMutID[id])
         {
             curFunc_ForDebug = dup_eq_processor.funcMutByMutID[id];
-            llvm::errs()<<"processing Func: " << curFunc_ForDebug->getName() << ", Starting at mutant: "<<id<<"/"<< highestMutID << "\n";
+            llvm::errs()<<"\nprocessing Func: " << curFunc_ForDebug->getName() << ", Starting at mutant: "<<id<<"/"<< highestMutID << "\n\t";
         }
         
         //Check with original
@@ -1782,6 +1782,10 @@ void Mutation::doTCE (std::unique_ptr<llvm::Module> &modWMLog, bool writeMuts, b
                     uniq++;
                 temporaryFname += std::to_string(uniq);
                 
+                unsigned progressVerbose = 0;
+                unsigned nextProgress = 5;
+                unsigned progressVLandmark = (maxIDOfFunc - id) * nextProgress / 100;
+                
                 vmap.clear();
                 workFStack.emplace(llvm::CloneFunction(clonedM->getFunction(subjFunctionName), vmap, true/*moduleLevelChanges*/), id, maxIDOfFunc);
                 
@@ -1811,6 +1815,15 @@ void Mutation::doTCE (std::unique_ptr<llvm::Module> &modWMLog, bool writeMuts, b
                         
                         // Process the mutant with TCE
                         dup_eq_processor.update (min, clonedOrig, clonedM);
+                        
+                        //Progress  -- VERBOSE
+                        ++progressVerbose;
+                        if (progressVerbose == progressVLandmark)
+                        {
+                            llvm::errs() << nextProgress << "% ";
+                            nextProgress += 5;
+                            progressVLandmark = (maxIDOfFunc - id) * nextProgress / 100;
+                        }
                     }
                     else
                     {

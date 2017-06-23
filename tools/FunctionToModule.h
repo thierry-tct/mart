@@ -12,7 +12,7 @@
 //
 //===----------------------------------------------------------------------===//
 
-// ----------------------------- MuLL ----------------------------------------//
+// ----------------------------- Mart ----------------------------------------//
 // This file is mainly coming from llvm/tools/bugpoint/ExtractFunction.cpp
 // ---------------------------------------------------------------------------//
 
@@ -295,12 +295,12 @@ SplitFunctionsOutOfModule(Module *M, const std::vector<Function *> &F,
 }*/
 
 /**
- * \brief MuLL's verion of split function out of module
+ * \brief Mart's verion of split function out of module
  * @param M is the module that will have the function F at the end
  * @param FName is the name of the function in M to split out
  */
 std::unique_ptr<Module>
-mullSplitFunctionsOutOfModule(Module *M, const std::string &FName) {
+martSplitFunctionsOutOfModule(Module *M, const std::string &FName) {
   // Make sure functions & globals are all external so that linkage
   // between the two modules will work.
   for (Module::iterator I = M->begin(), E = M->end(); I != E; ++I)
