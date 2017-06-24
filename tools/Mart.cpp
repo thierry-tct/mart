@@ -508,6 +508,7 @@ int main (int argc, char ** argv)
     
     //using fork - exec
     pid_t my_pid;
+    int child_status;
     if((my_pid = fork()) < 0 )
     {
         perror("fork failure");
@@ -516,7 +517,7 @@ int main (int argc, char ** argv)
     if(my_pid == 0)
     {
         llvm::errs() << "## Child process: compiler\n";
-        execl ("/bin/bash", "bash", (LLVM_TOOLS_BINARY_DIR, compileMutsScript+"/useful/CompileAllMuts.sh").c_str(), \
+        execl ("/bin/bash", "bash", (compileMutsScript+"/useful/CompileAllMuts.sh").c_str(), LLVM_TOOLS_BINARY_DIR, \
                                         outputDir.c_str(), tmpFuncModuleFolder.c_str(), removeMutantsBCs?"yes":"no", (char *) NULL);
         llvm::errs() << "\n:( ERRORS: Mutants Compile script failed (probably not enough memory)!!!" << "!\n\n";
         assert (false && "Child's exec failed!");
@@ -524,7 +525,21 @@ int main (int argc, char ** argv)
     else
     {
         llvm::errs() << "### Parent process: waiting\n";
-        wait (NULL);
+        wait (&child_status);
+        if (WIFEXITED(child_status)) 
+        {
+            const int es = WEXITSTATUS(child_status);
+            if (es)
+            {
+                llvm::errs() << "Compilation failed!!";
+                assert (false);
+            }
+        }
+        else
+        {   
+            llvm::errs() << "Compilation failed (did not terminate)!!";
+            assert (false);
+        }
     }
     /********/
     //llvm::outs() << "Mart@Progress:  Compiling Mutants took: "<< (float)(clock() - curClockTime)/CLOCKS_PER_SEC <<" Seconds.\n";
