@@ -13,19 +13,25 @@ error_exit()
 
 TOPDIR=$(dirname $(readlink -f $0))
 
-##### CONFIGURATION #####
-#llc=llc-3.4
-llc=/media/thierry/TestMutants/DG-dependency/llvm-3.8.0/build/bin/llc
-CC=gcc
-#########################
+[ $# = 3 ] || error_exit "Expected 3 parameters, $# passed: $0 <directory (mart-out-0)> <tmpFuncModuleFolder> <remove mutants' \".bc\"? yes/no>"
 
-[ $# = 3 ] || error_exit "Expected 3 parameters, $# passed: $0 <directory (mull-out-0)> <tmpFuncModuleFolder> <remove mutants' \".bc\"? yes/no>"
-
-Dir=$(readlink -f $1)
-tmpFuncModuleFolder=$2
-removeMutsBCs=$3
+llvm_bin_dir=$(readlink -f $1)
+Dir=$(readlink -f $2)
+tmpFuncModuleFolder=$3
+removeMutsBCs=$4
 fdupesData=$Dir/"fdupes_duplicates.txt"
 mutantsFolder="mutants.out"
+
+##### CONFIGURATION #####
+#llc=llc-3.4
+llc=llc
+if [ "$llvm_bin_dir" != "" ]
+then
+    llc="$llvm_bin_dir/$llc"
+fi
+
+CC=gcc
+#########################
 
 test -d $Dir || error_exit "directory $Dir do not exist"
 cd $Dir

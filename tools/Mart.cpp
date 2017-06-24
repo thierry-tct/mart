@@ -516,7 +516,8 @@ int main (int argc, char ** argv)
     if(my_pid == 0)
     {
         llvm::errs() << "## Child process: compiler\n";
-        execl ("/bin/bash", "bash", (compileMutsScript+"/useful/CompileAllMuts.sh").c_str(), outputDir.c_str(), tmpFuncModuleFolder.c_str(), removeMutantsBCs?"yes":"no", (char *) NULL);
+        execl ("/bin/bash", "bash", (LLVM_TOOLS_BINARY_DIR, compileMutsScript+"/useful/CompileAllMuts.sh").c_str(), \
+                                        outputDir.c_str(), tmpFuncModuleFolder.c_str(), removeMutantsBCs?"yes":"no", (char *) NULL);
         llvm::errs() << "\n:( ERRORS: Mutants Compile script failed (probably not enough memory)!!!" << "!\n\n";
         assert (false && "Child's exec failed!");
     }
