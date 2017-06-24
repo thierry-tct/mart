@@ -13,7 +13,7 @@ error_exit()
 
 TOPDIR=$(dirname $(readlink -f $0))
 
-[ $# = 3 ] || error_exit "Expected 3 parameters, $# passed: $0 <directory (mart-out-0)> <tmpFuncModuleFolder> <remove mutants' \".bc\"? yes/no>"
+[ $# = 4 ] || error_exit "Expected 4 parameters, $# passed: $0 <llvmBinaryDir> <directory (mart-out-0)> <tmpFuncModuleFolder> <remove mutants' \".bc\"? yes/no>"
 
 llvm_bin_dir=$(readlink -f $1)
 Dir=$(readlink -f $2)
