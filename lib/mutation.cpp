@@ -103,7 +103,12 @@ void Mutation::preprocessVariablePhi (llvm::Module &module)
         llvm::CastInst *AllocaInsertionPoint = nullptr;
         llvm::BasicBlock * BBEntry = &(Func.getEntryBlock());
         llvm::BasicBlock::iterator I = BBEntry->begin();
-        while (llvm::isa<llvm::AllocaInst>(I)) ++I;
+        while (llvm::isa<llvm::AllocaInst>(I))
+        {
+            if (llvm::dyn_cast<llvm::AllocaInst>(I)->isArrayAllocation())   //needed because of array size of alloca demote to mem
+                break;
+            ++I;
+        }
  
         AllocaInsertionPoint = new llvm::BitCastInst(
            llvm::Constant::getNullValue(llvm::Type::getInt32Ty(Func.getContext())),
@@ -143,14 +148,35 @@ void Mutation::preprocessVariablePhi (llvm::Module &module)
             }
         }
         
-        //Now take care of the values used on different Blocks: there is no more Phi Nodes
+        //Now take care of the values used on different Blocks and alloca's array size values: there is no more Phi Nodes
         std::vector<llvm::Instruction *> crossBBInsts;
         for (auto &bb: Func)
         {
             for (auto &instruct: bb)
             {
-                if (llvm::isa<llvm::AllocaInst>(&instruct))
+                if (auto *alloca = llvm::dyn_cast<llvm::AllocaInst>(&instruct))
+                {
+                    if (alloca->isArrayAllocation())
+                    {
+                        llvm::Value * alloc_arr_size = alloca->getArraySize();
+                        if (llvm::isa<llvm::LoadInst>(alloc_arr_size))      // already good
+                            continue;
+                            
+                        llvm::AllocaInst *Slot = new llvm::AllocaInst(alloc_arr_size->getType(), nullptr,
+                                                                        alloc_arr_size->getName()+".reg2mem", AllocaInsertionPoint);
+                        llvm::Instruction *loadinsertpt;
+#if (LLVM_VERSION_MAJOR <= 3) && (LLVM_VERSION_MINOR < 8)
+                        loadinsertpt = llvm::isa<llvm::Constant>(alloc_arr_size)? alloca: ++(llvm::BasicBlock::iterator(*(llvm::dyn_cast<llvm::Instruction>(alloc_arr_size))));
+#else
+                        loadinsertpt = llvm::isa<llvm::Constant>(alloc_arr_size)? alloca: ++(llvm::dyn_cast<llvm::Instruction>(alloc_arr_size))->getIterator());
+#endif
+                        new llvm::StoreInst(alloc_arr_size, Slot, loadinsertpt);
+                        llvm::Value *V = new llvm::LoadInst(Slot, alloc_arr_size->getName()+".reload", false/*VolatileLoads*/, alloca);
+                        alloca->setOperand(0, V);  //set array size
+                    }
+                    
                     continue;
+                }
                     
 #if (LLVM_VERSION_MAJOR <= 3) && (LLVM_VERSION_MINOR < 5)
                 for (llvm::Value::use_iterator ui=instruct.use_begin(), ue=instruct.use_end(); ui!=ue; ++ui)
@@ -779,7 +805,7 @@ bool Mutation::doMutate()
         {
             delete ss;
             bool found = false;
-            for (auto i=sourceOrderedStmts.size()-1; i>=0; i--)
+            for (long i=sourceOrderedStmts.size()-1; i>=0; i--)
                 if (sourceOrderedStmts[i] == ss)
                 {
                     sourceOrderedStmts.erase(sourceOrderedStmts.begin()+i);
@@ -955,10 +981,29 @@ bool Mutation::doMutate()
                     continue;
                 }
                 
-                //Do not mind Alloca
-                if (llvm::isa<llvm::AllocaInst>(&Instr))
-                    continue;
-                    
+                //Do not mind Alloca when no size specified, if size specified, remove anything related to size that was added before
+                if (auto *alloca = llvm::dyn_cast<llvm::AllocaInst>(&Instr))
+                {
+                    if (alloca->isArrayAllocation())
+                    {
+                        if (curLiveStmtSearch && curLiveStmtSearch->isVisited(&Instr)) 
+                        {
+                            srcStmtsSearchList.remove(curLiveStmtSearch);     //do not mutate alloca
+                            curLiveStmtSearch = nullptr;
+                        }
+                        else
+                        {
+                            assert (false && "Non atomic??");
+                            //assert (llvm::isa<llvm::ConstantInt>(alloca->getArraySize()) && "Non Atomic??");
+                        }
+                        continue;
+                    }
+                    else
+                    {
+                        continue;
+                    }
+                }
+                
                 //If PHI node and wasn't processed by proxy, add proxies
                 if (auto *phiN = llvm::dyn_cast<llvm::PHINode>(&Instr))
                     phiProxy.handlePhi(phiN, moduleInfo);
@@ -977,6 +1022,7 @@ bool Mutation::doMutate()
                                 {
                                     assert (false && "The debug statement should not have been in visited (cause no dependency on others stmts...)"); //DBG
                                     srcStmtsSearchList.remove(curLiveStmtSearch);
+                                    curLiveStmtSearch = nullptr;
                                 }
                                 continue;
                             }
@@ -986,6 +1032,7 @@ bool Mutation::doMutate()
                             if (curLiveStmtSearch && curLiveStmtSearch->isVisited(&Instr)) 
                             {
                                 srcStmtsSearchList.remove(curLiveStmtSearch);     //do not mutate klee_make_symbolic
+                                curLiveStmtSearch = nullptr;
                             }
                             continue;
                         }
