@@ -23,6 +23,8 @@
 #include "ReadWriteIRObj.h"
 #include "../lib/mutantsSelection/MutantSelection.h"
 
+#include "llvm/Support/CommandLine.h"   //llvm::cl
+
 //#include "llvm/Support/FileSystem.h"    //for llvm::sys::fs::create_link
 
 
@@ -77,55 +79,40 @@ void mutantListAsJsON(std::vector<std::vector<T>> const &lists, std::string json
 
 int main (int argc, char ** argv)
 {
+    //Remove the option we don't want to display in help
+    llvm::StringMap<llvm::cl::Option*> &optMap = llvm::cl::getRegisteredOptions();
+    for (auto &option: optMap)
+    {
+        auto optstr = option.getKey();
+        if (!(optstr.startswith("help") || optstr.equals("version")))
+            optMap[optstr]->setHiddenFlag(llvm::cl::Hidden);
+    }
+     
+    llvm::cl::opt<std::string> inputIRfile(llvm::cl::Positional, llvm::cl::Required, llvm::cl::desc("<input preprocessed IR file>"));
+    llvm::cl::opt<std::string> mutantInfoJsonfile("mutant-infos", llvm::cl::Required, llvm::cl::desc("(required) Specify the mutants info JSON file"), llvm::cl::value_desc("filename"));
+    llvm::cl::opt<std::string> martOutTopDir("out-topdir", llvm::cl::Required, llvm::cl::desc("(required) Specify output topdir where the selection output forlder will be created"), llvm::cl::value_desc("directory name"));
+    llvm::cl::opt<bool> mut_dep_cache("mutant-dep-cache", llvm::cl::desc("Enable caching of mutant dependence computation"));
+    llvm::cl::opt<unsigned> numberOfRandomSelections("rand-repeat-num", llvm::cl::desc("(optional) Specify the number of repetitions for random selections: default is 100 times"), llvm::cl::init(100));
+    
+    llvm::cl::SetVersionPrinter(printVersion);
+    
+    llvm::cl::ParseCommandLineOptions(argc, argv, "Mart Mutant Selection");
+    
     time_t totalRunTime = time(NULL);
     clock_t curClockTime;
-    char * inputIRfile = nullptr;
-    char * mutantInfoJsonfile = nullptr;
+    
     char * mutantDependencyJsonfile = nullptr;
-    char * martOutTopDir;
     
     bool rundg = true;
     
-    unsigned numberOfRandomSelections = 100;  //How many time do we repead random
+    //unsigned numberOfRandomSelections = 100;  //How many time do we repead random
     
-    for (int i=1; i < argc; i++)
-    {
-        if (strcmp(argv[i], "-mutant-dep-cache") == 0)
-        {
-            mutantDependencyJsonfile = "mutantDependencies.cache.json";
-        }
-        else if (strcmp(argv[i], "-mutant-infos") == 0)
-        {
-            mutantInfoJsonfile = argv[++i];
-        }
-        else if (strcmp(argv[i], "-out-topdir") == 0)
-        {
-            martOutTopDir = argv[++i];
-        }
-        else if (strcmp(argv[i], "-rand-repeat-num") == 0)
-        {
-            numberOfRandomSelections = std::stoul(argv[++i]);
-        }
-        else if (strcmp(argv[i], "-version") == 0)
-        {
-            printVersion();
-            return 0;
-        }
-        else
-        {
-            if (inputIRfile)
-            {
-                llvm::errs() << "Error with arguments: input file '" << inputIRfile << "' VS '" << argv[i] << "'.\n";
-                return 1; 
-            }
-            inputIRfile = argv[i];
-        }
-        
-    }
+    if (mut_dep_cache)
+        mutantDependencyJsonfile = "mutantDependencies.cache.json";
     
-    assert (inputIRfile && "Error: No input llvm IR file passed!");
-    assert (mutantInfoJsonfile && "Error: No mutant infos file passed!");
-    assert (martOutTopDir && "Error: No output topdir passed!");
+    assert (!inputIRfile.empty() && "Error: No input llvm IR file passed!");
+    assert (!mutantInfoJsonfile .empty()&& "Error: No mutant infos file passed!");
+    assert (!martOutTopDir.empty() && "Error: No output topdir passed!");
     
     llvm::Module *moduleM;
     std::unique_ptr<llvm::Module> _M;

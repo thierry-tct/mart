@@ -92,7 +92,22 @@ struct MatchUseful
         }
     }
     
+    inline struct MatchUseful * getNew_CopyData()
+    {
+        struct MatchUseful *ret = getNew();
+        if (ret != this)
+        { //copy data
+            ret->highLevelOprdsSources = highLevelOprdsSources;
+            ret->relevantIRPos = relevantIRPos;
+            ret->posReturningIR = posReturningIR;
+            ret->posReturnIntoIR = posReturnIntoIR;
+            ret->retIntoOprdIndex = retIntoOprdIndex;
+        }    
+        return ret;
+    }
+    
     inline void appendHLOprdsSource (unsigned pos, int ir_oprdInd = -1) {highLevelOprdsSources.push_back(std::pair<unsigned/*pos*/, int/*oprd index*/>(pos, ir_oprdInd));}
+    inline void resetHLOprdSourceAt (unsigned hlOprdID, unsigned pos, int ir_oprdInd = -1) {highLevelOprdsSources.at(hlOprdID).first = pos; highLevelOprdsSources.at(hlOprdID).second = ir_oprdInd;}
     inline llvm::Value * getHLOperandSource (unsigned hlOprdID, MutantsOfStmt::MutantStmtIR &mutIRs) const
     {
         if (highLevelOprdsSources.at(hlOprdID).second < 0)
@@ -100,7 +115,15 @@ struct MatchUseful
         else
             return llvm::dyn_cast<llvm::User>(mutIRs.getIRAt(highLevelOprdsSources.at(hlOprdID).first))->getOperand(highLevelOprdsSources.at(hlOprdID).second);
     }
+    inline llvm::Value const * getHLOperandSource (unsigned hlOprdID, MatchStmtIR const &matchIRs)
+    {
+        if (highLevelOprdsSources.at(hlOprdID).second < 0)
+            return matchIRs.getIRAt(highLevelOprdsSources.at(hlOprdID).first);
+        else
+            return llvm::dyn_cast<llvm::User>(matchIRs.getIRAt(highLevelOprdsSources.at(hlOprdID).first))->getOperand(highLevelOprdsSources.at(hlOprdID).second);
+    }
     inline int getHLOperandSourceIndexInIR (unsigned hlOprdID) const {return highLevelOprdsSources.at(hlOprdID).second;}
+    inline unsigned getNumberOfHLOperands () const {return highLevelOprdsSources.size();}
     inline void appendRelevantIRPos (int pos) {relevantIRPos.push_back(pos);}
     inline int getRelevantIRPosOf (int posInList) const {return relevantIRPos.at(posInList);}
     inline const std::vector<unsigned> & getRelevantIRPos() const {return relevantIRPos;}
@@ -118,6 +141,10 @@ struct MatchUseful
     inline MatchUseful const * first() const {return (curLast? this: nullptr);}
     inline MatchUseful const * end() const {return nullptr;}
     inline MatchUseful const * next() const {return additionalMU;}
+    
+    inline MatchUseful * first() {return (curLast? this: nullptr);}
+    inline MatchUseful * end() {return nullptr;}
+    inline MatchUseful * next() {return additionalMU;}
 };
 
 /**
@@ -533,12 +560,12 @@ class GenericMuOpBase
      * When the pointer oprd do not comes from LoadInst, the 1st index of gep just take out the address part (as alloca vars are actually addresses)
      * Also return the Gep index in 'index', which is (User operand - 1)
      */
-    inline llvm::Value* checkIsPointerIndexingAndGet (llvm::GetElementPtrInst * gep, int &index)
+    inline llvm::Value * checkIsPointerIndexingAndGet (llvm::GetElementPtrInst const * gep, int &index)
     {
         index = -1;
         if (gep->getNumIndices() < 1)
             return nullptr;
-        llvm::Value *ptrOprd = gep->getPointerOperand();
+        llvm::Value const *ptrOprd = gep->getPointerOperand();
         //if the pointer operand points to a non sequential type, the pointer must come from load instruction, and the 1st idx of get will be the index needed
         if (! llvm::isa<llvm::SequentialType>(llvm::dyn_cast<llvm::PointerType>(ptrOprd->getType())->getPointerElementType()))
         {

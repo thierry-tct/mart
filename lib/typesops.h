@@ -553,11 +553,12 @@ struct MatchStmtIR
     
     /**
      * \brief Finds the position of an IR instruction in a list of IRs through sequential search from a starting position
+     * @param irinst value searched
      * @param pos is the starting point of the search
      * @param firstCheckBefore is the flag to decide whether we first search before (true) @param pos or after (false)
      * @return the position of the searched IR instruction
      */
-    int depPosofPos (llvm::Value *irinst, int pos, bool firstCheckBefore=true) const
+    int depPosofPos (llvm::Value const *irinst, int pos, bool firstCheckBefore=true) const
     {
         int findpos;
         if (firstCheckBefore)

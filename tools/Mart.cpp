@@ -28,6 +28,8 @@
 
 #include "FunctionToModule.h"
 
+#include "llvm/Support/CommandLine.h"   //llvm::cl
+
 
 static std::string outputDir("mart-out-"); 
 static const std::string mutantsFolder("mutants.out");
@@ -241,21 +243,38 @@ void printVersion()
 
 int main (int argc, char ** argv)
 {
+    //Remove the option we don't want to display in help
+    llvm::StringMap<llvm::cl::Option*> &optMap = llvm::cl::getRegisteredOptions();
+    for (auto &option: optMap)
+    {
+        auto optstr = option.getKey();
+        if (!(optstr.startswith("help") || optstr.equals("version")))
+            optMap[optstr]->setHiddenFlag(llvm::cl::Hidden);
+    }
+    
+    llvm::cl::opt<std::string> inputIRfile(llvm::cl::Positional, llvm::cl::Required, llvm::cl::desc("<input IR file>"));
+    
+    llvm::cl::opt<std::string> mutantConfigfile("mutant-config", llvm::cl::desc("(Optional) Specify the mutation operations to apply"), llvm::cl::value_desc("filename"), llvm::cl::init(""));
+    
+    llvm::cl::opt<std::string> mutantScopeJsonfile("mutant-scope", llvm::cl::desc("(Optional) Specify the mutation scope: Functions, source files."), llvm::cl::value_desc("filename"), llvm::cl::init(""));
+    
+    llvm::cl::opt<bool> dumpPreTCEMeta("print-preTCE-Meta", llvm::cl::desc("Enable dumping Meta module before applying TCE"));
+    llvm::cl::opt<bool> disableDumpMetaIRbc("no-Meta", llvm::cl::desc("Disable dumping Meta Module after applying TCE")); 
+    llvm::cl::opt<bool> dumpMutants("write-mutants", llvm::cl::desc("Enable writing mutant files"));
+    llvm::cl::opt<bool> disabledWeakMutation("no-WM", llvm::cl::desc("Disable dumping Weak Mutatin Module"));
+    llvm::cl::opt<bool> disableDumpMutantInfos("no-mutant-info", llvm::cl::desc("Disable dumping mutants info JSON file"));
+    
+    llvm::cl::opt<bool> keepMutantsBCs("keep-mutants-bc", llvm::cl::desc("Keep the different LLVM IR module of all mutants (only active when enabled write-mutants)"));
+    
+    llvm::cl::SetVersionPrinter(printVersion);
+    
+    llvm::cl::ParseCommandLineOptions(argc, argv, "Mart Mutantion");
+    
+    
     time_t totalRunTime = time(NULL);
     clock_t curClockTime;
-    char * inputIRfile = nullptr;
-    char * mutantConfigfile = nullptr;
-    char * mutantScopeJsonfile = nullptr;
+    
     const char * wmLogFuncinputIRfileName = "wmlog-driver.bc";
-    const char * defaultMconfFile = "mconf-scope/default_allmax.mconf";
-    
-    bool dumpPreTCEMeta = false;
-    bool dumpMetaIRbc = true; 
-    bool dumpMutants = false;
-    bool enabledWeakMutation = true;
-    bool dumpMutantInfos = true;
-    
-    bool removeMutantsBCs = true;
     
     /// \brief set this to false if the module is small enough, that all mutants will fit in memory
     bool isTCEFunctionMode = true;
@@ -275,50 +294,12 @@ int main (int argc, char ** argv)
     
     useful_conf_dir += "/useful/";
     
-    for (int i=1; i < argc; i++)
-    {
-        if (strcmp(argv[i], "-print-preTCE-Meta") == 0)
-        {
-            dumpPreTCEMeta = true;
-        }
-        else if (strcmp(argv[i], "-write-mutants") == 0)
-        {
-            dumpMutants = true;
-        }
-        else if (strcmp(argv[i], "-keep-mutants-bc") == 0)
-        {
-            removeMutantsBCs = false;
-        }
-        else if (strcmp(argv[i], "-noWM") == 0)
-        {
-            enabledWeakMutation = false;
-        }
-        else if (strcmp(argv[i], "-mutant-config") == 0)
-        {
-            mutantConfigfile = argv[++i];
-        }
-        else if (strcmp(argv[i], "-mutant-scope") == 0)
-        {
-            mutantScopeJsonfile = argv[++i];
-        }
-        else if (strcmp(argv[i], "-version") == 0)
-        {
-            printVersion();
-            return 0;
-        }
-        else
-        {
-            if (inputIRfile)
-            {
-                llvm::errs() << "Error with arguments: input file '" << inputIRfile << "' VS '" << argv[i] << "'.\n";
-                return 1; 
-            }
-            inputIRfile = argv[i];
-        }
-        
-    }
+    const char * defaultMconfFile = "mconf-scope/default_allmax.mconf";
     
-    assert (inputIRfile && "Error: No input llvm IR file passed!");
+    if (mutantConfigfile.empty())
+        mutantConfigfile.assign(useful_conf_dir + defaultMconfFile);
+        
+    assert (! inputIRfile.empty() && "Error: No input llvm IR file passed!");
     
     llvm::Module *moduleM;
     std::unique_ptr<llvm::Module> modWMLog (nullptr), _M;
@@ -331,7 +312,7 @@ int main (int argc, char ** argv)
     // ~
     
     /// Weak mutation 
-    if (enabledWeakMutation)
+    if (!disabledWeakMutation)
     {
         std::string wmLogFuncinputIRfile(useful_conf_dir + wmLogFuncinputIRfileName);      
         // get the module containing the function to log WM info. to be linked with WMModule
@@ -372,7 +353,7 @@ int main (int argc, char ** argv)
     //std::string mutconffile;
     
     // @Mutation
-    Mutation mut(*moduleM, mutantConfigfile?mutantConfigfile:(useful_conf_dir + defaultMconfFile), dumpMutantsCallback, mutantScopeJsonfile ? mutantScopeJsonfile : "");
+    Mutation mut(*moduleM, mutantConfigfile, dumpMutantsCallback, mutantScopeJsonfile);
     
     // Keep Phi2Mem-preprocessed module
 #if (LLVM_VERSION_MAJOR <= 3) && (LLVM_VERSION_MINOR < 8)
@@ -405,8 +386,8 @@ int main (int argc, char ** argv)
     
     //@ Output file name root
     
-    tmpStr = new char[1+std::strlen(inputIRfile)]; //Alocate tmpStr2
-    std::strcpy(tmpStr, inputIRfile);
+    tmpStr = new char[1+inputIRfile.length()]; //Alocate tmpStr2
+    std::strcpy(tmpStr, inputIRfile.c_str());
     outFile.assign(basename(tmpStr));   //basename changes the contain of its parameter
     delete [] tmpStr; tmpStr = nullptr;  //del tmpStr2
     if (!outFile.substr(outFile.length()-3, 3).compare(".ll") || !outFile.substr(outFile.length()-3, 3).compare(".bc"))
@@ -436,11 +417,11 @@ int main (int argc, char ** argv)
     loginfo << "Mart@Progress: Removing TCE Duplicates  & WM & writing mutants IRs took: "<< (float)(clock() - curClockTime)/CLOCKS_PER_SEC <<" Seconds.\n";
     
     /// Mutants Infos into json
-    if (dumpMutantInfos)
+    if (!disableDumpMutantInfos)
         mut.dumpMutantInfos (outputDir+"//"+mutantsInfosFileName);
     
     //@ Print post-TCE meta-mutant
-    if (dumpMetaIRbc) 
+    if (!disableDumpMetaIRbc) 
     {   
         if (! ReadWriteIRObj::writeIR (moduleM, outputDir+"/"+outFile+".MetaMu.bc"))
             assert (false && "Failed to output post-TCE meta-mutatant IR file");
@@ -518,7 +499,7 @@ int main (int argc, char ** argv)
     {
         llvm::errs() << "## Child process: compiler\n";
         execl ("/bin/bash", "bash", (compileMutsScript+"/useful/CompileAllMuts.sh").c_str(), LLVM_TOOLS_BINARY_DIR, \
-                                        outputDir.c_str(), tmpFuncModuleFolder.c_str(), removeMutantsBCs?"yes":"no", (char *) NULL);
+                                        outputDir.c_str(), tmpFuncModuleFolder.c_str(), keepMutantsBCs?"no":"yes", (char *) NULL);
         llvm::errs() << "\n:( ERRORS: Mutants Compile script failed (probably not enough memory)!!!" << "!\n\n";
         assert (false && "Child's exec failed!");
     }

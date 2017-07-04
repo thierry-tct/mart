@@ -72,7 +72,7 @@ private:
     void getMutantsOfStmt (MatchStmtIR const &stmtIR, MutantsOfStmt &ret_mutants, ModuleUserInfos const &moduleInfos);
     llvm::Function * createGlobalMutIDSelector_Func(llvm::Module &module, bool bodyOnly=false);
     DumpMutFunc_t writeMutantsCallback;
-    llvm::Value * getWMCondition (llvm::BasicBlock *orig, llvm::BasicBlock *mut, llvm::Instruction * insertBeforeInst);
+    void getWMConditions (std::vector<llvm::Instruction *> &origUnsafes, std::vector<llvm::Instruction *> &mutUnsafes,  std::vector<std::vector<llvm::Value *>> &conditions);
     void computeWeakMutation(std::unique_ptr<llvm::Module> &cmodule, std::unique_ptr<llvm::Module> &modWMLog);     //Compute WM of the module passed (pass a cloned module)
     void preprocessVariablePhi (llvm::Module &module);
     llvm::AllocaInst * MYDemotePHIToStack(llvm::PHINode *P, llvm::Instruction *AllocaPoint);

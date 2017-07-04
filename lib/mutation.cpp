@@ -69,6 +69,59 @@ static bool oldVersionIsEHPad(llvm::Instruction const *Inst)
 }
 #endif
 
+static bool isWMSafe (llvm::Instruction * Inst, bool &canExcept)
+{
+    static std::unordered_set<unsigned/*opcode*/> otherSafeOpCodes; 
+    static std::unordered_set<unsigned/*opcode*/> canExceptInsts;
+    if (otherSafeOpCodes.empty())
+    {
+        otherSafeOpCodes.insert(llvm::Instruction::ICmp);
+        otherSafeOpCodes.insert(llvm::Instruction::FCmp);
+        otherSafeOpCodes.insert(llvm::Instruction::PHI);
+        otherSafeOpCodes.insert(llvm::Instruction::Select);
+        otherSafeOpCodes.insert(llvm::Instruction::ExtractElement);
+        otherSafeOpCodes.insert(llvm::Instruction::Select);
+        otherSafeOpCodes.insert(llvm::Instruction::ExtractValue);
+        otherSafeOpCodes.insert(llvm::Instruction::Load);
+        otherSafeOpCodes.insert(llvm::Instruction::GetElementPtr);
+        
+        canExceptInsts.insert(llvm::Instruction::ExtractElement);
+        canExceptInsts.insert(llvm::Instruction::ExtractValue);
+        canExceptInsts.insert(llvm::Instruction::Load);
+        canExceptInsts.insert(llvm::Instruction::GetElementPtr);
+        canExceptInsts.insert(llvm::Instruction::AddrSpaceCast);
+        canExceptInsts.insert(llvm::Instruction::UDiv);
+        canExceptInsts.insert(llvm::Instruction::SDiv);
+        canExceptInsts.insert(llvm::Instruction::URem);
+        canExceptInsts.insert(llvm::Instruction::SRem);
+    }
+    
+    if (Inst->isBinaryOp() || Inst->isCast() || (otherSafeOpCodes.count(Inst->getOpcode()) > 0))
+    {
+        canExcept = (canExceptInsts.count(Inst->getOpcode()) > 0);
+        return true;
+    }
+    canExcept = true;
+    return false;
+}
+
+static void getWMUnsafeInstructions(llvm::BasicBlock *BB, std::vector<llvm::Instruction *> &unsafeInsts)
+{
+    bool canExcept;
+    for (auto &Inst: *BB)
+    {
+        if (! isWMSafe (&Inst, canExcept))
+        {
+            unsafeInsts.push_back(&Inst);
+        }
+        else if (canExcept)
+        {   //For now we consider can except as unsafe
+            unsafeInsts.push_back(&Inst);
+        }
+    }
+}
+
+
 Mutation::Mutation(llvm::Module &module, std::string mutConfFile, DumpMutFunc_t writeMutsF, std::string scopeJsonFile): forKLEESEMu(true), funcForKLEESEMu(nullptr), writeMutantsCallback(writeMutsF), moduleInfo (&module, &usermaps)
 {
     // tranform the PHI Node with any non-constant incoming value with reg2mem
@@ -1412,13 +1465,79 @@ bool Mutation::doMutate()
 /**
  * \brief obtain the Weak Mutant kill condition and insert it before the instruction @param insertBeforeInst and return the result of the comparison 'original' != 'mutant'
  */
-llvm::Value * Mutation::getWMCondition (llvm::BasicBlock *orig, llvm::BasicBlock *mut, llvm::Instruction * insertBeforeInst)
+void Mutation::getWMConditions (std::vector<llvm::Instruction *> &origUnsafes, std::vector<llvm::Instruction *> &mutUnsafes,  std::vector<std::vector<llvm::Value *>> &conditions)
 {
-    // Look for difference
+    // Look for difference. For now we stop when finding the first unsafe instruction
+    if (mutUnsafes.size() == origUnsafes.size())
+    {
+        bool surelyDiffer = false;
+        llvm::IRBuilder<> tmpbuilder(moduleInfo.getContext());
+        for (unsigned i=0, ie=origUnsafes.size(); i<ie; ++i)
+        {
+            if (! origUnsafes[i]->isSameOperationAs(mutUnsafes[i], llvm::Instruction::CompareUsingScalarTypes))
+            {
+                surelyDiffer = true;
+                break;
+            }
+            std::vector<llvm::Value *> subconds;
+            for (unsigned j=0, je=origUnsafes[i]->getNumOperands(); j<je; ++j)
+            {
+                llvm::Value *o_oprd = origUnsafes[i]->getOperand(j);
+                llvm::Value *m_oprd = mutUnsafes[i]->getOperand(j);
+                llvm::Type *o_type = o_oprd->getType();
+                llvm::Type *m_type = m_oprd->getType();
+                
+                if (! o_type->isSingleValueType() || o_type->isX86_MMXTy())
+                {
+                    if (o_oprd != m_oprd)
+                    {
+                        surelyDiffer = true;
+                        break;
+                    }
+                }
+                else
+                {
+                    if (o_type->isIntOrIntVectorTy() || o_type->isPtrOrPtrVectorTy())
+                    {
+                        if (o_type->isPointerTy() && llvm::dyn_cast<llvm::PointerType>(o_type)->getElementType() != llvm::dyn_cast<llvm::PointerType>(m_type)->getElementType())
+                        {
+                            surelyDiffer = true;
+                            break;
+                        }
+                        //create condition
+                        subconds.push_back(tmpbuilder.CreateICmpNE(o_oprd, m_oprd)); //TODO m_oprd
+                    }
+                    else if (o_type->isFPOrFPVectorTy())
+                    {
+                        //create condition
+                        subconds.push_back(tmpbuilder.CreateFCmpUNE(o_oprd, m_oprd)); //TODO m_oprd
+                    }
+                    else
+                    {
+                        assert (false && "Unreachable");
+                    }
+                }
+            }
+            if (surelyDiffer)
+                break;
+            //make final condition (and of all subconditions)
+            conditions.push_back(subconds);
+        }
+        if (! surelyDiffer)
+            return;
+    }
     
-    //TODO: Put the real condition here (original != Mutant)
+    // condition here (original != Mutant)
     //return llvm::ConstantInt::getTrue(moduleInfo.getContext());
-    return llvm::ConstantInt::get(moduleInfo.getContext(), llvm::APInt(8, 1, true)); 
+    for (auto &subcond: conditions)
+        for (auto *cinst: subcond)
+            if (llvm::isa<llvm::Instruction>(cinst))
+            {
+                llvm::dyn_cast<llvm::User>(cinst)->dropAllReferences();
+                delete cinst;
+            }
+    conditions.clear();
+    conditions.push_back(std::vector<llvm::Value *>({llvm::ConstantInt::get(moduleInfo.getContext(), llvm::APInt(8, 1, true))})); 
 }
 
 /**
@@ -1484,9 +1603,13 @@ void Mutation::computeWeakMutation(std::unique_ptr<llvm::Module> &cmodule, std::
                         if (ld->getOperand(0) == cmodule->getNamedGlobal(mutantIDSelectorName) && sw->getNumCases() > 0) //No case means that all the mutant there were duplicate, no need to add label
                         {
                             std::vector<llvm::ConstantInt *> cases;
-                            llvm::IRBuilder<> sbuilder(sw);
                             std::vector<llvm::Value*> argsv;
                             auto *defaultBB = sw->getDefaultDest ();    //original
+                            std::vector<llvm::Instruction *> origUnsafes;
+                            getWMUnsafeInstructions(defaultBB, origUnsafes);
+                            std::vector<llvm::IRBuilder<>> sbuilders;
+                            for (auto *II: origUnsafes)
+                                sbuilders.emplace_back(II);
                             for (llvm::SwitchInst::CaseIt i = sw->case_begin(), e = sw->case_end(); i != e; ++i) 
                             {
                                 auto *mutIDConstInt = i.getCaseValue();
@@ -1497,16 +1620,68 @@ void Mutation::computeWeakMutation(std::unique_ptr<llvm::Module> &cmodule, std::
                                 
                                 toBeRemovedBB.push_back(caseiBB);
                                 
-                                llvm::Value *condVal = getWMCondition (defaultBB, caseiBB, sw);
+                                std::vector<llvm::Instruction *> mutUnsafes;
+                                getWMUnsafeInstructions(caseiBB, mutUnsafes);
+                                std::vector<std::vector<llvm::Value *>> condVals;
+                                getWMConditions (origUnsafes, mutUnsafes, condVals);
                                 
-                                argsv.clear();
-                                argsv.push_back(mutIDConstInt);     //mutant ID
-                                argsv.push_back(condVal);           //weak kill condition
-                                sbuilder.CreateCall(funcWMLog, argsv);  //call WM log func
+                                assert (origUnsafes.size() >= condVals.size() && "at most 1 condition per unsafe inst");
+                                //assert (!condVals.empty() && "there must be at least on condition");  //no condition mean that the mutant is equivalen (maybe only safe instructions)
+                                for (auto *uns: mutUnsafes)
+                                    uns->dropAllReferences();
+                                for (unsigned ic=0, ice=condVals.size(); ic<ice; ++ic)
+                                {
+                                    if (condVals[ic].empty())
+                                        continue;
+                                    if (ic=0)
+                                    {
+                                        auto insert = &*(defaultBB->begin());
+                                        for (auto mutFirst=caseiBB->begin(), mutEnd=caseiBB->end(); mutFirst!=mutEnd;)
+                                        {
+                                            auto minst = &*(mutFirst++);
+                                            if (minst == mutUnsafes[0])
+                                                break;
+                                            minst->moveBefore (insert);
+                                        }
+                                    }
+                                    else
+                                    {
+#if (LLVM_VERSION_MAJOR <= 3) && (LLVM_VERSION_MINOR < 8)
+                                        auto insert = &*(++llvm::BasicBlock::iterator(origUnsafes[ic-1]));
+                                        auto mutFirst = ++llvm::BasicBlock::iterator(mutUnsafes[ic-1]);
+                                        auto mutEnd = llvm::BasicBlock::iterator(mutUnsafes[ic]);
+#else
+                                        auto insert = &*(++(origUnsafes[ic-1]->getIterator()));
+                                        auto mutFirst = ++(mutUnsafes[ic-1]->getIterator());
+                                        auto mutEnd = (mutUnsafes[ic]->getIterator());
+#endif
+                                        for (;mutFirst != mutEnd;)
+                                        {
+                                            auto minst = &*(mutFirst++);
+                                            if (minst == mutUnsafes[ic])
+                                                break;
+                                            minst->moveBefore (insert);
+                                        }
+                                        //make sure that all copied inst that use mutant unsafe now use orig unsafe (execution reach here with weakly alive only if both are equivalent before)
+                                        mutUnsafes[ic-1]->replaceAllUsesWith(origUnsafes[ic-1]); 
+                                    }
+                                    
+                                    for (auto *condtmp: condVals[ic])
+                                    {
+                                        auto *subcondInst = llvm::dyn_cast<llvm::Instruction>(condtmp);
+                                        if (subcondInst)
+                                            subcondInst->insertBefore(origUnsafes[ic]);
+                                        condVals[ic].front() = sbuilders[ic].CreateOr(condVals[ic].front(), condtmp);
+                                    }
+                                    argsv.clear();
+                                    argsv.push_back(mutIDConstInt);     //mutant ID
+                                    argsv.push_back(condVals[ic].front());           //weak kill condition
+                                    sbuilders[ic].CreateCall(funcWMLog, argsv);  //call WM log func
+                                }
                             }
                             // Now call fflush
                             argsv.clear();
-                            sbuilder.CreateCall(funcWMFflush, argsv);
+                            sbuilders.back().CreateCall(funcWMFflush, argsv);
                             
                             for (auto *caseval: cases)
                             {
@@ -1569,7 +1744,7 @@ void Mutation::setModFuncToFunction (llvm::Module *Mod, llvm::Function *srcF, ll
 }
 
 /**
- * \brief defive the data structure that will be used by TCE and implements their update when a new mutant is seen
+ * \brief define the data structure that will be used by TCE and implements their update when a new mutant is seen
  * TODO: add namespace around this
  */
 struct DuplicateEquivalentProcessor

@@ -93,7 +93,7 @@ public:
         if (!module) 
         {
             llvm::errs() << "Failed parsing '" << filename << "' file:\n";
-            SMD.print("MuLL", llvm::errs());
+            SMD.print("MART", llvm::errs());
             return false;
         }
         return true;

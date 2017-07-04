@@ -51,7 +51,7 @@ class PointerArithBinop_Base: public GenericMuOpBase
                     return false;
             }
             
-            // Make sure the pointer is the right type.  XXX: assumed that the front end made sure that the pointer is the left hand oprd (for case where , PADD(c,p), PADD(@,p))
+            // Make sure the pointer is the right type.  XXX: assumed that the mutation front end made sure that the pointer is the left hand oprd (for case where , PADD(c,p), PADD(@,p))
             if (! checkCPTypeInIR (mutationOp.getCPType(0), gep->getPointerOperand()) || ! checkCPTypeInIR (mutationOp.getCPType(1), indxVal))
                 return false;
             
