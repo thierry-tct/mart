@@ -123,6 +123,7 @@ struct MatchUseful
             return llvm::dyn_cast<llvm::User>(matchIRs.getIRAt(highLevelOprdsSources.at(hlOprdID).first))->getOperand(highLevelOprdsSources.at(hlOprdID).second);
     }
     inline int getHLOperandSourceIndexInIR (unsigned hlOprdID) const {return highLevelOprdsSources.at(hlOprdID).second;}
+    inline int getHLOperandSourcePos (unsigned hlOprdID) const {return highLevelOprdsSources.at(hlOprdID).first;}
     inline unsigned getNumberOfHLOperands () const {return highLevelOprdsSources.size();}
     inline void appendRelevantIRPos (int pos) {relevantIRPos.push_back(pos);}
     inline int getRelevantIRPosOf (int posInList) const {return relevantIRPos.at(posInList);}

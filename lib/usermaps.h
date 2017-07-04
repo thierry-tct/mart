@@ -50,8 +50,12 @@ enum ExpElemKeys {mALLSTMT=0, mALLFEXPR, mALLIEXPR, mANYFVAR, mANYIVAR/*non poin
             mCALL, mNEWCALLEE, mSHUFFLE_ARGS,             // called function    TODO TODO: SHUffle-args
             mSWITCH, mSHUFFLE_CASE_DESTS, mREMOVE_CASES,  // exchange the destinations of switch, remove cases(1,2,...)   TODO TODO  
             mRETURN_BREAK_CONTINUE,         // delete them by replacing unconditional 'br' target. for the final return with argument, set it to 0
-            mPADD_DEREF, mPSUB_DEREF, mPDEREF_ADD, mPDEREF_SUB,     // Pointer/val operation combined with deref
-            mPLEFTINC_DEREF, mPRIGHTINC_DEREF, mPLEFTDEC_DEREF, mPRIGHTDEC_DEREF, mPDEREF_LEFTINC, mPDEREF_RIGHTINC, mPDEREF_LEFTDEC, mPDEREF_RIGHTDEC,   // Pointer/val operation combined with deref
+            
+            // Pointer/val operation combined with deref
+            mPADD_DEREF_INT, mPSUB_DEREF_INT, mPADD_DEREF_PTR, mPSUB_DEREF_PTR, mPDEREF_ADD, mPDEREF_SUB, mPDEREF_PADD, mPDEREF_PSUB,     
+            // Pointer/val operation combined with deref
+            mPLEFTINC_DEREF_INT, mPRIGHTINC_DEREF_INT, mPLEFTDEC_DEREF_INT, mPRIGHTDEC_DEREF_INT, mPLEFTINC_DEREF_PTR, mPRIGHTINC_DEREF_PTR, mPLEFTDEC_DEREF_PTR, mPRIGHTDEC_DEREF_PTR, 
+            mPDEREF_LEFTINC, mPDEREF_RIGHTINC, mPDEREF_LEFTDEC, mPDEREF_RIGHTDEC, mPDEREF_PLEFTINC, mPDEREF_PRIGHTINC, mPDEREF_PLEFTDEC, mPDEREF_PRIGHTDEC,   
             /**** ADD HERE ****/
             
             

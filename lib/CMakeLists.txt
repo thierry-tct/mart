@@ -3,14 +3,17 @@ if (KLEE_SEMU_GENMU)
     include_directories( ${CMAKE_CURRENT_SOURCE_DIR}/operatorsClasses )
     #include_directories( ${CMAKE_CURRENT_SOURCE_DIR}/third-parties )
     
-    add_custom_command ( OUTPUT operatorsClasses/mutation_op_headers.h.inc
+    add_custom_command ( OUTPUT ${CMAKE_CURRENT_SOURCE_DIR}/AUTOGEN_mutation_op_headers.h.inc
                  PRE_BUILD 
-                 COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/operatorsClasses/updateHeaderList.sh 
+                 DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/operatorsClasses/updateHeaderList.sh 
+                 COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/operatorsClasses/updateHeaderList.sh ${CMAKE_CURRENT_SOURCE_DIR}/AUTOGEN_mutation_op_headers.h.inc
                  WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/)
     
     add_custom_target(
                  CollectMutOpHeaders ALL
-                 DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/operatorsClasses/mutation_op_headers.h.inc
+                 DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/AUTOGEN_mutation_op_headers.h.inc
+                 COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/operatorsClasses/updateHeaderList.sh ${CMAKE_CURRENT_SOURCE_DIR}/AUTOGEN_mutation_op_headers.h.inc
+                 WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/
                 )
 
     #include(FindOpenMP)
@@ -23,6 +26,7 @@ if (KLEE_SEMU_GENMU)
     
     add_library(UserMaps SHARED usermaps.cpp)
     target_link_libraries(UserMaps JsonBox)
+   
     
     add_library(KLEE-SEMu-GenMu SHARED
         mutation.cpp

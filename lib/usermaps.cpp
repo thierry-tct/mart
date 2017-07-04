@@ -15,7 +15,7 @@
 
 std::map<unsigned, std::string> llvmMutationOp::posConstValueMap;   //belong to typesops.h (but due to link error - double definition - I put it here)
 
-#include "operatorsClasses/mutation_op_headers.h.inc"
+#include "AUTOGEN_mutation_op_headers.h.inc"   //contain headers for mutation operators
 
 #if defined (CREATE_OBJ) || defined (DESTROY_OBJ)
     #error "The macros CREATE_OBJ(C) and DESTROY_OBJ(C) are already defined.." 
@@ -355,43 +355,56 @@ UserMaps::UserMaps()
     addConfNameOpPair ("RETURN_BREAK_CONTINUE", {mRETURN_BREAK_CONTINUE,  mRETURN_BREAK_CONTINUE,  mRETURN_BREAK_CONTINUE,  mRETURN_BREAK_CONTINUE});
     addOpMatchObjectPair (mRETURN_BREAK_CONTINUE, CREATE_OBJ(ReturnBreakContinue));     //Matcher
     
-    /*addConfNameOpPair ("PADD_DEREF", {mPADD_DEREF});        //Pointer - Val
-    addOpMatchObjectPair (mPADD_DEREF, matchPADDSUB_DEREF); 
+    //DEREFS
+    addConfNameOpPair ("PADD_DEREF", {mFORBIDEN_TYPE, mFORBIDEN_TYPE, mPADD_DEREF_INT, mPADD_DEREF_PTR});        //Pointer - Val
+    addOpMatchObjectPair (mPADD_DEREF_INT, CREATE_OBJ(PAddDerefInt)); 
+    addOpMatchObjectPair (mPADD_DEREF_PTR, CREATE_OBJ(PAddDerefPtr)); 
     
-    addConfNameOpPair ("PSUB_DEREF", {mPSUB_DEREF});        //Pointer - Val
-    addOpMatchObjectPair (mPSUB_DEREF, matchPADDSUB_DEREF); 
+    addConfNameOpPair ("PSUB_DEREF", {mFORBIDEN_TYPE, mFORBIDEN_TYPE, mPSUB_DEREF_INT, mPSUB_DEREF_PTR});        //Pointer - Val
+    addOpMatchObjectPair (mPSUB_DEREF_INT, CREATE_OBJ(PSubDerefInt)); 
+    addOpMatchObjectPair (mPSUB_DEREF_PTR, CREATE_OBJ(PSubDerefPtr)); 
     
-    addConfNameOpPair ("PDEREF_ADD", {mPDEREF_ADD});        //Pointer - Val
-    addOpMatchObjectPair (mPDEREF_ADD, matchPDEREF_ADDSUB); 
+    addConfNameOpPair ("PDEREF_ADD", {mFORBIDEN_TYPE, mFORBIDEN_TYPE, mPDEREF_ADD, mPDEREF_PADD});        //Pointer - Val
+    addOpMatchObjectPair (mPDEREF_ADD, CREATE_OBJ(DerefAdd)); 
+    addOpMatchObjectPair (mPDEREF_PADD, CREATE_OBJ(DerefPAdd)); 
     
-    addConfNameOpPair ("PDEREF_SUB", {mPDEREF_SUB});        //Pointer - Val
-    addOpMatchObjectPair (mPDEREF_SUB, matchPDEREF_ADDSUB); 
-    
-    
-    addConfNameOpPair ("PLEFTINC_DEREF", {mPLEFTINC_DEREF});        //Pointer - Val
-    addOpMatchObjectPair (mPLEFTINC_DEREF, matchPINCDEC_DEREF);
-    
-    addConfNameOpPair ("PRIGHTINC_DEREF", {mPRIGHTINC_DEREF});        //Pointer - Val
-    addOpMatchObjectPair (mPRIGHTINC_DEREF, matchPINCDEC_DEREF); 
-    
-    addConfNameOpPair ("PLEFTDEC_DEREF", {mPLEFTDEC_DEREF});        //Pointer - Val
-    addOpMatchObjectPair (mPLEFTDEC_DEREF, matchPINCDEC_DEREF);
-    
-    addConfNameOpPair ("PRIGHTDEC_DEREF", {mPRIGHTDEC_DEREF});        //Pointer - Val
-    addOpMatchObjectPair (mPRIGHTDEC_DEREF, matchPINCDEC_DEREF);
+    addConfNameOpPair ("PDEREF_SUB", {mFORBIDEN_TYPE, mFORBIDEN_TYPE, mPDEREF_SUB, mPDEREF_PSUB});        //Pointer - Val
+    addOpMatchObjectPair (mPDEREF_SUB, CREATE_OBJ(DerefSub)); 
+    addOpMatchObjectPair (mPDEREF_PSUB, CREATE_OBJ(DerefPSub)); 
     
     
-    addConfNameOpPair ("PDEREF_LEFTINC", {mPDEREF_LEFTINC});        //Pointer - Val
-    addOpMatchObjectPair (mPDEREF_LEFTINC, matchPDEREF_INCDEC);
+    addConfNameOpPair ("PLEFTINC_DEREF", {mFORBIDEN_TYPE, mFORBIDEN_TYPE, mPLEFTINC_DEREF_INT, mPLEFTINC_DEREF_PTR});        //Pointer - Val
+    addOpMatchObjectPair (mPLEFTINC_DEREF_INT, CREATE_OBJ(PLeftIncDerefInt));
+    addOpMatchObjectPair (mPLEFTINC_DEREF_PTR, CREATE_OBJ(PLeftIncDerefPtr));
     
-    addConfNameOpPair ("PDEREF_RIGHTINC", {mPDEREF_RIGHTINC});        //Pointer - Val
-    addOpMatchObjectPair (mPDEREF_RIGHTINC, matchPDEREF_INCDEC); 
+    addConfNameOpPair ("PRIGHTINC_DEREF", {mFORBIDEN_TYPE, mFORBIDEN_TYPE, mPRIGHTINC_DEREF_INT, mPRIGHTINC_DEREF_PTR});        //Pointer - Val
+    addOpMatchObjectPair (mPRIGHTINC_DEREF_INT, CREATE_OBJ(PRightIncDerefInt));
+    addOpMatchObjectPair (mPRIGHTINC_DEREF_PTR, CREATE_OBJ(PRightIncDerefPtr)); 
     
-    addConfNameOpPair ("PDEREF_LEFTDEC", {mPDEREF_LEFTDEC});        //Pointer - Val
-    addOpMatchObjectPair (mPDEREF_LEFTDEC, matchPDEREF_INCDEC);
+    addConfNameOpPair ("PLEFTDEC_DEREF", {mFORBIDEN_TYPE, mFORBIDEN_TYPE, mPLEFTDEC_DEREF_INT, mPLEFTDEC_DEREF_PTR});        //Pointer - Val
+    addOpMatchObjectPair (mPLEFTDEC_DEREF_INT, CREATE_OBJ(PLeftDecDerefInt));
+    addOpMatchObjectPair (mPLEFTDEC_DEREF_PTR, CREATE_OBJ(PLeftDecDerefPtr));
     
-    addConfNameOpPair ("PDEREF_RIGHTDEC", {mPDEREF_RIGHTDEC});        //Pointer - Val
-    addOpMatchObjectPair (mPDEREF_RIGHTDEC, matchPDEREF_INCDEC);*/
+    addConfNameOpPair ("PRIGHTDEC_DEREF", {mFORBIDEN_TYPE, mFORBIDEN_TYPE, mPRIGHTDEC_DEREF_INT, mPRIGHTDEC_DEREF_PTR});        //Pointer - Val
+    addOpMatchObjectPair (mPRIGHTDEC_DEREF_INT,CREATE_OBJ(PRightDecDerefInt));
+    addOpMatchObjectPair (mPRIGHTDEC_DEREF_PTR,CREATE_OBJ(PRightDecDerefPtr));
+    
+    
+    addConfNameOpPair ("PDEREF_LEFTINC", {mFORBIDEN_TYPE, mFORBIDEN_TYPE, mPDEREF_LEFTINC,  mPDEREF_PLEFTINC});        //Pointer - Val
+    addOpMatchObjectPair (mPDEREF_LEFTINC, CREATE_OBJ(DerefLeftInc));
+    addOpMatchObjectPair (mPDEREF_PLEFTINC, CREATE_OBJ(DerefPLeftInc));
+    
+    addConfNameOpPair ("PDEREF_RIGHTINC", {mFORBIDEN_TYPE, mFORBIDEN_TYPE, mPDEREF_RIGHTINC, mPDEREF_PRIGHTINC});        //Pointer - Val
+    addOpMatchObjectPair (mPDEREF_RIGHTINC, CREATE_OBJ(DerefRightInc)); 
+    addOpMatchObjectPair (mPDEREF_PRIGHTINC, CREATE_OBJ(DerefPRightInc));
+    
+    addConfNameOpPair ("PDEREF_LEFTDEC", {mFORBIDEN_TYPE, mFORBIDEN_TYPE, mPDEREF_LEFTDEC, mPDEREF_PLEFTDEC});        //Pointer - Val
+    addOpMatchObjectPair (mPDEREF_LEFTDEC, CREATE_OBJ(DerefLeftDec));
+    addOpMatchObjectPair (mPDEREF_PLEFTDEC, CREATE_OBJ(DerefPLeftDec));
+    
+    addConfNameOpPair ("PDEREF_RIGHTDEC", {mFORBIDEN_TYPE, mFORBIDEN_TYPE, mPDEREF_RIGHTDEC, mPDEREF_PRIGHTDEC});        //Pointer - Val
+    addOpMatchObjectPair (mPDEREF_RIGHTDEC, CREATE_OBJ(DerefRightDec));
+    addOpMatchObjectPair (mPDEREF_PRIGHTDEC, CREATE_OBJ(DerefPRightDec));
     
     /**** ADD HERE ****/
     
