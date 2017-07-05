@@ -49,6 +49,8 @@
 #include "llvm/IR/DebugInfo.h"  //llvm::StripDebugInfo (llvm::Module &M)   //remove all debugging infos    (llvm/IR/DebugInfoMetadata.h)
 #endif
 
+#include "llvm/IR/IntrinsicInst.h"  //llvm::DbgInfoIntrinsic, to check for llvm.dbg.declare and llvm.dbg.value
+
 /*#ifdef ENABLE_OPENMP_PARALLEL
 #include "omp.h"
 #endif*/
@@ -954,7 +956,7 @@ bool Mutation::doMutate()
                 ///The incoming value is a constant
                 llvm::BasicBlock * bb = phi->getIncomingBlock(pind);
                 //create proxy
-                llvm::BasicBlock * proxyBlock = llvm::BasicBlock::Create(MI.getContext(), std::string("MuLL.PHI_N_Proxy")+std::to_string(proxyBBNum++), curFunc, bb->getNextNode());
+                llvm::BasicBlock * proxyBlock = llvm::BasicBlock::Create(MI.getContext(), std::string("MART.PHI_N_Proxy")+std::to_string(proxyBBNum++), curFunc, bb->getNextNode());
                 llvm::BranchInst::Create(phiBB, proxyBlock);    //create unconditional branch to phiBB and insert at the end of proxyBlock
                 if((ittmp.first->second.emplace(bb, proxyBlock)).second == false)
                 {
@@ -1064,22 +1066,18 @@ bool Mutation::doMutate()
                 //Skip llvm debugging functions void @llvm.dbg.declare and void @llvm.dbg.value, and klee special function...
                 if (auto * callinst = llvm::dyn_cast<llvm::CallInst>(&Instr))
                 {
-                    if (llvm::Function *fun = callinst->getCalledFunction())    //TODO: handle function alias
+                    if (llvm::isa<llvm::DbgInfoIntrinsic>(callinst))   //llvm.dbg.declare  and llvm.dbg.value
                     {
-                        if(fun->getName().startswith("llvm.dbg.") && fun->getReturnType()->isVoidTy())
+                        if (curLiveStmtSearch && curLiveStmtSearch->isVisited(&Instr)) 
                         {
-                            if((/*callinst->getNumArgOperands()==2 && */fun->getName().equals("llvm.dbg.declare")) ||
-                                (/*callinst->getNumArgOperands()==3 && */fun->getName().equals("llvm.dbg.value")))
-                            {
-                                if (curLiveStmtSearch && curLiveStmtSearch->isVisited(&Instr)) 
-                                {
-                                    assert (false && "The debug statement should not have been in visited (cause no dependency on others stmts...)"); //DBG
-                                    srcStmtsSearchList.remove(curLiveStmtSearch);
-                                    curLiveStmtSearch = nullptr;
-                                }
-                                continue;
-                            }
+                            assert (false && "The debug statement should not have been in visited (cause no dependency on others stmts...)"); //DBG
+                            srcStmtsSearchList.remove(curLiveStmtSearch);
+                            curLiveStmtSearch = nullptr;
                         }
+                        continue;
+                    }
+                    else if (llvm::Function *fun = callinst->getCalledFunction())    //TODO: handle function alias
+                    {
                         if (forKLEESEMu && fun->getName().equals("klee_make_symbolic") && callinst->getNumArgOperands() == 3 && fun->getReturnType()->isVoidTy())
                         {
                             if (curLiveStmtSearch && curLiveStmtSearch->isVisited(&Instr)) 
@@ -1289,7 +1287,7 @@ bool Mutation::doMutate()
                         {
                             original = llvm::SplitBlock(sstmtCurBB, firstInst);
 #endif
-                            original->setName(std::string("MuLL.original_Mut0.Stmt")+std::to_string(mod_mutstmtcount));
+                            original->setName(std::string("MART.original_Mut0.Stmt")+std::to_string(mod_mutstmtcount));
                     
                             linkterminators.push_back(sstmtCurBB->getTerminator());    //this cannot be nullptr because the block just got splitted
                         }
@@ -1327,7 +1325,7 @@ bool Mutation::doMutate()
 #else                         
                             llvm::BasicBlock * nextBB = llvm::SplitBlock(original, lastInst->getNextNode());
 #endif
-                            nextBB->setName(std::string("MuLL.BBafter.Stmt")+std::to_string(mod_mutstmtcount));
+                            nextBB->setName(std::string("MART.BBafter.Stmt")+std::to_string(mod_mutstmtcount));
                             
                             sstmtCurBB = nextBB;
                         }
@@ -1359,7 +1357,7 @@ bool Mutation::doMutate()
                             
                             for (auto *subBB: mutBlocks)
                             {
-                                subBB->setName(std::string("MuLL.Mutant_Mut")+mutIDstr/*+"-"+(*curSrcStmtIt)->mutantStmt_list.getTypeName(ms_ind)*/);
+                                subBB->setName(std::string("MART.Mutant_Mut")+mutIDstr/*+"-"+(*curSrcStmtIt)->mutantStmt_list.getTypeName(ms_ind)*/);
 #if (LLVM_VERSION_MAJOR <= 3) && (LLVM_VERSION_MINOR < 5)  //-----------
                                 assert(!subBB->getParent() && "Already has a parent");
  
@@ -1509,12 +1507,12 @@ void Mutation::getWMConditions (std::vector<llvm::Instruction *> &origUnsafes, s
                             break;
                         }
                         //create condition
-                        subconds.push_back(tmpbuilder.CreateICmpNE(o_oprd, m_oprd)); //TODO m_oprd
+                        subconds.push_back(tmpbuilder.CreateICmpNE(o_oprd, m_oprd));
                     }
                     else if (o_type->isFPOrFPVectorTy())
                     {
                         //create condition
-                        subconds.push_back(tmpbuilder.CreateFCmpUNE(o_oprd, m_oprd)); //TODO m_oprd
+                        subconds.push_back(tmpbuilder.CreateFCmpUNE(o_oprd, m_oprd)); 
                     }
                     else
                     {
@@ -1522,10 +1520,11 @@ void Mutation::getWMConditions (std::vector<llvm::Instruction *> &origUnsafes, s
                     }
                 }
             }
-            if (surelyDiffer)
-                break;
             //make final condition (and of all subconditions)
             conditions.push_back(subconds);
+            
+            if (surelyDiffer)   //anything added in subconds will be removed bellow
+                break;
         }
         if (! surelyDiffer)
             return;
@@ -1631,12 +1630,9 @@ void Mutation::computeWeakMutation(std::unique_ptr<llvm::Module> &cmodule, std::
                                 
                                 assert (origUnsafes.size() >= condVals.size() && "at most 1 condition per unsafe inst");
                                 //assert (!condVals.empty() && "there must be at least on condition");  //no condition mean that the mutant is equivalen (maybe only safe instructions)
-                                for (auto *uns: mutUnsafes)
-                                    uns->dropAllReferences();
+                                
                                 for (unsigned ic=0, ice=condVals.size(); ic<ice; ++ic)
                                 {
-                                    if (condVals[ic].empty())
-                                        continue;
                                     if (ic == 0)
                                     {
                                         auto insert = &*(defaultBB->begin());
@@ -1666,24 +1662,35 @@ void Mutation::computeWeakMutation(std::unique_ptr<llvm::Module> &cmodule, std::
                                                 break;
                                             minst->moveBefore (insert);
                                         }
-                                        //make sure that all copied inst that use mutant unsafe now use orig unsafe (execution reach here with weakly alive only if both are equivalent before)
-                                        mutUnsafes[ic-1]->replaceAllUsesWith(origUnsafes[ic-1]); 
                                     }
-                                    
-                                    for (auto *condtmp: condVals[ic])
+                                     
+                                    //Mutant is probably non equivalent to original at this unsafe
+                                    if (! condVals[ic].empty())
                                     {
-                                        auto *subcondInst = llvm::dyn_cast<llvm::Instruction>(condtmp);
-                                        if (subcondInst)
-                                            subcondInst->insertBefore(origUnsafes[ic]);
-                                        if (condVals[ic].front() != condtmp)
-                                            condVals[ic].front() = sbuilders[ic].CreateOr(condVals[ic].front(), condtmp);
+                                        for (auto *condtmp: condVals[ic])
+                                        {
+                                            auto *subcondInst = llvm::dyn_cast<llvm::Instruction>(condtmp);
+                                            if (subcondInst)
+                                                subcondInst->insertBefore(origUnsafes[ic]);
+                                            if (condVals[ic].front() != condtmp)
+                                                condVals[ic].front() = sbuilders[ic].CreateOr(condVals[ic].front(), condtmp);
+                                        }
+                                        condVals[ic].front() = sbuilders[ic].CreateZExt(condVals[ic].front(), llvm::Type::getInt8Ty(moduleInfo.getContext())); //convert i1 into i8
+                                        argsv.clear();
+                                        argsv.push_back(mutIDConstInt);     //mutant ID
+                                        argsv.push_back(condVals[ic].front());           //weak kill condition
+                                        sbuilders[ic].CreateCall(funcWMLog, argsv);  //call WM log func
                                     }
-                                    condVals[ic].front() = sbuilders[ic].CreateZExt(condVals[ic].front(), llvm::Type::getInt8Ty(moduleInfo.getContext())); //convert i1 into i8
-                                    argsv.clear();
-                                    argsv.push_back(mutIDConstInt);     //mutant ID
-                                    argsv.push_back(condVals[ic].front());           //weak kill condition
-                                    sbuilders[ic].CreateCall(funcWMLog, argsv);  //call WM log func
                                 }
+                                
+                                //make sure that all copied inst that use mutant unsafe now use orig unsafe (execution reach here with weakly alive only if both are equivalent before)
+                                //XXX we put this here at the end to make sure that the mutUnsafe use ketp un condVals are all applied tcompletely, otherwise some won't be changed
+                                for (unsigned ic=1, ice=condVals.size(); ic<ice; ++ic)
+                                     mutUnsafes[ic-1]->replaceAllUsesWith(origUnsafes[ic-1]);
+                                
+                                //Drop all references of mut unsafes (after this , mutUnsafe should not be used)
+                                for (auto *uns: mutUnsafes)
+                                    uns->dropAllReferences();
                             }
                             // Now call fflush
                             argsv.clear();
@@ -2195,7 +2202,9 @@ void Mutation::doTCE (std::unique_ptr<llvm::Module> &modWMLog, bool writeMuts, b
                                 }
                                 else
                                 {
-                                    cit.setValue(llvm::ConstantInt::get(moduleInfo.getContext(), llvm::APInt(32, (uint64_t)(dup_eq_processor.duplicateMap.at(i).front()), false)));
+                                    auto new_mid = dup_eq_processor.duplicateMap.at(i).front();
+                                    cit.setValue(llvm::ConstantInt::get(moduleInfo.getContext(), llvm::APInt(32, (uint64_t)(new_mid), false)));
+                                    cit.getCaseSuccessor()->setName(std::string("MART.Mutant_Mut")+std::to_string(new_mid));
                                 }
                             }
                         }
