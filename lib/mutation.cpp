@@ -1484,6 +1484,10 @@ void Mutation::getWMConditions (std::vector<llvm::Instruction *> &origUnsafes, s
             {
                 llvm::Value *o_oprd = origUnsafes[i]->getOperand(j);
                 llvm::Value *m_oprd = mutUnsafes[i]->getOperand(j);
+                
+                if (o_oprd == m_oprd)
+                    continue;
+                    
                 llvm::Type *o_type = o_oprd->getType();
                 llvm::Type *m_type = m_oprd->getType();
                 
@@ -1537,7 +1541,7 @@ void Mutation::getWMConditions (std::vector<llvm::Instruction *> &origUnsafes, s
                 delete cinst;
             }
     conditions.clear();
-    conditions.push_back(std::vector<llvm::Value *>({llvm::ConstantInt::get(moduleInfo.getContext(), llvm::APInt(8, 1, true))})); 
+    conditions.push_back(std::vector<llvm::Value *>({llvm::ConstantInt::getTrue(moduleInfo.getContext())}));    //true (there is difference - weakly killed) 
 }
 
 /**
@@ -1633,7 +1637,7 @@ void Mutation::computeWeakMutation(std::unique_ptr<llvm::Module> &cmodule, std::
                                 {
                                     if (condVals[ic].empty())
                                         continue;
-                                    if (ic=0)
+                                    if (ic == 0)
                                     {
                                         auto insert = &*(defaultBB->begin());
                                         for (auto mutFirst=caseiBB->begin(), mutEnd=caseiBB->end(); mutFirst!=mutEnd;)
@@ -1671,8 +1675,10 @@ void Mutation::computeWeakMutation(std::unique_ptr<llvm::Module> &cmodule, std::
                                         auto *subcondInst = llvm::dyn_cast<llvm::Instruction>(condtmp);
                                         if (subcondInst)
                                             subcondInst->insertBefore(origUnsafes[ic]);
-                                        condVals[ic].front() = sbuilders[ic].CreateOr(condVals[ic].front(), condtmp);
+                                        if (condVals[ic].front() != condtmp)
+                                            condVals[ic].front() = sbuilders[ic].CreateOr(condVals[ic].front(), condtmp);
                                     }
+                                    condVals[ic].front() = sbuilders[ic].CreateZExt(condVals[ic].front(), llvm::Type::getInt8Ty(moduleInfo.getContext())); //convert i1 into i8
                                     argsv.clear();
                                     argsv.push_back(mutIDConstInt);     //mutant ID
                                     argsv.push_back(condVals[ic].front());           //weak kill condition

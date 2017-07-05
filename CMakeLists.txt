@@ -115,7 +115,7 @@ message(STATUS "Using compiler: ${CMAKE_CXX_COMPILER}")
 # put the -std=c++11 or -std=gnu++11 to the flags
 # on some systems. For the -fno-rtti: LLVM still got problems
 # with turning RTTI off...
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-rtti -std=c++11 -Wall -Wextra")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g -fno-rtti -std=c++11 -Wall -Wextra")
 
 if (USE_CLANG_SANITIZERS)
 	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=undefined -fsanitize=address")

@@ -16,6 +16,7 @@ class GlobalDefs:
             tmp = [self.ADDRESSEXPR]+list(oprdTake - {self.ADDRESSEXPR})
         else:
             tmp =  list(oprdTake)
+            
         if oprdCheck is None:
             return tmp[0]
         else:
@@ -39,15 +40,15 @@ class GlobalDefs:
         self.ARITHEXPR = "@"
         self.ARITHVAR = "V"
         self.ARITHCONST = "C"
-        self.arithVAL = {self.ARITHEXPR, self.ARITHVAR, self.ARITHCONST}
+        self.arith_VAL = {self.ARITHEXPR, self.ARITHVAR, self.ARITHCONST}
         self.POINTERVAR = "P"
         self.ADDRESSEXPR = "A"
-        self.pointerVAL = {self.POINTERVAR, self.ADDRESSEXPR}
+        self.pointer_VAL = {self.POINTERVAR, self.ADDRESSEXPR}
         # Structure
         self.MATCH_ONLY_DEL = ("STMT", "RETURN_BREAK_CONTINUE")
         self.CALL = ("CALL",)
         self.SWITCH = ("SWITCH",)
-        matchOnlys = self.arithVAL | self.pointerVAL | set(self.MATCH_ONLY_DEL) | set(self.CALL) | set (self.SWITCH) #local var just for internal check
+        matchOnlys = self.arith_VAL | self.pointer_VAL | set(self.MATCH_ONLY_DEL) | set(self.CALL) | set (self.SWITCH) #local var just for internal check
         
       # Replace Only
         self.DELSTMT = ("DELSTMT",)
@@ -75,27 +76,40 @@ class GlobalDefs:
         self.P_INCDEC = ("PLEFTINC", "PLEFTDEC", "PRIGHTINC", "PRIGHTDEC")
         # Logical 
         self.LOR = ("AND", "OR")
+        #Deref-Arithmetic
+        self.DEREFAOR = ("PDEREF_ADD", "PDEREF_SUB")
+        self.AORDEREF = ("PADD_DEREF", "PSUB_DEREF")
+        self.DEREFINCDEC = ("PDEREF_LEFTINC", "PDEREF_RIGHTINC", "PDEREF_LEFTDEC", "PDEREF_RIGHTDEC")
+        self.INCDECDEREF = ("PLEFTINC_DEREF", "PRIGHTINC_DEREF", "PLEFTDEC_DEREF", "PRIGHTDEC_DEREF")
         
       #####
-        self.commutativeBinop = {"ADD", "MUL", "BITAND", "BITOR", "BITXOR", "EQ", "NEQ", "PEQ", "PNEQ"} | set(self.LOR) | set(self.P_AOR) #pointer AOR has one integer oprd on ptr oprd. LOR (TODO)
+        derefs = self.DEREFAOR + self.AORDEREF + self.DEREFINCDEC + self.INCDECDEREF
+        self.commutativeBinop = {"ADD", "MUL", "BITAND", "BITOR", "BITXOR", "EQ", "NEQ", "PEQ", "PNEQ"} | set(self.LOR) | set(self.P_AOR) | set(derefs) #pointer AOR has one integer oprd one ptr oprd. LOR (TODO)
+                                    
+        
+        # What kind of operand does one have
         # Key: operation, Value: list of operators 'types'
         self.FORMATS = {}
-        self.FORMATS.update({opName: [self.arithVAL, self.arithVAL] for opName in self.AOR + self.BIT + self.ROR + self.LOR})
-        self.FORMATS.update({opName: [{self.ARITHVAR}, self.arithVAL] for opName in self.ASSIGN})
-        self.FORMATS.update({opName: [self.pointerVAL, self.arithVAL] for opName in self.P_AOR + self.P_ROR})
-        self.FORMATS.update({opName: [self.arithVAL] for opName in self.UNARY + self.ABS_UNARY})
+        self.FORMATS.update({opName: [self.arith_VAL, self.arith_VAL] for opName in self.AOR + self.BIT + self.ROR + self.LOR})
+        self.FORMATS.update({opName: [{self.ARITHVAR}, self.arith_VAL] for opName in self.ASSIGN})
+        self.FORMATS.update({opName: [self.pointer_VAL, self.arith_VAL] for opName in self.P_AOR + self.P_ROR})
+        self.FORMATS.update({opName: [self.arith_VAL] for opName in self.UNARY + self.ABS_UNARY})
         self.FORMATS.update({opName: [{self.ARITHVAR}] for opName in self.INCDEC})
         self.FORMATS.update({opName: [{self.POINTERVAR}] for opName in self.P_INCDEC})
 
-        self.FORMATS.update({opName: [] for opName in tuple(self.arithVAL | self.pointerVAL) + self.MATCH_ONLY_DEL + self.CALL + self.SWITCH})   #Match only's
+        self.FORMATS.update({opName: [] for opName in tuple(self.arith_VAL | self.pointer_VAL) + self.MATCH_ONLY_DEL + self.CALL + self.SWITCH})   #Match only's
         self.FORMATS.update({opName: [] for opName in self.DELSTMT})                                                                             #Replace only's
 
-        self.FORMATS.update({opName: [self.arithVAL|self.pointerVAL] for opName in self.KEEPOPERAND})
+        self.FORMATS.update({opName: [self.arith_VAL|self.pointer_VAL] for opName in self.KEEPOPERAND})
         self.FORMATS.update({opName: [self.SCALAR_CONST|{self.ZERO}|self.BOOLEAN_CONST] for opName in self.CONSTVAL})
         self.FORMATS.update({opName: [self.SCALAR_STRING]*(1+myNumOfReplFuncs) for opName in self.NEWCALLEE})           # 1+... because of the matched function (param number 1)
         self.FORMATS.update({opName: [self.SHUFFLE_COUNTERS] for opName in self.SHUFFLE_ARGS + self.SHUFFLE_CASESDESTS})
         self.FORMATS.update({opName: [self.CASEREMOVE_COUNTERS] for opName in self.REMOVE_CASES})
-         
+        
+        self.FORMATS.update({opName: [self.pointer_VAL, self.arith_VAL] for opName in self.DEREFAOR + self.AORDEREF})
+        self.FORMATS.update({opName: [{self.POINTERVAR}] for opName in self.DEREFINCDEC + self.INCDECDEREF})
+        
+        
         arithOps = self.AOR + self.BIT + self.ROR + self.ASSIGN + self.UNARY + self.P_INCDEC  # + self.LOR        #as for now, LOR can only be replaced(replacing) LOR TODO TODO: add here when supported
         arthExtraRepl = self.DELSTMT + self.KEEPOPERAND + self.CONSTVAL + self.ABS_UNARY
         pointerOps = self.P_AOR + self.P_INCDEC
@@ -119,7 +133,11 @@ class GlobalDefs:
         self.RULES.update({opName: set(self.DELSTMT) for opName in self.MATCH_ONLY_DEL})
         self.RULES.update({opName: set(self.DELSTMT + self.NEWCALLEE + self.SHUFFLE_ARGS) for opName in self.CALL})
         self.RULES.update({opName: set(self.DELSTMT + self.SHUFFLE_CASESDESTS + self.REMOVE_CASES) for opName in self.SWITCH})
-         
+        
+        self.RULES.update({opName: set(self.DEREFAOR + self.DEREFINCDEC + self.DELSTMT) - {opName} for opName in (self.AORDEREF + self.INCDECDEREF)})
+        self.RULES.update({opName: set(self.AORDEREF + self.INCDECDEREF + self.DELSTMT) - {opName} for opName in (self.DEREFAOR + self.DEREFINCDEC)})
+        
+        #Verify RULES 
         for tmpM in self.RULES:
             assert tmpM not in replaceOnlys, "replaceOnlys considered as matcher in RULES"
             for tmpR in self.RULES[tmpM]:

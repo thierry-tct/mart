@@ -35,8 +35,12 @@ cd test/tmpRunDir
 #-----------------------------------
 #CLANGC=clang
 #LLVM_DIS=llvm-dis-3.4  #llvm-dis
-CLANGC=/media/thierry/TestMutants/DG-dependency/llvm-3.8.0/build/bin/clang
-LLVM_DIS=/media/thierry/TestMutants/DG-dependency/llvm-3.8.0/build/bin/llvm-dis
+llvmvers=$($buildDir/../tools/mart -version 2>&1 | grep "LLVM version " | grep -o -E "[0-9].[0-9]")
+    
+tmpLLVM_COMPILER_PATH=$($buildDir/../tools/mart -version 2>&1 | grep "LLVM tools dir:" | cut -d':' -f2 | sed 's|^ ||g')     #temporary, change this later
+CLANGC=$tmpLLVM_COMPILER_PATH/clang-$llvmvers
+LLVM_DIS=$tmpLLVM_COMPILER_PATH/llvm-dis-$llvmvers
+test -f $LLVM_DIS || LLVM_DIS=$tmpLLVM_COMPILER_PATH/llvm-dis
 #------------------------------------
 
 ## compile
@@ -51,7 +55,7 @@ do
     filep=$(basename $src)
     filep=${filep%.c}
     
-    trap "echo 'cmd: ../../tools/mull -mutant-config ../operator/mutconf.conf $filep.bc 2>&1'" INT
+    trap "echo 'cmd: ../../tools/mart -mutant-config ../operator/mutconf.conf $filep.bc 2>&1'" INT
     
     echo -n "> $filep...  compiling...   "
     $CLANGC -g -c -emit-llvm -o $filep.bc $src || error_exit "Failed to compile $src"
@@ -59,8 +63,8 @@ do
     
     options="-print-preTCE-Meta -write-mutants"
     #options="$options -mutant-config $(readlink -f ../operator/mutconf.conf)"
-    ( $buildDir/../tools/mull $options $filep.bc 2>&1 ) > $filep.info || { printf "\n---\n"; cat $filep.info; echo "---"; error_exit "mutation Failed for $src. cmd: `readlink -f  $buildDir/../tools/mull` $options $(readlink -f $filep.bc) 2>&1"; }
-    mv mull-out-0 $filep-out || error_exit "Failed to store output"
+    ( $buildDir/../tools/mart $options $filep.bc 2>&1 ) > $filep.info || { printf "\n---\n"; cat $filep.info; echo "---"; error_exit "mutation Failed for $src. cmd: `readlink -f  $buildDir/../tools/mart` $options $(readlink -f $filep.bc) 2>&1"; }
+    mv mart-out-0 $filep-out || error_exit "Failed to store output"
     mv $filep.info $filep-out || error_exit "Failed to move info to output"
     echo "llvm-dis..."
     $LLVM_DIS -o $filep-out/$filep.MetaMu.ll $filep-out/$filep.MetaMu.bc || error_exit "llvm-dis failed on $filep-out/$filep.MetaMu.bc"
