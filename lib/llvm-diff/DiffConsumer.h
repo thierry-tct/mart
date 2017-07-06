@@ -71,7 +71,7 @@ namespace llvm {
     SmallVector<DiffContext, 5> contexts;
     bool Differences;
     unsigned Indent;
-    SmallVector<BasicBlock *, 2> *mull_diffBBs;   //MuLL
+    SmallVector<BasicBlock *, 2> *mart_diffBBs;   //MART
 
     void printValue(Value *V, bool isL);
     void header();
@@ -80,11 +80,11 @@ namespace llvm {
   public:
     DiffConsumer(SmallVector<BasicBlock *, 2> *mdiffBBs=nullptr)
 #ifdef KLEE_SEMu_GenMu_PRINTDIFF
-      : out(errs()), Differences(false), Indent(0), mull_diffBBs(mdiffBBs) {}
+      : out(errs()), Differences(false), Indent(0), mart_diffBBs(mdiffBBs) {}
 #else
-      : out(nulls()), Differences(false), Indent(0), mull_diffBBs(mdiffBBs) {}
+      : out(nulls()), Differences(false), Indent(0), mart_diffBBs(mdiffBBs) {}
 #endif
-    bool stopAtFirstDiff () {return (mull_diffBBs == nullptr);}
+    bool stopAtFirstDiff () {return (mart_diffBBs == nullptr);}
 
     bool hadDifferences() const;
     void enterContext(Value *L, Value *R);

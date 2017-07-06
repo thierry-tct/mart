@@ -119,7 +119,7 @@ void DiffConsumer::header() {
         printValue(R, false);
         out << ":\n";
       }
-      if (mull_diffBBs) mull_diffBBs->push_back(L);   /// @MuLL
+      if (mart_diffBBs) mart_diffBBs->push_back(L);   /// @MART
     } else if (isa<Instruction>(I->L)) {
       out << "    in instruction ";
       printValue(I->L, true);

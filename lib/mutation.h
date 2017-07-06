@@ -79,8 +79,8 @@ private:
     llvm::AllocaInst * MyDemoteRegToStack(llvm::Instruction &I, bool VolatileLoads, llvm::Instruction *AllocaPoint);
     inline bool skipFunc (llvm::Function &Func);
     
-    void cleanFunctionSWmIDRange (llvm::Function &Func, MuLL::MutantIDType mIDFrom, MuLL::MutantIDType mIDTo, llvm::GlobalVariable *mutantIDSelGlob, llvm::Function *mutantIDSelGlob_Func);
-    void cleanFunctionToMut (llvm::Function &Func, MuLL::MutantIDType mutantID, llvm::GlobalVariable *mutantIDSelGlob, llvm::Function *mutantIDSelGlob_Func, bool verifyIfEnabled=true);
+    void cleanFunctionSWmIDRange (llvm::Function &Func, MutantIDType mIDFrom, MutantIDType mIDTo, llvm::GlobalVariable *mutantIDSelGlob, llvm::Function *mutantIDSelGlob_Func);
+    void cleanFunctionToMut (llvm::Function &Func, MutantIDType mutantID, llvm::GlobalVariable *mutantIDSelGlob, llvm::Function *mutantIDSelGlob_Func, bool verifyIfEnabled=true);
     void computeModuleBufsByFunc(llvm::Module &module, std::unordered_map<llvm::Function *, ReadWriteIRObj> *inMemIRModBufByFunc, \
                                                     std::unordered_map<llvm::Function *, llvm::Module *> *clonedModByFunc, std::vector<llvm::Function *> &funcMutByMutID);
     bool getMutant (llvm::Module &module, unsigned mutanatID, llvm::Function *mutFunc=nullptr, char optimizeModFuncNone='M'/* 'M', 'F', 'A', '0' */);

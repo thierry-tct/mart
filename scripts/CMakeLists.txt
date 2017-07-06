@@ -5,10 +5,10 @@ if (KLEE_SEMU_GENMU)
 	#string(REGEX REPLACE "\n$" "" GITVERSION "${GITVERSION}")
 	#add_definitions(-DGIT_VERSION="${GITVERSION}")
 
-	#add_executable(mull MuLL.cpp)
-	#target_link_libraries(mull KLEE-SEMu-GenMu)
+	#add_executable(mart MART.cpp)
+	#target_link_libraries(mart KLEE-SEMu-GenMu)
 
-	#install(TARGETS mull
+	#install(TARGETS mart
 	#	RUNTIME DESTINATION bin)
 		
 	add_custom_command ( OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/ks_mutation.sh

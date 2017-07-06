@@ -1,7 +1,7 @@
 /**
  * -==== MutantSelection.cpp
  *
- *                MuLL Multi-Language LLVM Mutation Framework
+ *                MART Multi-Language LLVM Mutation Framework
  *
  * This file is distributed under the University of Illinois Open Source
  * License. See LICENSE.TXT for details. 
@@ -39,16 +39,16 @@ void MutantDependenceGraph::addDataCtrlFor (dg::LLVMDependenceGraph const *subIR
         for (auto ndata = nodefrom->data_begin(), nde = nodefrom->data_end(); ndata != nde; ++ndata)
         {
             llvm::Value *irDataTo = (*ndata)->getKey();
-            for (MuLL::MutantIDType m_id_from: IR2mutantset[irFrom])
-                for (MuLL::MutantIDType m_id_datato: IR2mutantset[irDataTo])
+            for (MutantIDType m_id_from: IR2mutantset[irFrom])
+                for (MutantIDType m_id_datato: IR2mutantset[irDataTo])
                     if (m_id_from != m_id_datato)
                         addDataDependency (m_id_from, m_id_datato);
         }
         for (auto nctrl = nodefrom->control_begin(), nce = nodefrom->control_end(); nctrl != nce; ++nctrl)
         {
             llvm::Value *irCtrlTo = (*nctrl)->getKey();
-            for (MuLL::MutantIDType m_id_from: IR2mutantset[irFrom])
-                for (MuLL::MutantIDType m_id_ctrlto: IR2mutantset[irCtrlTo])
+            for (MutantIDType m_id_from: IR2mutantset[irFrom])
+                for (MutantIDType m_id_ctrlto: IR2mutantset[irCtrlTo])
                     if (m_id_from != m_id_ctrlto)
                         addCtrlDependency (m_id_from, m_id_ctrlto);
         }
@@ -80,8 +80,8 @@ bool MutantDependenceGraph::build (llvm::Module const &mod, dg::LLVMDependenceGr
     }
     
   // Compute mutant2IRset and IR2mutantset
-    MuLL::MutantIDType mutants_number = mutInfos.getMutantsNumber();
-    for (MuLL::MutantIDType mutant_id = 1; mutant_id <= mutants_number; ++mutant_id)
+    MutantIDType mutants_number = mutInfos.getMutantsNumber();
+    for (MutantIDType mutant_id = 1; mutant_id <= mutants_number; ++mutant_id)
     {
         auto &tmpPos2IRMap = functionName_position2IR.at(mutInfos.getMutantFunction(mutant_id));
         for (auto mutPos: mutInfos.getMutantIrPosInFunction(mutant_id))
@@ -94,12 +94,12 @@ bool MutantDependenceGraph::build (llvm::Module const &mod, dg::LLVMDependenceGr
 
   // Build the mutant dependence graph
     //Add tie dependents
-    std::vector<MuLL::MutantIDType> tmpIds;
+    std::vector<MutantIDType> tmpIds;
     for (auto & pair_val: IR2mutantset)
     {
         llvm::Value const *inst = pair_val.first;
         tmpIds.clear();
-        for (MuLL::MutantIDType mutant_id: IR2mutantset[inst])
+        for (MutantIDType mutant_id: IR2mutantset[inst])
             tmpIds.push_back(mutant_id);
         for (auto m_id_it = tmpIds.begin(), id_e = tmpIds.end(); m_id_it != id_e ; ++m_id_it)
             for (auto tie_id_it = m_id_it + 1; tie_id_it != id_e; ++tie_id_it)
@@ -171,7 +171,7 @@ void MutantDependenceGraph::load(std::string filename, MutantInfoList const &mut
     assert (nummuts == array_in.size() && "the number of mutants mismach, did you choose the right mutants dependence or info file?");
     
     //initialize mutantid_str2int
-    std::unordered_map<std::string, MuLL::MutantIDType> mutantid_str2int;
+    std::unordered_map<std::string, MutantIDType> mutantid_str2int;
     for (auto mutant_id = 1; mutant_id <= nummuts; ++mutant_id)
          mutantid_str2int[std::to_string(mutant_id)] = mutant_id;
     
@@ -194,7 +194,7 @@ void MutantDependenceGraph::load(std::string filename, MutantInfoList const &mut
         {
             assert (odid.isString() && "the mutant in each dependence set should be represented as an intger string (outDataDepends)");
             std::string tmpstr = odid.getString();
-            addDataDependency(mutant_id, mutantid_str2int.at(tmpstr));      //out of bound if the value is not a mutant id as unsigned (Mull::MutantIDType)
+            addDataDependency(mutant_id, mutantid_str2int.at(tmpstr));      //out of bound if the value is not a mutant id as unsigned (MutantIDType)
         }
         assert (tmpobj["outCtrlDependents"].isArray() && "'outCtrlDependents' must be an Array");
         tmparr = tmpobj["outCtrlDependents"].getArray();
@@ -202,7 +202,7 @@ void MutantDependenceGraph::load(std::string filename, MutantInfoList const &mut
         {
             assert (ocid.isString() && "the mutant in each dependence set should be represented as an intger string (outCtrlDepends)");
             std::string tmpstr = ocid.getString();
-            addCtrlDependency(mutant_id, mutantid_str2int.at(tmpstr));      //out of bound if the value is not a mutant id as unsigned (Mull::MutantIDType)
+            addCtrlDependency(mutant_id, mutantid_str2int.at(tmpstr));      //out of bound if the value is not a mutant id as unsigned (MutantIDType)
         }
         assert (tmpobj["tieDependents"].isArray() && "'tieDependents' must be an Array");
         tmparr = tmpobj["tieDependents"].getArray();
@@ -210,7 +210,7 @@ void MutantDependenceGraph::load(std::string filename, MutantInfoList const &mut
         {
             assert (tid.isString() && "the mutant in each dependence set should be represented as an intger string (tieDependents)");
             std::string tmpstr = tid.getString();
-            addTieDependency(mutant_id, mutantid_str2int.at(tmpstr));      //out of bound if the value is not a mutant id as unsigned (Mull::MutantIDType)
+            addTieDependency(mutant_id, mutantid_str2int.at(tmpstr));      //out of bound if the value is not a mutant id as unsigned (MutantIDType)
         }
     }
 }
@@ -259,9 +259,9 @@ void MutantSelection::buildDependenceGraphs(std::string mutant_depend_filename, 
     }
 }
 
-MuLL::MutantIDType MutantSelection::pickMutant (std::unordered_set<MuLL::MutantIDType> const &candidates, std::vector<double> const &scores)
+MutantIDType MutantSelection::pickMutant (std::unordered_set<MutantIDType> const &candidates, std::vector<double> const &scores)
 {
-    std::vector<MuLL::MutantIDType> topScored;
+    std::vector<MutantIDType> topScored;
     
     // First see which are having the maximum score
     double top_score = 0.0;
@@ -281,7 +281,7 @@ MuLL::MutantIDType MutantSelection::pickMutant (std::unordered_set<MuLL::MutantI
     // Second see which among maximum score have smallest number of incoming control dependence
     unsigned minoutctrlnum = (unsigned) -1;
     unsigned maxinctrlnum = 0;
-    MuLL::MutantIDType chosenMutant;
+    MutantIDType chosenMutant;
     for (auto mutant_id: topScored)
     {
         if (mutantDGraph.getOutCtrlDependents(mutant_id).size() < minoutctrlnum)
@@ -302,16 +302,16 @@ MuLL::MutantIDType MutantSelection::pickMutant (std::unordered_set<MuLL::MutantI
 /**
  * \brief relaxes a mutant by affecting the score of its dependent mutants up to a certain hop
  */
-void MutantSelection::relaxMutant (MuLL::MutantIDType mutant_id, std::vector<double> &scores)
+void MutantSelection::relaxMutant (MutantIDType mutant_id, std::vector<double> &scores)
 {
     const double RELAX_STEP = 0.5;
     const double RELAX_THRESHOLD = 0.1;  // 5 hops
-    //const MuLL::MutantIDType ORIGINAL_ID = 0; //no mutant have id 0, that's the original's
+    //const MutantIDType ORIGINAL_ID = 0; //no mutant have id 0, that's the original's
     
     // at data dependency hop n (in and out), and the corresponding node having score x, set its value to x'={x - x*RELAX_STEP/n}, if (RELAX_STEP/n) >= RELAX_THRESHOLD
-    std::unordered_set<MuLL::MutantIDType> visited;
-    std::queue<MuLL::MutantIDType> workQueue;
-    MuLL::MutantIDType next_hop_first_mutant = mutant_id;
+    std::unordered_set<MutantIDType> visited;
+    std::queue<MutantIDType> workQueue;
+    MutantIDType next_hop_first_mutant = mutant_id;
     unsigned curhop = 0;
     double cur_relax_factor = 0.0;
     workQueue.push(mutant_id);
@@ -366,27 +366,27 @@ void MutantSelection::relaxMutant (MuLL::MutantIDType mutant_id, std::vector<dou
 /**
  * \brief Stop when the best selected mutant's score is less to the score_threshold or there are no mutant left
  */
-void MutantSelection::smartSelectMutants (std::vector<MuLL::MutantIDType> &selectedMutants, std::vector<double> &selectedScores)
+void MutantSelection::smartSelectMutants (std::vector<MutantIDType> &selectedMutants, std::vector<double> &selectedScores)
 {
     const double MAX_SCORE = 1.0;
     
-    MuLL::MutantIDType mutants_number = mutantInfos.getMutantsNumber();
+    MutantIDType mutants_number = mutantInfos.getMutantsNumber();
 
     selectedMutants.reserve(mutants_number);
     selectedScores.reserve(mutants_number);
     
     //Choose starting mutants (random for now: 1 mutant per dependency cluster)
     std::vector<double> mutant_scores(mutants_number + 1);
-    std::unordered_set<MuLL::MutantIDType> visited_mutants;
-    std::unordered_set<MuLL::MutantIDType> candidate_mutants;
+    std::unordered_set<MutantIDType> visited_mutants;
+    std::unordered_set<MutantIDType> candidate_mutants;
     
-    for (MuLL::MutantIDType mutant_id = 1; mutant_id <= mutants_number; ++mutant_id)
+    for (MutantIDType mutant_id = 1; mutant_id <= mutants_number; ++mutant_id)
     {
         mutant_scores[mutant_id] = MAX_SCORE;
         candidate_mutants.insert(mutant_id);
     }
     
-    std::unordered_set<MuLL::MutantIDType> tiesTemporal;   //For now put all ties here and append to list at the end
+    std::unordered_set<MutantIDType> tiesTemporal;   //For now put all ties here and append to list at the end
     
     while (! candidate_mutants.empty())
     {
@@ -424,9 +424,9 @@ void MutantSelection::smartSelectMutants (std::vector<MuLL::MutantIDType> &selec
     }
 }
 
-void MutantSelection::randomMutants (std::vector<MuLL::MutantIDType> &spreadSelectedMutants, std::vector<MuLL::MutantIDType> &dummySelectedMutants, unsigned long number)
+void MutantSelection::randomMutants (std::vector<MutantIDType> &spreadSelectedMutants, std::vector<MutantIDType> &dummySelectedMutants, unsigned long number)
 {
-    MuLL::MutantIDType mutants_number = mutantInfos.getMutantsNumber();
+    MutantIDType mutants_number = mutantInfos.getMutantsNumber();
     
     assert (mutantDGraph.isBuilt() && "This function must be called after the mutantDGraph is build. We need mutants IRs");
     
@@ -435,7 +435,7 @@ void MutantSelection::randomMutants (std::vector<MuLL::MutantIDType> &spreadSele
     
     /// \brief Spread Random
     std::vector<llvm::Value const *> mutatedIRs;
-    std::unordered_map<llvm::Value const *, std::unordered_set<MuLL::MutantIDType>> work_map(mutantDGraph.getIR2mutantsetMap());   
+    std::unordered_map<llvm::Value const *, std::unordered_set<MutantIDType>> work_map(mutantDGraph.getIR2mutantsetMap());   
     
     mutatedIRs.reserve(work_map.size());
     for (auto &ir2mutset: work_map)
@@ -493,7 +493,7 @@ void MutantSelection::randomMutants (std::vector<MuLL::MutantIDType> &spreadSele
     /******/
     
     /// \brief Dummy Random
-    for (MuLL::MutantIDType mutant_id = 1; mutant_id <= mutants_number; ++mutant_id)
+    for (MutantIDType mutant_id = 1; mutant_id <= mutants_number; ++mutant_id)
     {
         dummySelectedMutants.push_back(mutant_id);
     }
@@ -507,11 +507,11 @@ void MutantSelection::randomMutants (std::vector<MuLL::MutantIDType> &spreadSele
         dummySelectedMutants.resize(number);
 }
 
-void MutantSelection::randomSDLMutants (std::vector<MuLL::MutantIDType> &selectedMutants, unsigned long number)
+void MutantSelection::randomSDLMutants (std::vector<MutantIDType> &selectedMutants, unsigned long number)
 {
     /// Insert all SDL mutants here, note that any two SDL spawn different IRs
-    MuLL::MutantIDType mutants_number = mutantInfos.getMutantsNumber();
-    for (MuLL::MutantIDType mutant_id = 1; mutant_id <= mutants_number; ++mutant_id)
+    MutantIDType mutants_number = mutantInfos.getMutantsNumber();
+    for (MutantIDType mutant_id = 1; mutant_id <= mutants_number; ++mutant_id)
     {
         std::string nametype = mutantInfos.getMutantTypeName(mutant_id);
         if (UserMaps::containsDeleteStmtConfName(nametype))

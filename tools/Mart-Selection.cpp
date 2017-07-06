@@ -170,16 +170,16 @@ int main (int argc, char ** argv)
     std::string spreadRandomSelectionOutJson = outDir + "/" + "spreadRandomSelection.json";
     std::string dummyRandomSelectionOutJson = outDir + "/" + "dummyRandomSelection.json";
     
-    std::vector<std::vector<MuLL::MutantIDType>> selectedMutants1, selectedMutants2;
+    std::vector<std::vector<MutantIDType>> selectedMutants1, selectedMutants2;
     unsigned long number=0;
     
     llvm::outs() << "Doing Smart Selection...\n";
     curClockTime = clock();
     selectedMutants1.clear();
-    selectedMutants1.push_back(std::vector<MuLL::MutantIDType>());
+    selectedMutants1.push_back(std::vector<MutantIDType>());
     std::vector<double> selectedScores;
     selection.smartSelectMutants(selectedMutants1.back(), selectedScores);
-    mutantListAsJsON<MuLL::MutantIDType>(selectedMutants1, smartSelectionOutJson);
+    mutantListAsJsON<MutantIDType>(selectedMutants1, smartSelectionOutJson);
     mutantListAsJsON<double>(std::vector<std::vector<double>>({selectedScores}), scoresForSmartSelectionOutJson);
     llvm::outs() << "Mart@Progress: smart selection took: "<< (float)(clock() - curClockTime)/CLOCKS_PER_SEC <<" Seconds.\n";
     loginfo << "Mart@Progress: smart selection took: "<< (float)(clock() - curClockTime)/CLOCKS_PER_SEC <<" Seconds.\n";
@@ -193,8 +193,8 @@ int main (int argc, char ** argv)
     selectedMutants1.resize(numberOfRandomSelections); selectedMutants2.resize(numberOfRandomSelections);
     for (unsigned si=0; si<numberOfRandomSelections; ++si)
         selection.randomMutants (selectedMutants1[si], selectedMutants2[si], number);
-    mutantListAsJsON<MuLL::MutantIDType>(selectedMutants1, spreadRandomSelectionOutJson);
-    mutantListAsJsON<MuLL::MutantIDType>(selectedMutants2, dummyRandomSelectionOutJson);
+    mutantListAsJsON<MutantIDType>(selectedMutants1, spreadRandomSelectionOutJson);
+    mutantListAsJsON<MutantIDType>(selectedMutants2, dummyRandomSelectionOutJson);
     llvm::outs() << "Mart@Progress: dummy and spread random took: "<< (float)(clock() - curClockTime)/CLOCKS_PER_SEC <<" Seconds. (" << numberOfRandomSelections << " repetitions)\n";
     loginfo << "Mart@Progress: dummy and spread random took: "<< (float)(clock() - curClockTime)/CLOCKS_PER_SEC <<" Seconds. (" << numberOfRandomSelections << " repetitions)\n";
     
@@ -204,7 +204,7 @@ int main (int argc, char ** argv)
     selectedMutants1.resize(numberOfRandomSelections); 
     for (unsigned si=0; si<numberOfRandomSelections; ++si)
         selection.randomSDLMutants(selectedMutants1[si], number);
-    mutantListAsJsON<MuLL::MutantIDType>(selectedMutants1, randomSDLelectionOutJson);
+    mutantListAsJsON<MutantIDType>(selectedMutants1, randomSDLelectionOutJson);
     llvm::outs() << "Mart@Progress: random SDL took: "<< (float)(clock() - curClockTime)/CLOCKS_PER_SEC <<" Seconds. (" << numberOfRandomSelections << " repetitions)\n";
     loginfo << "Mart@Progress: random SDL took: "<< (float)(clock() - curClockTime)/CLOCKS_PER_SEC <<" Seconds. (" << numberOfRandomSelections << " repetitions)\n";
     

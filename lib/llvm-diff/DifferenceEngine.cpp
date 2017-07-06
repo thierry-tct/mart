@@ -188,12 +188,12 @@ class FunctionDifferenceEngine {
   }
 
   void processQueue() {
-    DiffConsumer &dCons = Engine.getConsumer();   // @MuLL
+    DiffConsumer &dCons = Engine.getConsumer();   // @MART
     while (!Queue.empty()) {
       BlockPair Pair = Queue.remove_min();
       diff(Pair.first, Pair.second);
-      if (dCons.stopAtFirstDiff() && dCons.hadDifferences())    // @MuLL
-        break;  // @MuLL
+      if (dCons.stopAtFirstDiff() && dCons.hadDifferences())    // @MART
+        break;  // @MART
     }
   }
 

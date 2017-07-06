@@ -4,7 +4,7 @@
 /**
  * -==== DerefPointerArith_Base.h
  *
- *                MuLL Multi-Language LLVM Mutation Framework
+ *                MART Multi-Language LLVM Mutation Framework
  *
  * This file is distributed under the University of Illinois Open Source
  * License. See LICENSE.TXT for details. 
@@ -80,23 +80,26 @@ class DerefPointerArith_Base: public GenericMuOpBase
                 {
                     if (auto *load = llvm::dyn_cast<llvm::LoadInst>(MU.getHLOperandSource(hloprd_id, toMatch)))
                     {
-                        auto *loadptr = load->getPointerOperand();
-                        if (! llvm::isa<llvm::AllocaInst>(loadptr))
+                        if (load->hasOneUse())   //must be the only use: deref ( avoid add/sub to consider inc/dec load as deref load)
                         {
-                            //if (auto *gep = llvm::dyn_cast<llvm::GetElementPtrInst>(loadptr))
-                            //{
-                            //    int indx;
-                            //    if (checkIsPointerIndexingAndGet(gep, indx) && indx == gep->getNumIndices()-1/*no other indices after array index*/)
-                            //    {
-                            //        //Modify MU, setting load pointer operand as HL perand instead of arith operands
-                            //        hloprd_reset_data.emplace_back(hloprd_id, toMatch.depPosofPos(gep, pos, true), toMatch.depPosofPos(load, pos, true));
-                            //    }
-                            //}
-                            //else
-                            //{
-                                //Modify MU, setting load pointer operand as HL perand instead of arith operands
-                                hloprd_reset_data.emplace_back(hloprd_id, toMatch.depPosofPos(loadptr, pos, true), toMatch.depPosofPos(load, pos, true));
-                            //}
+                            auto *loadptr = load->getPointerOperand();
+                            if (! llvm::isa<llvm::AllocaInst>(loadptr))
+                            {
+                                //if (auto *gep = llvm::dyn_cast<llvm::GetElementPtrInst>(loadptr))
+                                //{
+                                //    int indx;
+                                //    if (checkIsPointerIndexingAndGet(gep, indx) && indx == gep->getNumIndices()-1/*no other indices after array index*/)
+                                //    {
+                                //        //Modify MU, setting load pointer operand as HL perand instead of arith operands
+                                //        hloprd_reset_data.emplace_back(hloprd_id, toMatch.depPosofPos(gep, pos, true), toMatch.depPosofPos(load, pos, true));
+                                //    }
+                                //}
+                                //else
+                                //{
+                                    //Modify MU, setting load pointer operand as HL perand instead of arith operands
+                                    hloprd_reset_data.emplace_back(hloprd_id, toMatch.depPosofPos(loadptr, pos, true), toMatch.depPosofPos(load, pos, true));
+                                //}
+                            }
                         }
                     }
                 }

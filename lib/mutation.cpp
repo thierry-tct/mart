@@ -263,7 +263,7 @@ void Mutation::preprocessVariablePhi (llvm::Module &module)
 /// DemotePHIToStack - This function takes a virtual register computed by a PHI
 /// node and replaces it with a slot in the stack frame allocated via alloca.
 /// The PHI node is deleted. It returns the pointer to the alloca inserted.
-/// @MuLL: edited from "llvm/lib/Transforms/Utils/DemoteRegToStack.cpp"
+/// @MART: edited from "llvm/lib/Transforms/Utils/DemoteRegToStack.cpp"
 ///TODO: @todo Update this as LLVM evolve
 llvm::AllocaInst *Mutation::MYDemotePHIToStack(llvm::PHINode *P, llvm::Instruction *AllocaPoint) 
 {
@@ -342,7 +342,7 @@ llvm::AllocaInst *Mutation::MYDemotePHIToStack(llvm::PHINode *P, llvm::Instructi
 /// alloca.  This allows the CFG to be changed around without fear of
 /// invalidating the SSA information for the value.  It returns the pointer to
 /// the alloca inserted to create a stack slot for I.
-/// @MuLL: edited from "llvm/lib/Transforms/Utils/DemoteRegToStack.cpp"
+/// @MART: edited from "llvm/lib/Transforms/Utils/DemoteRegToStack.cpp"
 ///TODO: @todo Update this as LLVM evolve
 llvm::AllocaInst *Mutation::MyDemoteRegToStack(llvm::Instruction &I, bool VolatileLoads, llvm::Instruction *AllocaPoint) 
 {
@@ -722,7 +722,7 @@ void Mutation::getMutantsOfStmt (MatchStmtIR const &stmtIR, MutantsOfStmt &ret_m
         usermaps.getMatcherObject(mutator.getMatchOp())->matchAndReplace (stmtIR, mutator, ret_mutants, isDeleted, moduleInfo);
         
         // Check that load and stores type are okay
-        for (MuLL::MutantIDType i=0, ie=ret_mutants.getNumMuts(); i < ie; i++)
+        for (MutantIDType i=0, ie=ret_mutants.getNumMuts(); i < ie; i++)
         {
             if (! ret_mutants.getMutantStmtIR(i).checkLoadAndStoreTypes())
             {
@@ -1793,13 +1793,13 @@ struct DuplicateEquivalentProcessor
     
     bool isTCEFunctionMode;
     
-    DuplicateEquivalentProcessor(MuLL::MutantIDType highestMutID, bool is_tce_func_mode): isTCEFunctionMode(is_tce_func_mode)
+    DuplicateEquivalentProcessor(MutantIDType highestMutID, bool is_tce_func_mode): isTCEFunctionMode(is_tce_func_mode)
     {
         funcMutByMutID.resize(highestMutID+1, nullptr);
         diffBBWithOrig.resize(highestMutID+1);
     }
     
-    void update (MuLL::MutantIDType mutant_id, llvm::Module *clonedOrig, llvm::Module *clonedM)
+    void update (MutantIDType mutant_id, llvm::Module *clonedOrig, llvm::Module *clonedM)
     {
         std::vector<llvm::Function *> mutatedFuncsOfMID;
         if (isTCEFunctionMode)
@@ -2318,7 +2318,7 @@ void Mutation::doTCE (std::unique_ptr<llvm::Module> &modWMLog, bool writeMuts, b
 /**
  * \brief Clean switch of mutant for the muatnt ids in range from to
  */
-void Mutation::cleanFunctionSWmIDRange (llvm::Function &Func, MuLL::MutantIDType mIDFrom, MuLL::MutantIDType mIDTo, llvm::GlobalVariable *mutantIDSelGlob, llvm::Function *mutantIDSelGlob_Func)
+void Mutation::cleanFunctionSWmIDRange (llvm::Function &Func, MutantIDType mIDFrom, MutantIDType mIDTo, llvm::GlobalVariable *mutantIDSelGlob, llvm::Function *mutantIDSelGlob_Func)
 {
     if (Func.isDeclaration())
         return;
@@ -2386,7 +2386,7 @@ void Mutation::cleanFunctionSWmIDRange (llvm::Function &Func, MuLL::MutantIDType
     //Mutation::checkFunctionValidity(Func, "ERROR: Misformed Function after cleanFunctionSWmIDRange!");
 }
 
-void Mutation::cleanFunctionToMut (llvm::Function &Func, MuLL::MutantIDType mutantID, llvm::GlobalVariable *mutantIDSelGlob, llvm::Function *mutantIDSelGlob_Func, bool verifyIfEnabled)
+void Mutation::cleanFunctionToMut (llvm::Function &Func, MutantIDType mutantID, llvm::GlobalVariable *mutantIDSelGlob, llvm::Function *mutantIDSelGlob_Func, bool verifyIfEnabled)
 {
     if (Func.isDeclaration())
         return;
@@ -2461,7 +2461,7 @@ void Mutation::computeModuleBufsByFunc(llvm::Module &module, std::unordered_map<
     if (inMemIRModBufByFunc != nullptr && clonedModByFunc != nullptr)
         assert (false && "Both 'inMemIRModBufByFunc' and 'clonedModByFunc' are NOT NULL, should choose one");
         
-    std::unordered_set<MuLL::MutantIDType> mutHavingMoreThan1Func;
+    std::unordered_set<MutantIDType> mutHavingMoreThan1Func;
     llvm::GlobalVariable *mutantIDSelGlob = module.getNamedGlobal(mutantIDSelectorName); 
     llvm::Function *mutantIDSelGlob_Func = module.getFunction(mutantIDSelectorName_Func);
     //llvm::errs() << "XXXCloning...\n";   //////DBG
@@ -2482,7 +2482,7 @@ void Mutation::computeModuleBufsByFunc(llvm::Module &module, std::unordered_map<
                         {
                             for (llvm::SwitchInst::CaseIt cit = sw->case_begin(), ce = sw->case_end(); cit != ce; ++cit)
                             {
-                                MuLL::MutantIDType mid = cit.getCaseValue()->getZExtValue();
+                                MutantIDType mid = cit.getCaseValue()->getZExtValue();
                                 if (funcMutByMutID[mid] == nullptr)
                                 {
                                     funcMutByMutID[mid] = &Func;

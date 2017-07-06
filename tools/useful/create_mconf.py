@@ -172,7 +172,7 @@ def processMR (matchOp, matchOprds, repOp, replOprds, tmpStrsMap):
 #~ def processMR()
 
 def getAllPossibleMConf():
-    outStr = "## Automatically generated mutant conf for MuLL ##\n\n"
+    outStr = "## Automatically generated mutant conf for MART ##\n\n"
     for op in globalDefs.RULES:
         tmpStrsMap = {}
         # If it is a matcher that do not have operands, process here
