@@ -182,7 +182,13 @@ public:
         for (std::vector<std::string>::const_iterator it=oprdsStr.begin()+fromPos, ie=oprdsStr.end(); it != ie; ++it)
             oprdCPType.push_back(UserMaps::getCodePartType(*it));
     }
-    void addReplacor (const enum ExpElemKeys repop, std::vector<unsigned> const &oprdpos, std::string const &name)
+    inline void setMatchOp_CP (enum ExpElemKeys m, std::vector<enum codeParts> const &oprdsCP)
+    {
+        matchOp = m;
+        for (enum codeParts cp: oprdsCP)
+            oprdCPType.push_back(cp);
+    }
+    inline void addReplacor (const enum ExpElemKeys repop, std::vector<unsigned> const &oprdpos, std::string const &name)
     {
         mutantReplacorsList.push_back(MutantReplacors(repop, oprdpos, name));
     }
@@ -191,6 +197,7 @@ public:
     inline unsigned getNumReplacor() const {return mutantReplacorsList.size();}
     inline enum ExpElemKeys getMatchOp() const {return matchOp;}
     inline enum codeParts getCPType (unsigned pos) const {return oprdCPType.at(pos);}
+    inline const std::vector<enum codeParts> &getListCPType () const {return oprdCPType;}
     
     ////////////////                          //////////////////
     /// These static fields are used to manage constant values /

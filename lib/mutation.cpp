@@ -1608,6 +1608,10 @@ void Mutation::computeWeakMutation(std::unique_ptr<llvm::Module> &cmodule, std::
                             std::vector<llvm::ConstantInt *> cases;
                             std::vector<llvm::Value*> argsv;
                             auto *defaultBB = sw->getDefaultDest ();    //original
+                            
+                            //Remove unused instructions (like dangling load created by mutation) XXX
+                            llvm::SimplifyInstructionsInBlock(defaultBB);
+                                
                             std::vector<llvm::Instruction *> origUnsafes;
                             getWMUnsafeInstructions(defaultBB, origUnsafes);
                             std::vector<llvm::IRBuilder<>> sbuilders;
@@ -1622,6 +1626,9 @@ void Mutation::computeWeakMutation(std::unique_ptr<llvm::Module> &cmodule, std::
                                 auto *caseiBB = i.getCaseSuccessor();   //mutant
                                 
                                 toBeRemovedBB.push_back(caseiBB);
+                                
+                                //Remove unused instructions (like dangling load created by mutation) XXX
+                                llvm::SimplifyInstructionsInBlock(caseiBB);                           
                                 
                                 std::vector<llvm::Instruction *> mutUnsafes;
                                 getWMUnsafeInstructions(caseiBB, mutUnsafes);

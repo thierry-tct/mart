@@ -39,6 +39,15 @@ class DerefPAdd: public DerefPointerArith_Base
     }
     
   public:
+    bool matchIRs (MatchStmtIR const &toMatch, llvmMutationOp const &mutationOp, unsigned pos, MatchUseful &MU, ModuleUserInfos const &MI) 
+    {
+        //Make sure that the gep do not have struct elem access (only array index)
+        if (llvm::GetElementPtrInst *gep = llvm::dyn_cast<llvm::GetElementPtrInst>(toMatch.getIRAt(pos)))
+            if (gep->getNumIndices() != 1)
+                return false;
+        DerefPointerArith_Base::matchIRs(toMatch, mutationOp, pos, MU, MI);
+    }
+    
     llvm::Value * createReplacement (llvm::Value * oprd1_addrOprd, llvm::Value * oprd2_intValOprd, std::vector<llvm::Value *> &replacement, ModuleUserInfos const &MI)
     {
         llvm::IRBuilder<> builder(MI.getContext());

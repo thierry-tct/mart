@@ -39,6 +39,12 @@ class DerefPointerArith_Base: public GenericMuOpBase
     {
         return false;
     }
+    
+    inline virtual void getSubMatchMutationOp (llvmMutationOp const &mutationOp, llvmMutationOp &tmpMutationOp)
+    {
+        tmpMutationOp.setMatchOp_CP(getCorrespondingAritPtrOp(), mutationOp.getListCPType());
+    }
+    
     /**
      *  \brief
      * @return the single use of the IR at position pos, and its position in 'ret_pos'. if do not have single use, return nullptr. 
@@ -56,10 +62,13 @@ class DerefPointerArith_Base: public GenericMuOpBase
     }
     
   public:
-    bool matchIRs (MatchStmtIR const &toMatch, llvmMutationOp const &mutationOp, unsigned pos, MatchUseful &MU, ModuleUserInfos const &MI) 
+    // matchIRs is virtual here because some operators reimplements it
+    virtual bool matchIRs (MatchStmtIR const &toMatch, llvmMutationOp const &mutationOp, unsigned pos, MatchUseful &MU, ModuleUserInfos const &MI) 
     {
         llvm::Value *val = toMatch.getIRAt(pos);
-        if (MI.getUserMaps()->getMatcherObject(getCorrespondingAritPtrOp())->matchIRs(toMatch, mutationOp, pos, MU, MI))
+        llvmMutationOp tmpMutationOp;
+        getSubMatchMutationOp(mutationOp, tmpMutationOp);
+        if (MI.getUserMaps()->getMatcherObject(getCorrespondingAritPtrOp())->matchIRs(toMatch, tmpMutationOp, pos, MU, MI))
         {
             assert (MU.next() == MU.end() && "Must have exactely one element here (deref first)");
             if (dereferenceFirst())
@@ -71,12 +80,23 @@ class DerefPointerArith_Base: public GenericMuOpBase
                 {
                     if (auto *load = llvm::dyn_cast<llvm::LoadInst>(MU.getHLOperandSource(hloprd_id, toMatch)))
                     {
-                        auto *gep = llvm::dyn_cast<llvm::GetElementPtrInst>(load->getPointerOperand());
-                        int indx;
-                        if (gep && checkIsPointerIndexingAndGet(gep, indx) && indx == gep->getNumIndices()-1/*no other indices after array index*/)
+                        auto *loadptr = load->getPointerOperand();
+                        if (! llvm::isa<llvm::AllocaInst>(loadptr))
                         {
-                            //Modify MU, setting load pointer operand as HL perand instead of arith operands
-                            hloprd_reset_data.emplace_back(hloprd_id, toMatch.depPosofPos(gep, pos, true), toMatch.depPosofPos(load, pos, true));
+                            //if (auto *gep = llvm::dyn_cast<llvm::GetElementPtrInst>(loadptr))
+                            //{
+                            //    int indx;
+                            //    if (checkIsPointerIndexingAndGet(gep, indx) && indx == gep->getNumIndices()-1/*no other indices after array index*/)
+                            //    {
+                            //        //Modify MU, setting load pointer operand as HL perand instead of arith operands
+                            //        hloprd_reset_data.emplace_back(hloprd_id, toMatch.depPosofPos(gep, pos, true), toMatch.depPosofPos(load, pos, true));
+                            //    }
+                            //}
+                            //else
+                            //{
+                                //Modify MU, setting load pointer operand as HL perand instead of arith operands
+                                hloprd_reset_data.emplace_back(hloprd_id, toMatch.depPosofPos(loadptr, pos, true), toMatch.depPosofPos(load, pos, true));
+                            //}
                         }
                     }
                 }
@@ -103,13 +123,22 @@ class DerefPointerArith_Base: public GenericMuOpBase
             }
             else
             {
-                unsigned loadPos;
+                unsigned loadPos;  
                 if (checkPtrContainedType(toMatch.getIRAt(MU.getHLReturningIRPos())) 
                         && llvm::dyn_cast_or_null<llvm::LoadInst>(getSingleUsePos(toMatch, MU.getHLReturningIRPos()/*Must have returningIR*/, loadPos)))
                 {
-                    //Modify MU, setting returning IR pos to loadPos
-                    MU.setHLReturningIRPos(loadPos);
-                    MU.appendRelevantIRPos(loadPos);
+                    //if (auto *load = llvm::dyn_cast<llvm::LoadInst>(MU.getHLOperandSource(0, toMatch)))
+                    //{
+                    //    MU.resetHLOprdSourceAt(0, load->getPointerOperand());
+                        
+                        //Modify MU, setting returning IR pos to loadPos
+                        MU.setHLReturningIRPos(loadPos);
+                        MU.appendRelevantIRPos(loadPos);
+                    //}
+                    //else
+                    //{
+                    //    assert (false && "The sub operation must have LoadInst as first operand here");
+                    //}
                 }
                 else
                 {
@@ -133,7 +162,7 @@ class DerefPointerArith_Base: public GenericMuOpBase
         if (repl.getOprdIndexList().size() == 2)    //size is 2
         {
             ptroprd = MU.getHLOperandSource(repl.getOprdIndexList()[0], DRU.toMatchMutant);      //pointer
-            valoprd = createIfConst ((*(llvm::dyn_cast<llvm::GetElementPtrInst>(MU.getHLOperandSource(0, DRU.toMatchMutant)))->idx_begin())->getType(), repl.getOprdIndexList()[1]);
+            valoprd = createIfConst (MU.getHLOperandSource(1, DRU.toMatchMutant)->getType()/*non-pointer*/, repl.getOprdIndexList()[1]);
             if (!valoprd)
             {
                 assert (MU.getNumberOfHLOperands() == 2 && "Problem here, must be hard coded constant int here");
@@ -142,7 +171,7 @@ class DerefPointerArith_Base: public GenericMuOpBase
         }
         else    //size is 1
         {
-            if ( ptroprd = createIfConst ((*(llvm::dyn_cast<llvm::GetElementPtrInst>(MU.getHLOperandSource(0, DRU.toMatchMutant)))->idx_begin())->getType(), repl.getOprdIndexList()[0]))
+            if ( ptroprd = createIfConst ((DRU.toMatchMutant.getIRAt(MU.getHLReturningIRPos()))->getType(), repl.getOprdIndexList()[0]))
             { //The replacor should be CONST_VALUE_OF
                 llvm::IRBuilder<> builder (MI.getContext());
                 ptroprd = builder.CreateIntToPtr(ptroprd, (DRU.toMatchMutant.getIRAt(MU.getHLReturningIRPos()))->getType());

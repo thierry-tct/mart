@@ -38,6 +38,14 @@ class DerefAdd: public DerefPointerArith_Base
         return true;
     }
     
+    /**
+     * \brief Implements from DerefPointerArith_Base
+     */
+    inline virtual void getSubMatchMutationOp (llvmMutationOp const &mutationOp, llvmMutationOp &tmpMutationOp)
+    {
+        tmpMutationOp.setMatchOp_CP(getCorrespondingAritPtrOp(), std::vector<enum codeParts>({cpEXPR, mutationOp.getCPType(1)}));
+    }
+    
   public:
     llvm::Value * createReplacement (llvm::Value * oprd1_addrOprd, llvm::Value * oprd2_intValOprd, std::vector<llvm::Value *> &replacement, ModuleUserInfos const &MI)
     {
