@@ -85,20 +85,11 @@ class DerefPointerArith_Base: public GenericMuOpBase
                             auto *loadptr = load->getPointerOperand();
                             if (! llvm::isa<llvm::AllocaInst>(loadptr))
                             {
-                                //if (auto *gep = llvm::dyn_cast<llvm::GetElementPtrInst>(loadptr))
-                                //{
-                                //    int indx;
-                                //    if (checkIsPointerIndexingAndGet(gep, indx) && indx == gep->getNumIndices()-1/*no other indices after array index*/)
-                                //    {
-                                //        //Modify MU, setting load pointer operand as HL perand instead of arith operands
-                                //        hloprd_reset_data.emplace_back(hloprd_id, toMatch.depPosofPos(gep, pos, true), toMatch.depPosofPos(load, pos, true));
-                                //    }
-                                //}
-                                //else
-                                //{
-                                    //Modify MU, setting load pointer operand as HL perand instead of arith operands
-                                    hloprd_reset_data.emplace_back(hloprd_id, toMatch.depPosofPos(loadptr, pos, true), toMatch.depPosofPos(load, pos, true));
-                                //}
+                                //since the inc/dec load (%1=load, add %1,1, store) is not deleted, thus, during replacement a load is required by
+                                //pinc/pdec, so there must be a top level load wich will be used when creating replacors (also for padd/psub with pointer cptype)
+                                if (mutationOp.getCPType(0) == cpPOINTER && !llvm::isa<llvm::LoadInst>(loadptr))   //the actual deref 
+                                    continue;
+                                hloprd_reset_data.emplace_back(hloprd_id, toMatch.depPosofPos(loadptr, pos, true), toMatch.depPosofPos(load, pos, true));
                             }
                         }
                     }
