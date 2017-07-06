@@ -706,8 +706,25 @@ class GenericMuOpBase
         }
         if (! replacement.empty())
         {
+            //there are element in posOfIRtoRemove and they are continuous (it waas sorted above) then put at first
             if (! posOfIRtoRemove.empty())
-                replacementInsertPos = posOfIRtoRemove[0];
+            {
+                if (posOfIRtoRemove.back() - posOfIRtoRemove.front() + 1 == posOfIRtoRemove.size())
+                {
+                    replacementInsertPos = posOfIRtoRemove[0];
+                }
+                else
+                {
+                    unsigned cshift = 0;
+                    for (auto ttmp: posOfIRtoRemove)
+                    {
+                        if (ttmp >= replacementInsertPos)
+                            break;
+                        ++cshift; 
+                    }
+                    replacementInsertPos -= cshift;
+                }
+            }
             toMatchMutant.insertIRAt(replacementInsertPos, replacement);
         }
         resultMuts.add(/*toMatch, */toMatchMutant, repl, relevantPosInToMatch); 
