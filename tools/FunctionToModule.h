@@ -42,7 +42,7 @@
 
 //#define DEBUG_TYPE "bugpoint"
 
-#define MART_DEBUG(X)    //do nothing
+#define MART_DEBUG(X) // do nothing
 
 namespace FunctionToModule {
 
@@ -332,8 +332,7 @@ martSplitFunctionsOutOfModule(Module *M, const std::string &FName) {
 #endif
       MART_DEBUG(errs() << "\n");
       DeleteFunctionBody(&I); // Function is now external in this module!
-    }
-    else {
+    } else {
       TestFunctions.insert(cast<Function>(NewVMap[&I]));
     }
   }
@@ -343,14 +342,13 @@ martSplitFunctionsOutOfModule(Module *M, const std::string &FName) {
     if (TestFunctions.count(&I))
       DeleteFunctionBody(&I);
 
-  // Try to split the global initializers evenly
+// Try to split the global initializers evenly
 #if (LLVM_VERSION_MAJOR <= 3) && (LLVM_VERSION_MINOR < 5)
-  for (auto glIt = M->global_begin(), glE=M->global_end(); glIt != glE; ++glIt) 
-  {
+  for (auto glIt = M->global_begin(), glE = M->global_end(); glIt != glE;
+       ++glIt) {
     GlobalVariable &I = *glIt;
 #else
-  for (GlobalVariable &I : M->globals()) 
-  {
+  for (GlobalVariable &I : M->globals()) {
 #endif
     GlobalVariable *GV = cast<GlobalVariable>(NewVMap[&I]);
     if (Function *TestFn = globalInitUsesExternalBA(&I)) {
@@ -369,7 +367,7 @@ martSplitFunctionsOutOfModule(Module *M, const std::string &FName) {
         exit(1);
       }
 #if (LLVM_VERSION_MAJOR <= 3) && (LLVM_VERSION_MINOR < 5)
-       I.setInitializer(0);  // Delete the initializer to make it external
+      I.setInitializer(0); // Delete the initializer to make it external
     } else {
       // If we keep it in the safe module, then delete it in the test module
       GV->setInitializer(0);
@@ -390,4 +388,4 @@ martSplitFunctionsOutOfModule(Module *M, const std::string &FName) {
 
   return New;
 }
-} //end namespace FunctionToModule
+} // end namespace FunctionToModule
