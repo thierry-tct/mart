@@ -52,6 +52,7 @@ class GlobalDefs:
         
       # Replace Only
         self.DELSTMT = ("DELSTMT",)
+        self.TRAPSTMT = ("TRAPSTMT",)
         self.KEEPOPERAND = ("OPERAND",)
         self.CONSTVAL = ("CONSTVAL",)
         self.NEWCALLEE = ("NEWCALLEE",)
@@ -60,7 +61,7 @@ class GlobalDefs:
         self.REMOVE_CASES = ("REMOVECASES",)       #TODO TODO TODO : add also address match...
         
         self.ABS_UNARY = ("ABS",)
-        replaceOnlys = set(self.ABS_UNARY + self.DELSTMT + self.KEEPOPERAND + self.CONSTVAL + self.NEWCALLEE + self.SHUFFLE_ARGS + self.SHUFFLE_CASESDESTS + self.REMOVE_CASES) #local var just for internal check
+        replaceOnlys = set(self.ABS_UNARY + self.DELSTMT + self.TRAPSTMT + self.KEEPOPERAND + self.CONSTVAL + self.NEWCALLEE + self.SHUFFLE_ARGS + self.SHUFFLE_CASESDESTS + self.REMOVE_CASES) #local var just for internal check
         
       # Both Match and Replace
         # Arithmetic
@@ -98,7 +99,7 @@ class GlobalDefs:
         self.FORMATS.update({opName: [{self.POINTERVAR}] for opName in self.P_INCDEC})
 
         self.FORMATS.update({opName: [] for opName in tuple(self.arith_VAL | self.pointer_VAL) + self.MATCH_ONLY_DEL + self.CALL + self.SWITCH})   #Match only's
-        self.FORMATS.update({opName: [] for opName in self.DELSTMT})                                                                             #Replace only's
+        self.FORMATS.update({opName: [] for opName in self.DELSTMT + self.TRAPSTMT})                                                                             #Replace only's
 
         self.FORMATS.update({opName: [self.arith_VAL|self.pointer_VAL] for opName in self.KEEPOPERAND})
         self.FORMATS.update({opName: [self.SCALAR_CONST|{self.ZERO}|self.BOOLEAN_CONST] for opName in self.CONSTVAL})
@@ -111,9 +112,9 @@ class GlobalDefs:
         
         
         arithOps = self.AOR + self.BIT + self.ROR + self.ASSIGN + self.UNARY + self.P_INCDEC  # + self.LOR        #as for now, LOR can only be replaced(replacing) LOR TODO TODO: add here when supported
-        arthExtraRepl = self.DELSTMT + self.KEEPOPERAND + self.CONSTVAL + self.ABS_UNARY
+        arthExtraRepl = self.DELSTMT + self.TRAPSTMT + self.KEEPOPERAND + self.CONSTVAL + self.ABS_UNARY
         pointerOps = self.P_AOR + self.P_INCDEC
-        pointerExtraRepl = self.DELSTMT + self.KEEPOPERAND
+        pointerExtraRepl = self.DELSTMT + self.TRAPSTMT + self.KEEPOPERAND
 
         # Who can replace who: key is matcher, value is replcor
         # Key: operation, Value: set or possible replacors
@@ -121,21 +122,21 @@ class GlobalDefs:
         self.RULES.update({opName: set(arithOps + arthExtraRepl) - {opName} for opName in arithOps})
         self.RULES.update({opName: set(pointerOps + pointerExtraRepl) - {opName} for opName in pointerOps})
         self.RULES.update({opName: set(self.P_ROR + pointerExtraRepl) - {opName} for opName in self.P_ROR}) # pointer relational only with pointer relational or del or keepoprd
-        self.RULES.update({opName: set(self.LOR + self.DELSTMT + self.KEEPOPERAND + self.CONSTVAL) - {opName} for opName in self.LOR})
+        self.RULES.update({opName: set(self.LOR + self.DELSTMT + self.TRAPSTMT + self.KEEPOPERAND + self.CONSTVAL) - {opName} for opName in self.LOR})
 
         self.RULES.update({self.ARITHEXPR: set(arithOps + arthExtraRepl) - set(self.KEEPOPERAND) - set(self.INCDEC)})
         self.RULES.update({self.ARITHVAR: set(arithOps + arthExtraRepl) - set(self.KEEPOPERAND)})
         self.RULES.update({self.ARITHCONST: set(arithOps + arthExtraRepl) - set(self.KEEPOPERAND) - set(self.INCDEC)})
 
-        self.RULES.update({self.ADDRESSEXPR: set(pointerOps + self.DELSTMT + self.CONSTVAL) - set(self.P_INCDEC)})
-        self.RULES.update({self.POINTERVAR: set(pointerOps + self.DELSTMT)})
+        self.RULES.update({self.ADDRESSEXPR: set(pointerOps + self.DELSTMT + self.TRAPSTMT + self.CONSTVAL) - set(self.P_INCDEC)})
+        self.RULES.update({self.POINTERVAR: set(pointerOps + self.DELSTMT + self.TRAPSTMT)})
 
-        self.RULES.update({opName: set(self.DELSTMT) for opName in self.MATCH_ONLY_DEL})
-        self.RULES.update({opName: set(self.DELSTMT + self.NEWCALLEE + self.SHUFFLE_ARGS) for opName in self.CALL})
-        self.RULES.update({opName: set(self.DELSTMT + self.SHUFFLE_CASESDESTS + self.REMOVE_CASES) for opName in self.SWITCH})
+        self.RULES.update({opName: set(self.DELSTMT + self.TRAPSTMT) for opName in self.MATCH_ONLY_DEL})
+        self.RULES.update({opName: set(self.DELSTMT + self.TRAPSTMT + self.NEWCALLEE + self.SHUFFLE_ARGS) for opName in self.CALL})
+        self.RULES.update({opName: set(self.DELSTMT + self.TRAPSTMT + self.SHUFFLE_CASESDESTS + self.REMOVE_CASES) for opName in self.SWITCH})
         
-        self.RULES.update({opName: set(self.DEREFAOR + self.DEREFINCDEC + self.DELSTMT) - {opName} for opName in (self.AORDEREF + self.INCDECDEREF)})
-        self.RULES.update({opName: set(self.AORDEREF + self.INCDECDEREF + self.DELSTMT) - {opName} for opName in (self.DEREFAOR + self.DEREFINCDEC)})
+        self.RULES.update({opName: set(self.DEREFAOR + self.DEREFINCDEC + self.DELSTMT + self.TRAPSTMT) - {opName} for opName in (self.AORDEREF + self.INCDECDEREF)})
+        self.RULES.update({opName: set(self.AORDEREF + self.INCDECDEREF + self.DELSTMT + self.TRAPSTMT) - {opName} for opName in (self.DEREFAOR + self.DEREFINCDEC)})
         
         #Verify RULES 
         for tmpM in self.RULES:

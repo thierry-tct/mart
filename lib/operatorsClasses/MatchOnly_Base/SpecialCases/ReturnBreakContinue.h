@@ -30,14 +30,14 @@ class ReturnBreakContinue: public MatchOnly_Base
         assert (false);
     }
         
-    void matchAndReplace (MatchStmtIR const &toMatch, llvmMutationOp const &mutationOp, MutantsOfStmt &resultMuts, bool &isDeleted, ModuleUserInfos const &MI)
+    void matchAndReplace (MatchStmtIR const &toMatch, llvmMutationOp const &mutationOp, MutantsOfStmt &resultMuts, WholeStmtMutationOnce &iswholestmtmutated, ModuleUserInfos const &MI)
     {
         static llvm::Function *prevFunc = nullptr;   
         static const llvm::Value *structRetUse = nullptr;
         //Here toMatch should have only one elem for 'br' and for ret, the last elem should be 'ret'
         llvm::Instruction * retbr = llvm::dyn_cast<llvm::Instruction>(toMatch.getIRList().back());
         MutantsOfStmt::MutantStmtIR toMatchMutant;
-        assert (mutationOp.getMutantReplacorsList().size() == 1 && "Return, Break and Continue can only be deleted");
+        assert (mutationOp.getMutantReplacorsList().size() <= 2 && "Return, Break and Continue can only be deleted or trapped");
 #if (LLVM_VERSION_MAJOR <= 3) && (LLVM_VERSION_MINOR < 8)
         llvm::Function *curFunc = retbr->getParent()->getParent(); 
 #else
@@ -72,9 +72,10 @@ class ReturnBreakContinue: public MatchOnly_Base
                 structRetUse = nullptr;
                 for (auto &repl: mutationOp.getMutantReplacorsList())
                 {
-                    if (isDeletion(repl.getExpElemKey()))
+                    //when delete, doDeleteStmt may call this function but there can't be infinite recursion because here the stmt do not have terminator
+                    if (checkWholeStmtAndMutate (toMatch, repl, resultMuts, iswholestmtmutated, MI))
                     {
-                        doDeleteStmt (toMatch, repl, resultMuts, isDeleted, MI);  //doDeleteStmt may call this function but they can't be infinite recursion because here the stmt do not have terminator
+                        ; //Do nothing, already mutated
                     }
                     else
                         assert ("The replacement for return break and continue should be delete stmt");
@@ -108,7 +109,11 @@ class ReturnBreakContinue: public MatchOnly_Base
                             toMatchMutant.setToCloneStmtIROf(toMatch, MI);
                             llvm::dyn_cast<llvm::BranchInst>(toMatchMutant.getIRAt(0)/*last Inst(toMatch size here is 1)*/)->setSuccessor(0, followBB);
                             resultMuts.add(/*toMatch, */toMatchMutant, repl, std::vector<unsigned>({0})/*toMatch size here is 1 (see assert above)*/);
-                            isDeleted = true;
+                            iswholestmtmutated.setDeleted();
+                        }
+                        else if (checkWholeStmtAndMutate (toMatch, repl, resultMuts, iswholestmtmutated, MI))
+                        {
+                            ; //Do nothing, already mutated
                         }
                         else
                             assert ("The replacement for return break and continue should be delete stmt");
@@ -145,7 +150,11 @@ class ReturnBreakContinue: public MatchOnly_Base
                         for (auto i=0; i<toMatch.getTotNumIRs();i++)
                             relpos.push_back(i);*/  //Uncomment this if the deletion of the return value means delete all that was computed there (not: tmp=computation(); return tmp; -- but instead: return computation();)
                         resultMuts.add(/*toMatch, */toMatchMutant, repl, relpos);
-                        isDeleted = true;
+                        iswholestmtmutated.setDeleted();
+                    }
+                    else if (checkWholeStmtAndMutate (toMatch, repl, resultMuts, iswholestmtmutated, MI))
+                    {
+                        ; //Do nothing, already mutated
                     }
                     else
                         assert ("The replacement for return break and continue should be delete stmt");
@@ -172,7 +181,11 @@ class ReturnBreakContinue: public MatchOnly_Base
                         for (auto i=0; i<toMatch.size();i++)
                             relpos.push_back(i);*/  //Uncomment this if the deletion of the return value means delete all that was computed there (not: tmp=computation(); return tmp; -- but instead: return computation();)
                         resultMuts.add(/*toMatch, */toMatchMutant, repl, relpos);
-                        isDeleted = true;
+                        iswholestmtmutated.setDeleted();
+                    }
+                    else if (checkWholeStmtAndMutate (toMatch, repl, resultMuts, iswholestmtmutated, MI))
+                    {
+                        ; //Do nothing, already mutated
                     }
                     else
                         assert ("The replacement for return val should be delete stmt");

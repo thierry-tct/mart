@@ -107,12 +107,11 @@ class NumericAndPointerRelational_Base: public GenericMuOpBase
         }
     }
     
-    void matchAndReplace (MatchStmtIR const &toMatch, llvmMutationOp const &mutationOp, MutantsOfStmt &resultMuts, bool &isDeleted, ModuleUserInfos const &MI)
+    void matchAndReplace (MatchStmtIR const &toMatch, llvmMutationOp const &mutationOp, MutantsOfStmt &resultMuts, WholeStmtMutationOnce &iswholestmtmutated, ModuleUserInfos const &MI)
     {
         MatchUseful mu;
         DoReplaceUseful dru;
         int pos = -1;
-        bool stmtDeleted = false;
         for (auto *val:toMatch.getIRList())
         {
             pos++;
@@ -120,9 +119,9 @@ class NumericAndPointerRelational_Base: public GenericMuOpBase
             {
                 for (auto &repl: mutationOp.getMutantReplacorsList())
                 {
-                    if (isDeletion(repl.getExpElemKey()))
+                    if (checkWholeStmtAndMutate (toMatch, repl, resultMuts, iswholestmtmutated, MI))
                     {
-                        doDeleteStmt (toMatch, repl, resultMuts, isDeleted, MI);
+                        ; //Do nothing, already mutated
                     }
                     else
                     {

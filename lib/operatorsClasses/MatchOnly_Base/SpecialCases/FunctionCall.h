@@ -112,7 +112,7 @@ class FunctionCall: public MatchOnly_Base
         assert (false);
     }
     
-    void matchAndReplace (MatchStmtIR const &toMatch, llvmMutationOp const &mutationOp, MutantsOfStmt &resultMuts, bool &isDeleted, ModuleUserInfos const &MI)
+    void matchAndReplace (MatchStmtIR const &toMatch, llvmMutationOp const &mutationOp, MutantsOfStmt &resultMuts, WholeStmtMutationOnce &iswholestmtmutated, ModuleUserInfos const &MI)
     {
         MutantsOfStmt::MutantStmtIR toMatchMutant;
         int pos = -1;
@@ -132,9 +132,9 @@ class FunctionCall: public MatchOnly_Base
 
                 for (auto &repl: mutationOp.getMutantReplacorsList())
                 {
-                    if (isDeletion(repl.getExpElemKey()))
+                    if (checkWholeStmtAndMutate (toMatch, repl, resultMuts, iswholestmtmutated, MI))
                     {
-                        doDeleteStmt (toMatch, repl, resultMuts, isDeleted, MI);
+                        ; //Do nothing, already mutated
                     }
                     else if (repl.getExpElemKey() == mNEWCALLEE)
                     {

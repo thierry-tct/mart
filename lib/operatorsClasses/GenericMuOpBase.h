@@ -27,6 +27,8 @@
 
 #include "llvm/IR/DataLayout.h"
 
+#include "llvm/IR/Intrinsics.h"   //llvm::Intrinsic::getDeclaration()
+
 //#include "llvm/IR/InstrTypes.h"
 
 #include "../usermaps.h"
@@ -250,10 +252,11 @@ class GenericMuOpBase
      * @param toMatch is the statement in which we want to match the candidate pattern to muatate.
      * @param mutationOp contains the pattern to match as well as the replacing ones.
      * @param resultMuts is the list where the generated mutants of the initial statement should be appended.
-     * @param isDeleted is the flag that help to know wheter the statement has already been deleted by previous mutation op. Changed from false to true after deletion occurs.
+     * @param iswholestmtmutated is the flag that help to know wheter the statement has already been mutated (for whole stmt mutation,) by previous mutation op. 
+              Changed from false to true after deletion occurs.
      * @param MI is the parameter containing the global information.
      */
-    virtual void matchAndReplace (MatchStmtIR const &toMatch, llvmMutationOp const &mutationOp, MutantsOfStmt &resultMuts, bool &isDeleted, ModuleUserInfos const &MI)
+    virtual void matchAndReplace (MatchStmtIR const &toMatch, llvmMutationOp const &mutationOp, MutantsOfStmt &resultMuts, WholeStmtMutationOnce &iswholestmtmutated, ModuleUserInfos const &MI)
     {
         MatchUseful mu;
         DoReplaceUseful dru;
@@ -266,9 +269,9 @@ class GenericMuOpBase
             {
                 for (auto &repl: mutationOp.getMutantReplacorsList())
                 {
-                    if (isDeletion(repl.getExpElemKey()))
+                    if (checkWholeStmtAndMutate (toMatch, repl, resultMuts, iswholestmtmutated, MI))
                     {
-                        doDeleteStmt (toMatch, repl, resultMuts, isDeleted, MI);
+                        ; //Do nothing, already mutated
                     }
                     else
                     {
@@ -487,6 +490,14 @@ class GenericMuOpBase
     }
     
     /**
+     * \brief get the matcher/replacor code for the operation that can delete any statement (like return, break, continue)
+     */
+    inline enum ExpElemKeys getGenericTrapInserterCode () 
+    {
+        return mTRAPSTMT;
+    }
+    
+    /**
      * \brief Check whether an operation is Del stmt, which deletes the whole statement, or for return statement, set returned value to 0.
      * @param m is the operation to check
      * @return true if the operation is del stmt else false.
@@ -496,27 +507,40 @@ class GenericMuOpBase
         return (m == getGenericDeleterCode ());
     }  
     
+     /**
+     * \brief Check whether an operation is Trap stmt, which replace the whole statement by trap(basically inserting trap before) This make the program abort when the stmt is reached.
+     * @param m is the operation to check
+     * @return true if the operation is del stmt else false.
+     */
+    inline bool isTrapInsertion(enum ExpElemKeys m) 
+    {
+        return (m == getGenericTrapInserterCode ());
+    }  
+    
     /**
      * \brief Create the mutant of delete stmt, for the case where the statement is not a terminator (break, continue, return). For that, @see ReturnBreakContinue
      * @param toMatch is the original statement that have been matched (still attached to the original Module).
      * @param repl is the replacer whose name we will need. the name is the name of the current mutation operation (match-delete)
      * @param resultMuts is the list of all generated mutants of the original statement 'toMatch'. Note: non attached to original Module.
-     * @param isDeleted is the flag that help to know wheter the statement has already been deleted by previous mutation op. Changed from false to true after deletion occurs, or when undeletable.
+     * @param iswholestmtmutated is the flag that help to know wheter the statement has already been mutated, for each whole stmt mutation like deletestmt, trapstmt,...,  by previous mutation op. 
+               Changed from false to true after deletion occurs, or when undeletable.
      * @param MI is the parameter needed for the call to deletion for terminator stmt.
      */
-    inline void doDeleteStmt (MatchStmtIR const &toMatch, llvmMutationOp::MutantReplacors const &repl, MutantsOfStmt &resultMuts, bool &isDeleted, ModuleUserInfos const &MI)
+    inline void doDeleteStmt (MatchStmtIR const &toMatch, llvmMutationOp::MutantReplacors const &repl, MutantsOfStmt &resultMuts, WholeStmtMutationOnce &iswholestmtmutated, ModuleUserInfos const &MI)
     {
-        if (isDeleted)
+        if (iswholestmtmutated.isDeleted())
             return;
+        
+        //In fact terminators are added during insertion into module of the mutants only when the original stmt do not have terminator
         if (! toMatch.wholeStmtHasTerminators ())     /// Avoid Deleting if statement's contition or the ret IR.  
         {
             std::vector<unsigned> relpos;
             for (auto i=0; i<toMatch.getTotNumIRs();i++)
                 relpos.push_back(i);
             MutantsOfStmt::MutantStmtIR toMatchMutant;
-            toMatchMutant.setToEmptyStmtOf(toMatch, MI);    
+            toMatchMutant.setToEmptyOrFixedStmtOf(toMatch, MI);    
             resultMuts.add(/*toMatch,  */toMatchMutant, repl, relpos); 
-            //isDeleted = true;
+            //iswholestmtmutated.setDeleted();
         }
         else
         {
@@ -525,13 +549,67 @@ class GenericMuOpBase
             tmpMutationOp.setMatchOp(termDelCode, std::vector<std::string>());
             tmpMutationOp.addReplacor(getGenericDeleterCode(), std::vector<unsigned>(), repl.getMutOpName());
             // \brief Create a temporary mutation operator to match terminator and do deletion...
-            MI.getUserMaps()->getMatcherObject(termDelCode)->matchAndReplace(toMatch, tmpMutationOp, resultMuts, isDeleted, MI);
+            MI.getUserMaps()->getMatcherObject(termDelCode)->matchAndReplace(toMatch, tmpMutationOp, resultMuts, iswholestmtmutated, MI);
         }
         
         // \brief In case it is a undeletable instruction (like if condition), set is Deleted to true anyway.
-        isDeleted = true;
+        iswholestmtmutated.setDeleted();
         
-        //assert (isDeleted && "Problem with deletion. Must succeed at this point!"); //commented because we may have conditional terminator for if or switch conditions
+        //assert (iswholestmtmutated.isDeleted() && "Problem with deletion. Must succeed at this point!"); //commented because we may have conditional terminator for if or switch conditions
+    }
+    
+     /**
+     * \brief Create the mutant of trap stmt, for the case where the statement
+     * @param toMatch is the original statement that have been matched (still attached to the original Module).
+     * @param repl is the replacer whose name we will need. the name is the name of the current mutation operation (match-delete)
+     * @param resultMuts is the list of all generated mutants of the original statement 'toMatch'. Note: non attached to original Module.
+     * @param iswholestmtmutated is the flag that help to know wheter the statement has already been mutated, for each whole stmt mutation like deletestmt, trapstmt,...,  by previous mutation op. 
+               Changed from false to true after deletion occurs, or when undeletable.
+     * @param MI is the parameter needed for the call to deletion for terminator stmt.
+     */
+    inline void doTrapStmt (MatchStmtIR const &toMatch, llvmMutationOp::MutantReplacors const &repl, MutantsOfStmt &resultMuts, WholeStmtMutationOnce &iswholestmtmutated, ModuleUserInfos const &MI)
+    {
+        if (iswholestmtmutated.isTrapped())
+            return;
+        std::vector<unsigned> relpos;
+        for (auto i=0; i<toMatch.getTotNumIRs();i++)
+            relpos.push_back(i);
+        MutantsOfStmt::MutantStmtIR toMatchMutant;
+        llvm::SmallVector<llvm::Instruction *, 1> trapinst;
+        llvm::Value *TrapFn = llvm::Intrinsic::getDeclaration(MI.getModule(),
+                                                    llvm::Intrinsic::trap);
+        trapinst.push_back(llvm::CallInst::Create(TrapFn, ""));  //->setDebugLoc(dl);
+        
+        //This will be the terminator for the mutant BB in case the current original stmt has terminator
+        //In fact terminators are added during insertion into module of the mutants only when the original stmt do not have terminator
+        if (toMatch.wholeStmtHasTerminators())
+            trapinst.push_back(new llvm::UnreachableInst(MI.getContext()));  
+               
+        toMatchMutant.setToEmptyOrFixedStmtOf(toMatch, MI, &trapinst);    
+        resultMuts.add(/*toMatch,  */toMatchMutant, repl, relpos); 
+        iswholestmtmutated.setTrapped();
+    }
+    
+    /**
+     * \brief check whether the replacer is wholestmt mutation and return true or false. if it is, create the corresponding mutation
+     * @param toMatch is the original statement that have been matched (still attached to the original Module).
+     * @param repl is the replacer whose name we will need. the name is the name of the current mutation operation (match-delete)
+     * @param resultMuts is the list of all generated mutants of the original statement 'toMatch'. Note: non attached to original Module.
+     * @param iswholestmtmutated is the flag that help to know wheter the statement has already been mutated, for each whole stmt mutation like deletestmt, trapstmt,...,  by previous mutation op. 
+               Changed from false to true after deletion occurs, or when undeletable.
+     * @param MI is the parameter needed for the call to deletion for terminator stmt.
+     */
+    inline bool checkWholeStmtAndMutate (MatchStmtIR const &toMatch, 
+        llvmMutationOp::MutantReplacors const &repl, MutantsOfStmt &resultMuts, 
+        WholeStmtMutationOnce &iswholestmtmutated, ModuleUserInfos const &MI)
+    {
+        if (isDeletion(repl.getExpElemKey()))
+            doDeleteStmt (toMatch, repl, resultMuts, iswholestmtmutated, MI);
+        else if (isTrapInsertion(repl.getExpElemKey()))
+            doTrapStmt (toMatch, repl, resultMuts, iswholestmtmutated, MI);
+        else
+            return false;
+        return true;
     }
     
     /**

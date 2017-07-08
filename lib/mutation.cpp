@@ -558,7 +558,7 @@ bool Mutation::getConfiguration(std::string &mutConfFile)
                         ++iter4; 
                         if (!(iter4 != end4))
                         {
-                            if (! usermaps.isDeleteStmtConfName(mutoperation))
+                            if (! usermaps.isWholeStmtMutationConfName(mutoperation))
                             {
                                 llvm::errs() << "no mutant operands at line " << confLineNum << ", replacor: " << mutoperation << "\n";
                                 assert (iter4 != end4 && "no mutant operands");
@@ -571,7 +571,7 @@ bool Mutation::getConfiguration(std::string &mutConfFile)
                         {
                             if ((*iter4).length() == 0)
                             {
-                                if (! usermaps.isDeleteStmtConfName(mutoperation))
+                                if (! usermaps.isWholeStmtMutationConfName(mutoperation))
                                 { 
                                     llvm::errs() << "missing operand at line " << confLineNum << "\n";
                                     assert (false && "");
@@ -712,14 +712,14 @@ void Mutation::getMutantsOfStmt (MatchStmtIR const &stmtIR, MutantsOfStmt &ret_m
 {
     assert ((ret_mutants.getNumMuts() == 0) && "Error (Mutation::getMutantsOfStmt): mutant list result vector is not empty!\n");
     
-    bool isDeleted = false;
+    WholeStmtMutationOnce iswholestmtmutated;
     
     for (llvmMutationOp &mutator: configuration.mutators)
     {
         //for (auto &mn: mutator.getMutantReplacorsList())    // DBG
         //    llvm::errs() << mn.getMutOpName() << "; ";      // DBG
             
-        usermaps.getMatcherObject(mutator.getMatchOp())->matchAndReplace (stmtIR, mutator, ret_mutants, isDeleted, moduleInfo);
+        usermaps.getMatcherObject(mutator.getMatchOp())->matchAndReplace (stmtIR, mutator, ret_mutants, iswholestmtmutated, moduleInfo);
         
         // Check that load and stores type are okay
         for (MutantIDType i=0, ie=ret_mutants.getNumMuts(); i < ie; i++)
@@ -1396,7 +1396,7 @@ bool Mutation::doMutate()
                     }//~ if(nMuts > 0)
                 }
 #if (LLVM_VERSION_MAJOR <= 3) && (LLVM_VERSION_MINOR < 8)
-                changingBBIt = llvm::Function::iterator(sstmtCurBB);     //make 'changeBBIt' foint to the last BB before the next one to explore
+                changingBBIt = llvm::Function::iterator(sstmtCurBB);     //make 'changeBBIt' point to the last BB before the next one to explore
 #else
                 changingBBIt = sstmtCurBB->getIterator();   //make 'changeBBIt' foint to the last BB before the next one to explore
 #endif

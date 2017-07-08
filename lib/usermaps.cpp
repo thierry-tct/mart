@@ -86,9 +86,9 @@ void UserMaps::validateNonConstValOPRD(llvm::StringRef oprd, unsigned lno)
     }
 }
     
-bool UserMaps::isDeleteStmtConfName(llvm::StringRef s) 
+bool UserMaps::isWholeStmtMutationConfName(llvm::StringRef s) 
 {
-    return s.equals_lower("delstmt");
+    return s.equals_lower("delstmt") || s.equals_lower("trapstmt");
 }
 
 /*static*/ bool UserMaps::containsDeleteStmtConfName(llvm::StringRef s) 
@@ -172,7 +172,11 @@ UserMaps::UserMaps()
     //DELSTMT Have no match function (cannot be a match -- something we want to mutate)
     // XXX (Do not add to map because) it should not be used at all (use the doDeleteStmt method)
     addConfNameOpPair ("DELSTMT", {mDELSTMT, mDELSTMT, mDELSTMT, mDELSTMT});
-    addOpMatchObjectPair (mDELSTMT, CREATE_OBJ(DeleteStatement));  //We add it herebut should not be used, this is just to raise erro upon use of its replacing methon. use doDeleteStmt instead
+    addOpMatchObjectPair (mDELSTMT, CREATE_OBJ(DeleteStatement));  //We add it herebut should not be used, this is just to raise erro upon use of its replacing method. use doDeleteStmt instead
+    
+    //Put a trap just before a stmt (equivalent toe replacing the statement by a trap) 
+    addConfNameOpPair ("TRAPSTMT", {mTRAPSTMT, mTRAPSTMT, mTRAPSTMT, mTRAPSTMT});
+    addOpMatchObjectPair (mTRAPSTMT, CREATE_OBJ(TrapStatement));
      
     //OPERAND Have no match function (cannot be a match -- something we want to mutate)
     addConfNameOpPair ("OPERAND", {mKEEP_ONE_OPRD, mKEEP_ONE_OPRD, mKEEP_ONE_OPRD, mKEEP_ONE_OPRD});

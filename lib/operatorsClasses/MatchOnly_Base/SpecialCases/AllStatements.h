@@ -21,10 +21,10 @@ class AllStatements: public MatchOnly_Base
     
     void prepareCloneIRs (MatchStmtIR const &toMatch, unsigned pos,  MatchUseful const &MU, llvmMutationOp::MutantReplacors const &repl, DoReplaceUseful &DRU, ModuleUserInfos const &MI) {}
     
-    void matchAndReplace (MatchStmtIR const &toMatch, llvmMutationOp const &mutationOp, MutantsOfStmt &resultMuts, bool &isDeleted, ModuleUserInfos const &MI)
+    void matchAndReplace (MatchStmtIR const &toMatch, llvmMutationOp const &mutationOp, MutantsOfStmt &resultMuts, WholeStmtMutationOnce &iswholestmtmutated, ModuleUserInfos const &MI)
     {
-        assert ((mutationOp.getNumReplacor() == 1 && isDeletion(mutationOp.getReplacor(0).getExpElemKey())) && "only Delete Stmt affect whole statement and match anything");
-        doDeleteStmt (toMatch, mutationOp.getReplacor(0), resultMuts, isDeleted, MI);
+        for (unsigned i=0; i < mutationOp.getNumReplacor(); ++i)
+            assert (checkWholeStmtAndMutate (toMatch, mutationOp.getReplacor(i), resultMuts, iswholestmtmutated, MI) && "only Delete Stmt and Trap affect whole statement and match anything");
     }
 };
 

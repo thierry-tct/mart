@@ -38,7 +38,7 @@ class ReplaceOnly_Base: public GenericMuOpBase
     /**
      * \bref Inplements virtual from @see GenericMuOpBase
      */
-    void matchAndReplace (MatchStmtIR const &toMatch, llvmMutationOp const &mutationOp, MutantsOfStmt &resultMuts, bool &isDeleted, ModuleUserInfos const &MI)
+    void matchAndReplace (MatchStmtIR const &toMatch, llvmMutationOp const &mutationOp, MutantsOfStmt &resultMuts, WholeStmtMutationOnce &iswholestmtmutated, ModuleUserInfos const &MI)
     {
         llvm::errs() << "Error: Calling 'matchAndReplace' method from a ReplaceOnly objects of the class: " /*<< typeid(*this).name()*/ << "\n";
         assert (false);

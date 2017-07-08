@@ -14,7 +14,7 @@ outfile=$1
 
 cd $topDir
 
-lasttimestamp="/*"$(stat . --printf="%Y %Z\n")"*/"
+lasttimestamp="/*"$(find -type d -exec stat {} --printf="%Y\n%Z\n" \; | sort -u | xargs)"*/"
 
 test -f $outfile && [ "$(head -n 1 $outfile)" = "$lasttimestamp" ] && exit 0
 

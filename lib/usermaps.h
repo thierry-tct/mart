@@ -35,7 +35,7 @@ enum codeParts {cpEXPR=0, cpCONSTNUM, cpVAR, cpADDRESS, cpPOINTER};
 
 //enum typeOP {Arithetical, Relational, Logical, Bitwise, Assignement, Misc, Call, DelStmt};
 //enum modeOP {Unary, Binary, None};	//None for DelStmt
-enum ExpElemKeys {mALLSTMT=0, mALLFEXPR, mALLIEXPR, mANYFVAR, mANYIVAR/*non pointer*/, mANYFCONST, mANYICONST, mANYADDRESS, mANYPOINTER, mDELSTMT, mKEEP_ONE_OPRD, mCONST_VALUE_OF, //special, Delete stmt
+enum ExpElemKeys {mALLSTMT=0, mALLFEXPR, mALLIEXPR, mANYFVAR, mANYIVAR/*non pointer*/, mANYFCONST, mANYICONST, mANYADDRESS, mANYPOINTER, mDELSTMT, mTRAPSTMT, mKEEP_ONE_OPRD, mCONST_VALUE_OF, //special, Delete stmt
             mIASSIGN, mFASSIGN, mADD, mFADD, mSUB, mFSUB, mMUL, mFMUL, mSDIV, mUDIV, mFDIV, mSMOD, mUMOD, mFMOD,  //Arithmetic Binary
             mNEG, mFNEG, mLEFTINC, mFLEFTINC, mRIGHTINC, mFRIGHTINC, mLEFTDEC, mFLEFTDEC, mRIGHTDEC, mFRIGHTDEC, mABS, mFABS,    //Arithmetic Unary
             mPADD, mPSUB, mPLEFTINC, mPRIGHTINC, mPLEFTDEC, mPRIGHTDEC,     //Pointer
@@ -94,7 +94,7 @@ public:
     
     static enum codeParts getCodePartType (llvm::StringRef oprd);
     
-    bool isDeleteStmtConfName(llvm::StringRef s); 
+    bool isWholeStmtMutationConfName(llvm::StringRef s); 
     
     static bool containsDeleteStmtConfName(llvm::StringRef s);
     

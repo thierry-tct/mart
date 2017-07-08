@@ -74,13 +74,13 @@ class NumericExpression_Base: public MatchOnly_Base
         DRU.setHLReturningIRPos(MU.getHLReturningIRPos());
     }
     
-    void matchAndReplace (MatchStmtIR const &toMatch, llvmMutationOp const &mutationOp, MutantsOfStmt &resultMuts, bool &isDeleted, ModuleUserInfos const &MI)
+    void matchAndReplace (MatchStmtIR const &toMatch, llvmMutationOp const &mutationOp, MutantsOfStmt &resultMuts, WholeStmtMutationOnce &iswholestmtmutated, ModuleUserInfos const &MI)
     {
         // Mutate for constant
-        MI.getUserMaps()->getMatcherObject(getCorrespConstMatcherOp())->matchAndReplace (toMatch, mutationOp, resultMuts, isDeleted, MI);
+        MI.getUserMaps()->getMatcherObject(getCorrespConstMatcherOp())->matchAndReplace (toMatch, mutationOp, resultMuts, iswholestmtmutated, MI);
         
         //use the matchAndReplace of the Base class (note it will call the matchIRs and prepareCloneIRs function defined above)
-        MatchOnly_Base::matchAndReplace (toMatch, mutationOp, resultMuts, isDeleted, MI);
+        MatchOnly_Base::matchAndReplace (toMatch, mutationOp, resultMuts, iswholestmtmutated, MI);
     }
 };
 
