@@ -102,15 +102,15 @@ static bool isWMSafe(llvm::Instruction *Inst, bool &canExcept) {
     otherSafeOpCodes.insert(llvm::Instruction::Load);
     otherSafeOpCodes.insert(llvm::Instruction::GetElementPtr);
 
-    canExceptInsts.insert(llvm::Instruction::ExtractElement);
-    canExceptInsts.insert(llvm::Instruction::ExtractValue);
-    canExceptInsts.insert(llvm::Instruction::Load);
-    canExceptInsts.insert(llvm::Instruction::GetElementPtr);
-    canExceptInsts.insert(llvm::Instruction::AddrSpaceCast);
-    canExceptInsts.insert(llvm::Instruction::UDiv);
-    canExceptInsts.insert(llvm::Instruction::SDiv);
-    canExceptInsts.insert(llvm::Instruction::URem);
-    canExceptInsts.insert(llvm::Instruction::SRem);
+    canExceptInsts.insert(llvm::Instruction::ExtractElement);  //null pointer
+    canExceptInsts.insert(llvm::Instruction::ExtractValue);  //null pointer
+    canExceptInsts.insert(llvm::Instruction::Load);  //null pointer
+    //canExceptInsts.insert(llvm::Instruction::GetElementPtr); //actually can't
+    canExceptInsts.insert(llvm::Instruction::AddrSpaceCast);  //null pointer
+    canExceptInsts.insert(llvm::Instruction::UDiv);  //division by 0
+    canExceptInsts.insert(llvm::Instruction::SDiv);  //division by 0
+    canExceptInsts.insert(llvm::Instruction::URem);  //division by 0
+    canExceptInsts.insert(llvm::Instruction::SRem);  //division by 0
   }
 
   if (Inst->isBinaryOp() || Inst->isCast() ||
