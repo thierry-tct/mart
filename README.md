@@ -24,8 +24,10 @@ svn co http://llvm.org/svn/llvm-project/llvm/tags/RELEASE_371/final llvm-3.7.1/s
 svn co http://llvm.org/svn/llvm-project/cfe/tags/RELEASE_371/final llvm-3.7.1/src/tools/clang
 
 mkdir llvm-3.7.1/build && cd llvm-3.7.1/build && cmake ../src && make -j16
-
-git clone https://github.com/JuliaComputing/llvm-cbe.git ../src/projects/llvm-cbe   #for C backend (https://github.com/JuliaComputing/llvm-cbe)
+```
+__Optional__: Install [llvm-cbe](https://github.com/JuliaComputing/llvm-cbe) which works with llvm-3.7 to convert LLVM code to C code
+```
+git clone https://github.com/JuliaComputing/llvm-cbe.git ../src/projects/llvm-cbe   
 
 cmake ../src && make -j16
 ```
@@ -35,12 +37,19 @@ cmake ../src && make -j16
 * configure setting LLVM variables: 
 ```bash
 mkdir build && cd build
-cmake -DLLVM_SRC_PATH=path_to_llvm_source_root -DLLVM_BUILD_PATH=path_to_llvm_build_root -DLLVM_DIR=path_to_llvm_build_root/share/llvm/cmake path_to_mart_source_root
+
+cmake \
+ -DLLVM_SRC_PATH=path_to_llvm_source_root \
+ -DLLVM_BUILD_PATH=path_to_llvm_build_root \
+ -DLLVM_DIR=path_to_llvm_build_root/share/llvm/cmake \
+  path_to_mart_source_root
 ```
 _Exemple with the above LLVM-3.7.1_
 ```bash
 git clone https://github.com/thierry-tct/mart.git mart/src
+
 cd mart && mkdir build && cd build
+
 cmake \
  -DLLVM_SRC_PATH=../../llvm-3.4.2/src \
  -DLLVM_BUILD_PATH=../../llvm-3.4.2/build \
