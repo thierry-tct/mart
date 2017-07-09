@@ -1,5 +1,5 @@
-#ifndef __KLEE_SEMU_GENMU_operatorClasses__DerefPointerArith_Base__
-#define __KLEE_SEMU_GENMU_operatorClasses__DerefPointerArith_Base__
+#ifndef __MART_SEMU_GENMU_operatorClasses__DerefPointerArith_Base__
+#define __MART_SEMU_GENMU_operatorClasses__DerefPointerArith_Base__
 
 /**
  * -==== DerefPointerArith_Base.h
@@ -220,4 +220,4 @@ public:
 
 } // namespace mart
 
-#endif //__KLEE_SEMU_GENMU_operatorClasses__DerefPointerArith_Base__
+#endif //__MART_SEMU_GENMU_operatorClasses__DerefPointerArith_Base__

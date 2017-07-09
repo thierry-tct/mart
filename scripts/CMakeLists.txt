@@ -1,4 +1,4 @@
-if (KLEE_SEMU_GENMU)
+if (MART_SEMU_GENMU)
 	#set(LLVM_LINK_COMPONENTS core engine asmparser bitreader support)
 
 	#execute_process(COMMAND git rev-parse --short=8 HEAD OUTPUT_VARIABLE GITVERSION)
@@ -22,6 +22,6 @@ if (KLEE_SEMU_GENMU)
                  DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/ks_mutation.sh
                 )
                 
-endif (KLEE_SEMU_GENMU)
+endif (MART_SEMU_GENMU)
 
 #include_directories('../lib')

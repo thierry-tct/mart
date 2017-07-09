@@ -1,5 +1,5 @@
-#ifndef __KLEE_SEMU_GENMU_operatorClasses__GenericMuOpBase__
-#define __KLEE_SEMU_GENMU_operatorClasses__GenericMuOpBase__
+#ifndef __MART_SEMU_GENMU_operatorClasses__GenericMuOpBase__
+#define __MART_SEMU_GENMU_operatorClasses__GenericMuOpBase__
 
 /**
  * -==== GenericMuOpBase.h
@@ -978,4 +978,4 @@ protected:
 
 } // namespace mart
 
-#endif //__KLEE_SEMU_GENMU_operatorClasses__GenericMuOpBase__
+#endif //__MART_SEMU_GENMU_operatorClasses__GenericMuOpBase__

@@ -10,8 +10,8 @@
  * mutation
  */
 
-#ifndef __KLEE_SEMU_GENMU_mutation__
-#define __KLEE_SEMU_GENMU_mutation__
+#ifndef __MART_SEMU_GENMU_mutation__
+#define __MART_SEMU_GENMU_mutation__
 
 #include <string>
 #include <vector>
@@ -20,6 +20,7 @@
 
 #include "typesops.h"
 #include "usermaps.h"
+#include "ReadWriteIRObj.h"
 
 namespace mart {
 
@@ -140,4 +141,4 @@ private:
 
 } // namespace mart
 
-#endif //__KLEE_SEMU_GENMU_mutation__
+#endif //__MART_SEMU_GENMU_mutation__

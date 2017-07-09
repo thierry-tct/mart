@@ -307,9 +307,9 @@ int main(int argc, char **argv) {
   /// will fit in memory
   bool isTCEFunctionMode = true;
 
-#ifdef KLEE_SEMU_GENMU_OBJECTFILE
+#ifdef MART_SEMU_GENMU_OBJECTFILE
   bool dumpMetaObj = false;
-#endif //#ifdef KLEE_SEMU_GENMU_OBJECTFILE
+#endif //#ifdef MART_SEMU_GENMU_OBJECTFILE
 
   char *tmpStr = nullptr;
 
@@ -508,7 +508,7 @@ mutantsDir+"//"+std::to_string(mid)+"//"+outFile+".bc"))
     }
 }*/
 
-#ifdef KLEE_SEMU_GENMU_OBJECTFILE
+#ifdef MART_SEMU_GENMU_OBJECTFILE
   if (dumpMetaObj) {
 #if (LLVM_VERSION_MAJOR <= 3) && (LLVM_VERSION_MINOR < 5)
     std::unique_ptr<llvm::Module> forObjModule(llvm::CloneModule(moduleM));
@@ -520,7 +520,7 @@ mutantsDir+"//"+std::to_string(mid)+"//"+outFile+".bc"))
                                   outputDir + "/" + outFile + ".MetaMu.o"))
       assert(false && "Failed to output meta-mutatant object file");
   }
-#endif //#ifdef KLEE_SEMU_GENMU_OBJECTFILE
+#endif //#ifdef MART_SEMU_GENMU_OBJECTFILE
   // llvm::errs() << "@After Mutation->TCE\n"; moduleM->dump(); llvm::errs() <<
   // "\n";
 

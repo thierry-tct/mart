@@ -1,5 +1,5 @@
-#ifndef __KLEE_SEMU_GENMU_operatorClasses__IntNumericConstant__
-#define __KLEE_SEMU_GENMU_operatorClasses__IntNumericConstant__
+#ifndef __MART_SEMU_GENMU_operatorClasses__IntNumericConstant__
+#define __MART_SEMU_GENMU_operatorClasses__IntNumericConstant__
 
 /**
  * -==== IntNumericConstant.h
@@ -41,4 +41,4 @@ protected:
 
 } // namespace mart
 
-#endif //__KLEE_SEMU_GENMU_operatorClasses__IntNumericConstant__
+#endif //__MART_SEMU_GENMU_operatorClasses__IntNumericConstant__

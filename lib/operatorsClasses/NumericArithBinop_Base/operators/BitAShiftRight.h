@@ -1,5 +1,5 @@
-#ifndef __KLEE_SEMU_GENMU_operatorClasses__BitAShiftRight__
-#define __KLEE_SEMU_GENMU_operatorClasses__BitAShiftRight__
+#ifndef __MART_SEMU_GENMU_operatorClasses__BitAShiftRight__
+#define __MART_SEMU_GENMU_operatorClasses__BitAShiftRight__
 
 /**
  * -==== BitAShiftRight.h
@@ -41,4 +41,4 @@ public:
 
 } // namespace mart
 
-#endif //__KLEE_SEMU_GENMU_operatorClasses__BitAShiftRight__
+#endif //__MART_SEMU_GENMU_operatorClasses__BitAShiftRight__

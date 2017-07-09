@@ -17,7 +17,7 @@
 
 #include "llvm/Support/MemoryBuffer.h"
 
-#ifdef KLEE_SEMU_GENMU_OBJECTFILE
+#ifdef MART_SEMU_GENMU_OBJECTFILE
 #if (LLVM_VERSION_MAJOR <= 3) && (LLVM_VERSION_MINOR < 5)
 #include "llvm/PassManager.h"
 #else
@@ -30,7 +30,7 @@
 #include "llvm/Support/TargetSelect.h"
 #include "llvm/Target/TargetMachine.h"
 #include "llvm/Target/TargetOptions.h"
-#endif //#ifdef KLEE_SEMU_GENMU_OBJECTFILE
+#endif //#ifdef MART_SEMU_GENMU_OBJECTFILE
 
 #include "llvm/Transforms/Utils/Cloning.h" //for CloneModule
 
@@ -124,7 +124,7 @@ public:
     return true;
   }
 
-#ifdef KLEE_SEMU_GENMU_OBJECTFILE
+#ifdef MART_SEMU_GENMU_OBJECTFILE
   static bool writeObj(llvm::Module *module, const std::string filename) {
     auto TargetTriple = llvm::sys::getDefaultTargetTriple();
     llvm::InitializeAllTargetInfos();
@@ -185,7 +185,7 @@ public:
 
     return true;
   }
-#endif //#ifdef KLEE_SEMU_GENMU_OBJECTFILE
+#endif //#ifdef MART_SEMU_GENMU_OBJECTFILE
 };     // class ReadWriteIRObj
 
 } // namespace mart

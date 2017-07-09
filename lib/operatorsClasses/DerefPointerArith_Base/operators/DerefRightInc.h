@@ -1,5 +1,5 @@
-#ifndef __KLEE_SEMU_GENMU_operatorClasses__DerefRightInc__
-#define __KLEE_SEMU_GENMU_operatorClasses__DerefRightInc__
+#ifndef __MART_SEMU_GENMU_operatorClasses__DerefRightInc__
+#define __MART_SEMU_GENMU_operatorClasses__DerefRightInc__
 
 /**
  * -==== DerefRightInc.h
@@ -64,4 +64,4 @@ public:
 
 } // namespace mart
 
-#endif //__KLEE_SEMU_GENMU_operatorClasses__DerefRightInc__
+#endif //__MART_SEMU_GENMU_operatorClasses__DerefRightInc__

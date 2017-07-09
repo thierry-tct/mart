@@ -1,5 +1,5 @@
-#ifndef __KLEE_SEMU_GENMU_operatorClasses__LogicalOr__
-#define __KLEE_SEMU_GENMU_operatorClasses__LogicalOr__
+#ifndef __MART_SEMU_GENMU_operatorClasses__LogicalOr__
+#define __MART_SEMU_GENMU_operatorClasses__LogicalOr__
 
 /**
  * -==== LogicalOr.h
@@ -29,4 +29,4 @@ class LogicalOr : public Logical_Base {
 };
 }
 
-#endif //__KLEE_SEMU_GENMU_operatorClasses__LogicalOr__
+#endif //__MART_SEMU_GENMU_operatorClasses__LogicalOr__

@@ -1,4 +1,4 @@
-if (KLEE_SEMU_GENMU)
+if (MART_SEMU_GENMU)
 
     include_directories( ${CMAKE_CURRENT_SOURCE_DIR}/operatorsClasses )
     #include_directories( ${CMAKE_CURRENT_SOURCE_DIR}/third-parties )
@@ -64,5 +64,5 @@ if (KLEE_SEMU_GENMU)
     set(CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS__BACKUP})
     
     
-endif (KLEE_SEMU_GENMU)
+endif (MART_SEMU_GENMU)
 
