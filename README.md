@@ -11,10 +11,20 @@
 4. Provides an API for new mutation operations by extending the base class for mutation operators and registering the operation.
 
 ## Requirements
+- Linux (Tested on Ubuntu 14.04 and 16.04)
 - LLVM >= 3.4
 Note: Mart uses [JsonBox](https://github.com/anhero/JsonBox) and [dg](https://github.com/mchalupa/dg)(for mutant selection's dependence analysis), included as git submodules
 - cmake >= 3.4.3 (for build)
+    ```bash
+    sudo apt-get install cmake3
+    ```
 - gcc >= 4.9.0 or clang ...
+    ```bash
+    sudo add-apt-repository ppa:ubuntu-toolchain-r/test 
+    sudo apt-get update
+    sudo apt-get install gcc-4.9 g++-4.9
+    which g++ || sudo ln -s /usr/bin/g++-4.9 /usr/bin/g++
+    ```
 
 ## Build
 1. Compile LLVM from source: (example of llvm-3.7.1)
