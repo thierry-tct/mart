@@ -78,11 +78,23 @@ public:
             ->matchIRs(toMatch, tmpMutationOp, pos, MU, MI)) {
       assert(MU.next() == MU.end() &&
              "Must have exactely one element here (deref first)");
+      
+      /// TODO: As for now we do not cosider the cases where a pointer to an
+      /// Array is the address operand and GEP directly return the address of
+      /// an element in the pointed array. EX: i32* = gep [5 x i32]* %p, 0, idx.
+      /// That would be like: gep (gep %p, 0, 0), idx
+      /// So here 'HLOperandSourceIndexInIR(1) == 2' means that the second 
+      /// HLOprd (integer part) index in gep is qual to 1 (2 = 1 + 1)
+      /// Gep index 1 is llvm::User index 2
+      if (MU.getNumberOfHLOperands() == 2 && MU.getHLOperandSourceIndexInIR(1) == 2) {
+        assert (MU.getRelevantIRPos().size() == 1 && llvm::isa<llvm::GetElementPtrInst>(toMatch.getIRAt(MU.getRelevantIRPosOf(0))) && "Only PADD and PSUB are accepted here");
+        MU.clearAll();
+        return false;
+      }
+      
       if (dereferenceFirst()) {
         llvm::SmallVector<
-            std::tuple<unsigned /*HLoprd ind*/, unsigned /*gep pos*/,
-                       unsigned /*load pos*/>,
-            2>
+            std::tuple<unsigned /*HLoprd ind*/, unsigned /*load pos*/>, 2>
             hloprd_reset_data;
         unsigned noprd = MU.getNumberOfHLOperands();
         assert((noprd >= 1 && noprd <= 2) && "must be binop or incdec");
@@ -90,10 +102,9 @@ public:
              hloprd_id < hloprd_end; ++hloprd_id) {
           if (auto *load = llvm::dyn_cast<llvm::LoadInst>(
                   MU.getHLOperandSource(hloprd_id, toMatch))) {
-            if (load->hasOneUse()) // must be the only use: deref ( avoid
-                                   // add/sub to consider inc/dec load as deref
-                                   // load)
-            {
+            // must be the only use: deref ( avoid
+            // add/sub to consider inc/dec load as derefload)
+            if (load->hasOneUse()) {
               auto *loadptr = load->getPointerOperand();
               if (!llvm::isa<llvm::AllocaInst>(loadptr)) {
                 // since the inc/dec load (%1=load, add %1,1, store) is not
@@ -105,8 +116,7 @@ public:
                     !llvm::isa<llvm::LoadInst>(loadptr)) // the actual deref
                   continue;
                 hloprd_reset_data.emplace_back(
-                    hloprd_id, toMatch.depPosofPos(loadptr, pos, true),
-                    toMatch.depPosofPos(load, pos, true));
+                    hloprd_id, toMatch.depPosofPos(load, pos, true));
               }
             }
           }
@@ -124,13 +134,15 @@ public:
                ptr_mu = ptr_mu->next(), ++i) {
             if (std::get<0>(hloprd_reset_data[i]) > 0) // actually ==1
             {
+              // non pointer is oprd 0, make it become oprd 1
               ptr_mu->resetHLOprdSourceAt(
                   std::get<0>(hloprd_reset_data[i]),
-                  ptr_mu->getHLOperandSourcePos(
-                      0)); // non pointeris oprd 0, make it become oprd 1
+                  ptr_mu->getHLOperandSourcePos(0)); 
             }
-            ptr_mu->resetHLOprdSourceAt(0, std::get<1>(hloprd_reset_data[i]));
-            ptr_mu->appendRelevantIRPos(std::get<2>(hloprd_reset_data[i]));
+            // The 3rd parameter 0 to specify get the operand at index 0 of the
+            // instruction (load) at position std::get<1>(hloprd_reset_data[i])
+            ptr_mu->resetHLOprdSourceAt(0, std::get<1>(hloprd_reset_data[i]), 0);
+            ptr_mu->appendRelevantIRPos(std::get<1>(hloprd_reset_data[i]));
           }
         }
       } else {
@@ -184,8 +196,7 @@ public:
         valoprd = MU.getHLOperandSource(repl.getOprdIndexList()[1],
                                         DRU.toMatchMutant);
       }
-    } else // size is 1
-    {
+    } else { // size is 1
       if (ptroprd = createIfConst(
               (DRU.toMatchMutant.getIRAt(MU.getHLReturningIRPos()))->getType(),
               repl.getOprdIndexList()[0])) { // The replacor should be
@@ -195,13 +206,11 @@ public:
             ptroprd,
             (DRU.toMatchMutant.getIRAt(MU.getHLReturningIRPos()))->getType());
         if (!llvm::isa<llvm::Constant>(ptroprd))
+          // insert right after the instruction to remove
           DRU.toMatchMutant.insertIRAt(
               *std::max_element(MU.getRelevantIRPos().begin(),
-                                MU.getRelevantIRPos().end()) +
-                  1,
-              ptroprd); // insert right after the instruction to remove
-      } else            // pointer
-      {
+                                MU.getRelevantIRPos().end()) + 1, ptroprd); 
+      } else  { // pointer
         ptroprd = MU.getHLOperandSource(
             repl.getOprdIndexList()[0],
             DRU.toMatchMutant); // load. repl.getOprdIndexList()[0] is equal to

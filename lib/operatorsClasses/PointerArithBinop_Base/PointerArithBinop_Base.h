@@ -45,8 +45,7 @@ public:
               llvm::dyn_cast<llvm::ConstantInt>(indxVal)) {
         if (!checkIntPartConst(constIndxVal))
           return false;
-      } else // it is a non constant
-      {
+      } else { // it is a non constant
         llvm::Value *tmpI = indxVal;
         while (llvm::isa<llvm::CastInst>(tmpI))
           tmpI = llvm::dyn_cast<llvm::User>(tmpI)->getOperand(0);
@@ -63,10 +62,9 @@ public:
 
       MatchUseful *ptr_mu = MU.getNew();
       ptr_mu->appendHLOprdsSource(pos, 0);        // Pointer oprd
-      ptr_mu->appendHLOprdsSource(pos, indx + 1); // Int oprd.   we add 1
-                                                  // because here we pass the
-                                                  // user oprd while indx had
-                                                  // the Gep access index
+      // Int oprd. We add 1 because here we pass the user oprd while indx had
+      // the Gep access index
+      ptr_mu->appendHLOprdsSource(pos, indx + 1);
       ptr_mu->appendRelevantIRPos(pos);
       ptr_mu->setHLReturningIRPos(pos);
     }

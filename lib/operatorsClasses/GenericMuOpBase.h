@@ -776,9 +776,9 @@ protected:
       } else {
         return nullptr;
       }
-    } else // The pointer operand point to a sequential type, take idx 0 if
-           // comes from load, else take idx 1
-    {
+    } else {
+      // The pointer operand point to a sequential type, take idx 0 if
+      // comes from load, else take idx 1
       if (llvm::isa<llvm::LoadInst>(ptrOprd)) {
         // return the first index (idx = 0)
         index = 0;

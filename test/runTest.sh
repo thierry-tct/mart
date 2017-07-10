@@ -58,7 +58,7 @@ do
     trap "echo 'cmd: ../../tools/mart -mutant-config ../operator/mutconf.conf $filep.bc 2>&1'" INT
     
     echo -n "> $filep...  compiling...   "
-    $CLANGC -g -c -emit-llvm -o $filep.bc $src || error_exit "Failed to compile $src"
+    $CLANGC -O0 -g -c -emit-llvm -o $filep.bc $src || error_exit "Failed to compile $src"
     echo -n "mutation...   "
     
     options="-print-preTCE-Meta -write-mutants"

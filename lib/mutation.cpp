@@ -241,7 +241,10 @@ void Mutation::preprocessVariablePhi(llvm::Module &module) {
                     : ++(llvm::BasicBlock::iterator(*(
                           llvm::dyn_cast<llvm::Instruction>(alloc_arr_size))));
 #else
-                        loadinsertpt = llvm::isa<llvm::Constant>(alloc_arr_size)? alloca: ++(llvm::dyn_cast<llvm::Instruction>(alloc_arr_size))->getIterator());
+            loadinsertpt = 
+                llvm::isa<llvm::Constant>(alloc_arr_size) ? alloca
+                    : &*(++((llvm::dyn_cast<llvm::Instruction>(alloc_arr_size))
+                        ->getIterator()));
 #endif
             new llvm::StoreInst(alloc_arr_size, Slot, loadinsertpt);
             llvm::Value *V =
