@@ -106,7 +106,7 @@ public:
 #if (LLVM_VERSION_MAJOR <= 3) && (LLVM_VERSION_MINOR < 8)
       llvm::Function::iterator FI =
           br->getParent()->getNextNode(); // Iterator();
-      if (FI)                             //!= br->getFunction()->end() && FI )
+      if (FI != br->getParent()->getParent()->end())
       {
 #else
       llvm::Function::iterator FI = br->getParent()->getIterator();

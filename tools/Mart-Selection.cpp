@@ -78,8 +78,13 @@ void mutantListAsJsON(std::vector<std::vector<T>> const &lists,
 
 int main(int argc, char **argv) {
   // Remove the option we don't want to display in help
+#if (LLVM_VERSION_MAJOR <= 3) && (LLVM_VERSION_MINOR < 5)
+   llvm::StringMap<llvm::cl::Option *> optMap;
+   llvm::cl::getRegisteredOptions(optMap);
+#else
   llvm::StringMap<llvm::cl::Option *> &optMap =
       llvm::cl::getRegisteredOptions();
+#endif
   for (auto &option : optMap) {
     auto optstr = option.getKey();
     if (!(optstr.startswith("help") || optstr.equals("version")))

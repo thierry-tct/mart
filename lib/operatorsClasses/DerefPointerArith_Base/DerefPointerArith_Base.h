@@ -58,8 +58,8 @@ protected:
                                       unsigned &ret_pos) {
     auto *tmp = toMatch.getIRAt(pos);
     if (tmp->hasOneUse()) {
-      ret_pos = toMatch.depPosofPos(tmp->user_back(), pos, false);
-      return tmp->user_back();
+      ret_pos = toMatch.depPosofPos(tmp->use_back(), pos, false);
+      return tmp->use_back();
     }
     ret_pos = -1; // max unsigned
     return nullptr;
@@ -115,8 +115,13 @@ public:
                 if (mutationOp.getCPType(0) == cpPOINTER &&
                     !llvm::isa<llvm::LoadInst>(loadptr)) // the actual deref
                   continue;
+#if (LLVM_VERSION_MAJOR <= 3) && (LLVM_VERSION_MINOR < 5)
+                hloprd_reset_data.push_back(std::tuple<unsigned, unsigned>(
+                    hloprd_id, toMatch.depPosofPos(load, pos, true)));
+#else
                 hloprd_reset_data.emplace_back(
                     hloprd_id, toMatch.depPosofPos(load, pos, true));
+#endif
               }
             }
           }

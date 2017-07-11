@@ -1,4 +1,4 @@
-/*1499559479 1499698794 1499699007 1499700395 1499700476 1499702401 1499779979*/
+/*1499559479 1499698794 1499699007 1499700395 1499700476 1499797139 1499797695*/
 #include "NumericNegation_Base/NumericArithNegation_Base.h"
 #include "NumericNegation_Base/operators/IntegerMinus.h"
 #include "NumericNegation_Base/operators/FPMinus.h"
