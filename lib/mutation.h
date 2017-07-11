@@ -18,9 +18,9 @@
 
 #include <llvm/IR/Module.h>
 
+#include "ReadWriteIRObj.h"
 #include "typesops.h"
 #include "usermaps.h"
-#include "ReadWriteIRObj.h"
 
 namespace mart {
 

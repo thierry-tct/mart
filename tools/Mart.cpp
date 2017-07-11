@@ -251,10 +251,10 @@ void printVersion() {
 }
 
 int main(int argc, char **argv) {
-  // Remove the option we don't want to display in help
+// Remove the option we don't want to display in help
 #if (LLVM_VERSION_MAJOR <= 3) && (LLVM_VERSION_MINOR < 5)
-     llvm::StringMap<llvm::cl::Option *> optMap;
-     llvm::cl::getRegisteredOptions(optMap);
+  llvm::StringMap<llvm::cl::Option *> optMap;
+  llvm::cl::getRegisteredOptions(optMap);
 #else
   llvm::StringMap<llvm::cl::Option *> &optMap =
       llvm::cl::getRegisteredOptions();

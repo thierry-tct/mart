@@ -58,8 +58,13 @@ protected:
                                       unsigned &ret_pos) {
     auto *tmp = toMatch.getIRAt(pos);
     if (tmp->hasOneUse()) {
+#if (LLVM_VERSION_MAJOR <= 3) && (LLVM_VERSION_MINOR < 5)
       ret_pos = toMatch.depPosofPos(tmp->use_back(), pos, false);
       return tmp->use_back();
+#else
+      ret_pos = toMatch.depPosofPos(tmp->user_back(), pos, false);
+      return tmp->user_back();
+#endif
     }
     ret_pos = -1; // max unsigned
     return nullptr;
@@ -78,20 +83,24 @@ public:
             ->matchIRs(toMatch, tmpMutationOp, pos, MU, MI)) {
       assert(MU.next() == MU.end() &&
              "Must have exactely one element here (deref first)");
-      
+
       /// TODO: As for now we do not cosider the cases where a pointer to an
       /// Array is the address operand and GEP directly return the address of
       /// an element in the pointed array. EX: i32* = gep [5 x i32]* %p, 0, idx.
       /// That would be like: gep (gep %p, 0, 0), idx
-      /// So here 'HLOperandSourceIndexInIR(1) == 2' means that the second 
+      /// So here 'HLOperandSourceIndexInIR(1) == 2' means that the second
       /// HLOprd (integer part) index in gep is qual to 1 (2 = 1 + 1)
       /// Gep index 1 is llvm::User index 2
-      if (MU.getNumberOfHLOperands() == 2 && MU.getHLOperandSourceIndexInIR(1) == 2) {
-        assert (MU.getRelevantIRPos().size() == 1 && llvm::isa<llvm::GetElementPtrInst>(toMatch.getIRAt(MU.getRelevantIRPosOf(0))) && "Only PADD and PSUB are accepted here");
+      if (MU.getNumberOfHLOperands() == 2 &&
+          MU.getHLOperandSourceIndexInIR(1) == 2) {
+        assert(MU.getRelevantIRPos().size() == 1 &&
+               llvm::isa<llvm::GetElementPtrInst>(
+                   toMatch.getIRAt(MU.getRelevantIRPosOf(0))) &&
+               "Only PADD and PSUB are accepted here");
         MU.clearAll();
         return false;
       }
-      
+
       if (dereferenceFirst()) {
         llvm::SmallVector<
             std::tuple<unsigned /*HLoprd ind*/, unsigned /*load pos*/>, 2>
@@ -140,13 +149,13 @@ public:
             if (std::get<0>(hloprd_reset_data[i]) > 0) // actually ==1
             {
               // non pointer is oprd 0, make it become oprd 1
-              ptr_mu->resetHLOprdSourceAt(
-                  std::get<0>(hloprd_reset_data[i]),
-                  ptr_mu->getHLOperandSourcePos(0)); 
+              ptr_mu->resetHLOprdSourceAt(std::get<0>(hloprd_reset_data[i]),
+                                          ptr_mu->getHLOperandSourcePos(0));
             }
             // The 3rd parameter 0 to specify get the operand at index 0 of the
             // instruction (load) at position std::get<1>(hloprd_reset_data[i])
-            ptr_mu->resetHLOprdSourceAt(0, std::get<1>(hloprd_reset_data[i]), 0);
+            ptr_mu->resetHLOprdSourceAt(0, std::get<1>(hloprd_reset_data[i]),
+                                        0);
             ptr_mu->appendRelevantIRPos(std::get<1>(hloprd_reset_data[i]));
           }
         }
@@ -214,8 +223,10 @@ public:
           // insert right after the instruction to remove
           DRU.toMatchMutant.insertIRAt(
               *std::max_element(MU.getRelevantIRPos().begin(),
-                                MU.getRelevantIRPos().end()) + 1, ptroprd); 
-      } else  { // pointer
+                                MU.getRelevantIRPos().end()) +
+                  1,
+              ptroprd);
+      } else { // pointer
         ptroprd = MU.getHLOperandSource(
             repl.getOprdIndexList()[0],
             DRU.toMatchMutant); // load. repl.getOprdIndexList()[0] is equal to

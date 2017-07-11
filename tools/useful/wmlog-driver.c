@@ -20,9 +20,9 @@ void martLLVM_WM_Log__Function(unsigned id, char cond /*bool*/) {
     char *MARTLLVM_WM_LOG_OUTPUT_file = getenv(xstr(MART_WM_LOG_OUTPUT));
     if (!MARTLLVM_WM_LOG_OUTPUT_file)
       MARTLLVM_WM_LOG_OUTPUT_file = "mart.defaultFileName.WM.covlabels";
-    // In case many processes(fork). 
-    //The user should make sure to delete this before run
-    martLLVM_WM_Log__file = fopen(MARTLLVM_WM_LOG_OUTPUT_file, "a"); 
+    // In case many processes(fork).
+    // The user should make sure to delete this before run
+    martLLVM_WM_Log__file = fopen(MARTLLVM_WM_LOG_OUTPUT_file, "a");
     if (!martLLVM_WM_Log__file) {
       printf("[TEST HARNESS] cannot init weak mutation output file (%s)\n",
              MARTLLVM_WM_LOG_OUTPUT_file);

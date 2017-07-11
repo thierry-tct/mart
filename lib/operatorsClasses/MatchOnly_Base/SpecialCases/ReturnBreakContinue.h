@@ -106,8 +106,7 @@ public:
 #if (LLVM_VERSION_MAJOR <= 3) && (LLVM_VERSION_MINOR < 8)
       llvm::Function::iterator FI =
           br->getParent()->getNextNode(); // Iterator();
-      if (FI != br->getParent()->getParent()->end())
-      {
+      if (FI != br->getParent()->getParent()->end()) {
 #else
       llvm::Function::iterator FI = br->getParent()->getIterator();
       if (++FI != br->getFunction()->end()) {
@@ -190,7 +189,8 @@ public:
             toMatchMutant.clear();
             toMatchMutant.setToCloneStmtIROf(toMatch, MI);
             llvm::AllocaInst *alloca = builder.CreateAlloca(retType);
-            alloca->setAlignment(MI.getDataLayout().getPrefTypeAlignment(retType));
+            alloca->setAlignment(
+                MI.getDataLayout().getPrefTypeAlignment(retType));
             llvm::LoadInst *load = builder.CreateAlignedLoad(
                 alloca, MI.getDataLayout().getPrefTypeAlignment(retType));
             // llvm::ReturnInst *newret = builder.CreateRet(load);

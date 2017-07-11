@@ -49,7 +49,7 @@ public:
                   store->getOperand(0))) // equivalent to getValueOperand()
       {
         // Should be only for pointer var and add/sub only on the pointer
-        if (modif->getNumIndices() != 1) 
+        if (modif->getNumIndices() != 1)
           return false;
         llvm::LoadInst *load =
             llvm::dyn_cast<llvm::LoadInst>(modif->getPointerOperand());
@@ -86,7 +86,7 @@ public:
             returningIRPos = modifpos;
           else
             return false;
-        } else if (load->getNumUses() == 1 && modif->getNumUses() == 1) { 
+        } else if (load->getNumUses() == 1 && modif->getNumUses() == 1) {
           // Here the increment-decrement do not return (this
           // mutants will be duplicate for left and right)
           /// if (mutationOp.matchOp == mLEFTINC || mutationOp.matchOp ==

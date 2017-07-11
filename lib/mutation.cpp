@@ -102,15 +102,15 @@ static bool isWMSafe(llvm::Instruction *Inst, bool &canExcept) {
     otherSafeOpCodes.insert(llvm::Instruction::Load);
     otherSafeOpCodes.insert(llvm::Instruction::GetElementPtr);
 
-    canExceptInsts.insert(llvm::Instruction::ExtractElement);  //null pointer
-    canExceptInsts.insert(llvm::Instruction::ExtractValue);  //null pointer
-    canExceptInsts.insert(llvm::Instruction::Load);  //null pointer
-    //canExceptInsts.insert(llvm::Instruction::GetElementPtr); //actually can't
-    canExceptInsts.insert(llvm::Instruction::AddrSpaceCast);  //null pointer
-    canExceptInsts.insert(llvm::Instruction::UDiv);  //division by 0
-    canExceptInsts.insert(llvm::Instruction::SDiv);  //division by 0
-    canExceptInsts.insert(llvm::Instruction::URem);  //division by 0
-    canExceptInsts.insert(llvm::Instruction::SRem);  //division by 0
+    canExceptInsts.insert(llvm::Instruction::ExtractElement); // null pointer
+    canExceptInsts.insert(llvm::Instruction::ExtractValue);   // null pointer
+    canExceptInsts.insert(llvm::Instruction::Load);           // null pointer
+    // canExceptInsts.insert(llvm::Instruction::GetElementPtr); //actually can't
+    canExceptInsts.insert(llvm::Instruction::AddrSpaceCast); // null pointer
+    canExceptInsts.insert(llvm::Instruction::UDiv);          // division by 0
+    canExceptInsts.insert(llvm::Instruction::SDiv);          // division by 0
+    canExceptInsts.insert(llvm::Instruction::URem);          // division by 0
+    canExceptInsts.insert(llvm::Instruction::SRem);          // division by 0
   }
 
   if (Inst->isBinaryOp() || Inst->isCast() ||
@@ -241,10 +241,11 @@ void Mutation::preprocessVariablePhi(llvm::Module &module) {
                     : ++(llvm::BasicBlock::iterator(*(
                           llvm::dyn_cast<llvm::Instruction>(alloc_arr_size))));
 #else
-            loadinsertpt = 
-                llvm::isa<llvm::Constant>(alloc_arr_size) ? alloca
+            loadinsertpt =
+                llvm::isa<llvm::Constant>(alloc_arr_size)
+                    ? alloca
                     : &*(++((llvm::dyn_cast<llvm::Instruction>(alloc_arr_size))
-                        ->getIterator()));
+                                ->getIterator()));
 #endif
             new llvm::StoreInst(alloc_arr_size, Slot, loadinsertpt);
             llvm::Value *V =
@@ -1064,6 +1065,8 @@ bool Mutation::doMutate() {
     /// Set to null after each actual mutation take place
     llvm::BasicBlock *mutationStartingAtBB = nullptr;
 
+    std::unordered_set<llvm::Instruction *> consecutiveSkippedInsts;
+
     for (auto itBBlock = Func.begin(), F_end = Func.end(); itBBlock != F_end;
          ++itBBlock) {
       /// Do not mutate the inserted proxy for PHI nodes
@@ -1081,8 +1084,22 @@ bool Mutation::doMutate() {
       std::queue<llvm::Value *> curUses;
 
       for (auto &Instr : *itBBlock) {
-        instructionPosInFunc++; // This should always be before anything else in
-                                // this loop
+        // This should always be before anything else in this loop
+        instructionPosInFunc++;
+
+        // If the instruction was mached as to be skipped (using an instruction)
+        // that was skipped,  skip it (example: 'store' following 'stacksave')
+        if (!consecutiveSkippedInsts.empty()) {
+          if (consecutiveSkippedInsts.count(&Instr)) {
+            consecutiveSkippedInsts.erase(&Instr);
+            continue;
+          } else {
+            llvm::errs() << "Mart@Error: the instruction to delete does not "
+                            "directly follow its precursor! (Atomic..)\n";
+            Instr.dump();
+            assert(false && "consecutiveSkippedInsts not empty");
+          }
+        }
 
 // For Now do not mutate Exeption handling code, TODO later. TODO
 // (http://llvm.org/docs/doxygen/html/Instruction_8h_source.html#l00393)
@@ -1107,7 +1124,7 @@ bool Mutation::doMutate() {
               curLiveStmtSearch = nullptr;
             } else {
               Instr.getParent()->dump();
-              assert(false && "Non atomic??");
+              assert(false && "Non atomic ??. Please Report bug (Mart)");
               // assert (llvm::isa<llvm::ConstantInt>(alloca->getArraySize()) &&
               // "Non Atomic??");
             }
@@ -1124,16 +1141,43 @@ bool Mutation::doMutate() {
         // Skip llvm debugging functions void @llvm.dbg.declare and void
         // @llvm.dbg.value, and klee special function...
         if (auto *callinst = llvm::dyn_cast<llvm::CallInst>(&Instr)) {
-          // llvm.dbg.declare  and llvm.dbg.value
-          if (llvm::isa<llvm::DbgInfoIntrinsic>(callinst)) {
-            if (curLiveStmtSearch && curLiveStmtSearch->isVisited(&Instr)) {
-              assert(false && "The debug statement should not have been in "
-                              "visited (cause no dependency on others "
-                              "stmts...)"); // DBG
-              srcStmtsSearchList.remove(curLiveStmtSearch);
-              curLiveStmtSearch = nullptr;
+          if (auto *intrinsic = llvm::dyn_cast<llvm::IntrinsicInst>(callinst)) {
+            // llvm.dbg.declare  and llvm.dbg.value
+            if (llvm::isa<llvm::DbgInfoIntrinsic>(intrinsic)) {
+              if (curLiveStmtSearch &&
+                  curLiveStmtSearch->isVisited(intrinsic)) {
+                assert(false && "The debug statement should not have been in "
+                                "visited (cause no dependency on others "
+                                "stmts...)"); // DBG
+                srcStmtsSearchList.remove(curLiveStmtSearch);
+                curLiveStmtSearch = nullptr;
+              }
+              continue;
+            } else if (intrinsic->getIntrinsicID() ==
+                       llvm::Intrinsic::stackrestore) {
+              // XXX For stacksave and restore, skip for now
+              if (curLiveStmtSearch &&
+                  curLiveStmtSearch->isVisited(intrinsic)) {
+                srcStmtsSearchList.remove(curLiveStmtSearch);
+                curLiveStmtSearch = nullptr;
+              }
+              continue;
+            } else if (intrinsic->getIntrinsicID() ==
+                       llvm::Intrinsic::stacksave) {
+// XXX For stacksave and restore, skip for now
+#if (LLVM_VERSION_MAJOR <= 3) && (LLVM_VERSION_MINOR < 5)
+              auto *ss_store =
+                  llvm::dyn_cast<llvm::StoreInst>(*(intrinsic->use_begin()));
+#else
+              auto *ss_store =
+                  llvm::dyn_cast<llvm::StoreInst>(*(intrinsic->user_begin()));
+#endif
+              // If the Stroe do not directly follow, it will be caught above
+              assert(ss_store && intrinsic->hasOneUse() &&
+                     "unexpected stacksave use pattern");
+              consecutiveSkippedInsts.insert(ss_store);
+              continue;
             }
-            continue;
           } else if (llvm::Function *fun = callinst->getCalledFunction()) {
             // TODO: handle function alias (get called function)
             if (forKLEESEMu && fun->getName().equals("klee_make_symbolic") &&
