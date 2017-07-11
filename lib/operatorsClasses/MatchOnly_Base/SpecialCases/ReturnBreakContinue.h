@@ -190,9 +190,9 @@ public:
             toMatchMutant.clear();
             toMatchMutant.setToCloneStmtIROf(toMatch, MI);
             llvm::AllocaInst *alloca = builder.CreateAlloca(retType);
-            alloca->setAlignment(MI.getDataLayout().getTypeStoreSize(retType));
+            alloca->setAlignment(MI.getDataLayout().getPrefTypeAlignment(retType));
             llvm::LoadInst *load = builder.CreateAlignedLoad(
-                alloca, MI.getDataLayout().getTypeStoreSize(retType));
+                alloca, MI.getDataLayout().getPrefTypeAlignment(retType));
             // llvm::ReturnInst *newret = builder.CreateRet(load);
             unsigned initialRetPos = toMatch.getTotNumIRs() - 1;
             llvm::dyn_cast<llvm::ReturnInst>(

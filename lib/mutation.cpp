@@ -1102,10 +1102,11 @@ bool Mutation::doMutate() {
         if (auto *alloca = llvm::dyn_cast<llvm::AllocaInst>(&Instr)) {
           if (alloca->isArrayAllocation()) {
             if (curLiveStmtSearch && curLiveStmtSearch->isVisited(&Instr)) {
-              srcStmtsSearchList.remove(
-                  curLiveStmtSearch); // do not mutate alloca
+              // do not mutate alloca
+              srcStmtsSearchList.remove(curLiveStmtSearch);
               curLiveStmtSearch = nullptr;
             } else {
+              Instr.getParent()->dump();
               assert(false && "Non atomic??");
               // assert (llvm::isa<llvm::ConstantInt>(alloca->getArraySize()) &&
               // "Non Atomic??");
