@@ -197,9 +197,11 @@ int main(int argc, char **argv) {
   curClockTime = clock();
   selectedMutants1.clear();
   selectedMutants1.resize(numberOfRandomSelections);
-  std::vector<double> selectedScores;  //FIXME: for repetition if needed
-  for (unsigned si = 0; si < numberOfRandomSelections; ++si)
+  std::vector<double> selectedScores;
+  for (unsigned si = 0; si < numberOfRandomSelections; ++si) {
+    selectedScores.clear();  //FIXME: for repetition if useful, get all datas
     selection.smartSelectMutants(selectedMutants1[si], selectedScores);
+  }
   mutantListAsJsON<MutantIDType>(selectedMutants1, smartSelectionOutJson);
   mutantListAsJsON<double>(std::vector<std::vector<double>>({selectedScores}),
                            scoresForSmartSelectionOutJson);
