@@ -196,9 +196,10 @@ int main(int argc, char **argv) {
   llvm::outs() << "Doing Smart Selection...\n";
   curClockTime = clock();
   selectedMutants1.clear();
-  selectedMutants1.push_back(std::vector<MutantIDType>());
-  std::vector<double> selectedScores;
-  selection.smartSelectMutants(selectedMutants1.back(), selectedScores);
+  selectedMutants1.resize(numberOfRandomSelections);
+  std::vector<double> selectedScores;  //FIXME: for repetition if needed
+  for (unsigned si = 0; si < numberOfRandomSelections; ++si)
+    selection.smartSelectMutants(selectedMutants1[si], selectedScores);
   mutantListAsJsON<MutantIDType>(selectedMutants1, smartSelectionOutJson);
   mutantListAsJsON<double>(std::vector<std::vector<double>>({selectedScores}),
                            scoresForSmartSelectionOutJson);

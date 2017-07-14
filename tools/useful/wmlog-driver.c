@@ -8,8 +8,9 @@
 #define str(x) #x
 #define xstr(x) str(x)
 
-static unsigned martLLVM_WM_Log__Highest_Mutant_ID =
-    0; // XXX Must be overriden by mutation tool when linking
+// XXX Must be overriden by mutation tool when linking
+static unsigned martLLVM_WM_Log__Highest_Mutant_ID = 0; 
+
 static char *martLLVM_WM_Log__Mutants_Weakly_Killed_Cache = (void *)0; // bool[]
 static char martLLVM_WM_Log__Newly_Weakly_Killed_Mutants = 0;          // bool
 

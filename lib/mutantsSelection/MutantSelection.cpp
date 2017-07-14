@@ -308,20 +308,29 @@ MutantSelection::pickMutant(std::unordered_set<MutantIDType> const &candidates,
   // control dependence
   unsigned minoutctrlnum = (unsigned)-1;
   unsigned maxinctrlnum = 0;
+  std::vector<MutantIDType> choiceFinalRoundList;
   MutantIDType chosenMutant;
   for (auto mutant_id : topScored) {
     if (mutantDGraph.getOutCtrlDependents(mutant_id).size() < minoutctrlnum) {
-      chosenMutant = mutant_id;
+      choiceFinalRoundList.clear();
+      choiceFinalRoundList.push_back(mutant_id);
       minoutctrlnum = mutantDGraph.getOutCtrlDependents(mutant_id).size();
       maxinctrlnum = mutantDGraph.getInCtrlDependents(mutant_id).size();
     } else if (mutantDGraph.getOutCtrlDependents(mutant_id).size() ==
                    minoutctrlnum &&
                mutantDGraph.getInCtrlDependents(mutant_id).size() >
                    maxinctrlnum) {
-      chosenMutant = mutant_id;
+      choiceFinalRoundList.clear();
+      choiceFinalRoundList.push_back(mutant_id);
       maxinctrlnum = mutantDGraph.getInCtrlDependents(mutant_id).size();
     }
   }
+  // shuflle IRs
+  std::srand(std::time(NULL) + clock()); //+ clock() because fast running
+  // program will generate same sequence
+  // with only time(NULL)
+  std::random_shuffle(choiceFinalRoundList.begin(), choiceFinalRoundList.end());
+  chosenMutant = choiceFinalRoundList.front();
   return chosenMutant;
 }
 
@@ -415,8 +424,8 @@ void MutantSelection::smartSelectMutants(
     candidate_mutants.insert(mutant_id);
   }
 
-  std::unordered_set<MutantIDType>
-      tiesTemporal; // For now put all ties here and append to list at the end
+  // For now put all ties here and append to list at the end
+  std::unordered_set<MutantIDType> tiesTemporal; 
 
   while (!candidate_mutants.empty()) {
     auto mutant_id = pickMutant(candidate_mutants, mutant_scores);
@@ -447,6 +456,17 @@ void MutantSelection::smartSelectMutants(
   // append the ties temporal to selection
   selectedMutants.insert(selectedMutants.end(), tiesTemporal.begin(),
                          tiesTemporal.end());
+  
+  //shuffle the part of selected with ties
+  auto tieStart = selectedMutants.begin() + 
+                 (selectedMutants.size() - tiesTemporal.size());
+  if (tieStart != selectedMutants.end()) {
+    assert (tiesTemporal.count(*tieStart) && 
+                "Error: miscomputation above. Report bug");
+    std::srand(std::time(NULL) + clock()); //+ clock() because fast running
+    std::random_shuffle(tieStart, selectedMutants.end());
+  }
+            
   for (auto mid : tiesTemporal)
     selectedScores.push_back(-1e-100); // default score for ties (very low
                                        // value)
