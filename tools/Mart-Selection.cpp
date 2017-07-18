@@ -199,7 +199,7 @@ int main(int argc, char **argv) {
   selectedMutants1.resize(numberOfRandomSelections);
   std::vector<double> selectedScores;
   for (unsigned si = 0; si < numberOfRandomSelections; ++si) {
-    selectedScores.clear();  //FIXME: for repetition if useful, get all datas
+    selectedScores.clear(); // FIXME: for repetition if useful, get all datas
     selection.smartSelectMutants(selectedMutants1[si], selectedScores);
   }
   mutantListAsJsON<MutantIDType>(selectedMutants1, smartSelectionOutJson);

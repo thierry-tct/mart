@@ -43,7 +43,7 @@ cmake ../src && make -j16
 ```
 
 2. Compile MART form source (using cmake version >= 3.4.3):
-* Clone repository with git clone.
+* Clone repository with git clone. (```--recursive``` to clone the submodules dg and JsonBox)
 * configure setting LLVM variables: 
 ```bash
 mkdir build && cd build
@@ -61,9 +61,9 @@ git clone https://github.com/thierry-tct/mart.git mart/src
 cd mart && mkdir build && cd build
 
 cmake \
- -DLLVM_SRC_PATH=../../llvm-3.4.2/src \
- -DLLVM_BUILD_PATH=../../llvm-3.4.2/build \
- -DLLVM_DIR=../../llvm-3.4.2/build/share/llvm/cmake \
+ -DLLVM_SRC_PATH=../../llvm-3.7.1/src \
+ -DLLVM_BUILD_PATH=../../llvm-3.7.1/build \
+ -DLLVM_DIR=../../llvm-3.7.1/build/share/llvm/cmake \
   ../src
 ```
 

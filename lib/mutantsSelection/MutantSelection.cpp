@@ -132,6 +132,11 @@ bool MutantDependenceGraph::build(llvm::Module const &mod,
     // load from file
     load(mutant_depend_filename, mutInfos);
   }
+
+  // Add others (typename, complexity, cfgdepth, ast type,...) //TODO TODO
+  for (MutantIDType mutant_id = 1; mutant_id <= mutants_number; ++mutant_id) {
+    setMutantTypename(mutant_id, mutInfos.getMutantTypeName(mutant_id));
+  }
 }
 
 void MutantDependenceGraph::dump(std::string filename) {
@@ -340,8 +345,8 @@ MutantSelection::pickMutant(std::unordered_set<MutantIDType> const &candidates,
  */
 void MutantSelection::relaxMutant(MutantIDType mutant_id,
                                   std::vector<double> &scores) {
-  const double RELAX_STEP = 0.5;
-  const double RELAX_THRESHOLD = 0.1; // 5 hops
+  const double RELAX_STEP = 0.05;
+  const double RELAX_THRESHOLD = 0.01; // 5 hops
   // const MutantIDType ORIGINAL_ID = 0; //no mutant have id 0, that's the
   // original's
 
@@ -425,7 +430,7 @@ void MutantSelection::smartSelectMutants(
   }
 
   // For now put all ties here and append to list at the end
-  std::unordered_set<MutantIDType> tiesTemporal; 
+  std::unordered_set<MutantIDType> tiesTemporal;
 
   while (!candidate_mutants.empty()) {
     auto mutant_id = pickMutant(candidate_mutants, mutant_scores);
@@ -456,17 +461,17 @@ void MutantSelection::smartSelectMutants(
   // append the ties temporal to selection
   selectedMutants.insert(selectedMutants.end(), tiesTemporal.begin(),
                          tiesTemporal.end());
-  
-  //shuffle the part of selected with ties
-  auto tieStart = selectedMutants.begin() + 
-                 (selectedMutants.size() - tiesTemporal.size());
+
+  // shuffle the part of selected with ties
+  auto tieStart =
+      selectedMutants.begin() + (selectedMutants.size() - tiesTemporal.size());
   if (tieStart != selectedMutants.end()) {
-    assert (tiesTemporal.count(*tieStart) && 
-                "Error: miscomputation above. Report bug");
+    assert(tiesTemporal.count(*tieStart) &&
+           "Error: miscomputation above. Report bug");
     std::srand(std::time(NULL) + clock()); //+ clock() because fast running
     std::random_shuffle(tieStart, selectedMutants.end());
   }
-            
+
   for (auto mid : tiesTemporal)
     selectedScores.push_back(-1e-100); // default score for ties (very low
                                        // value)

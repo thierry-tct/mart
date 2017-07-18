@@ -215,9 +215,9 @@ void Mutation::preprocessVariablePhi(llvm::Module &module) {
         }****/
         auto *allocaPN = MYDemotePHIToStack(phiN, AllocaInsertionPoint);
         if (!allocaPN) {
-          llvm::errs() << 
-            "warn: Failed to transform phi node (Maybe PHI Node has no 'uses')\n";
-          //assert(false);
+          llvm::errs() << "warn: Failed to transform phi node (Maybe PHI Node "
+                          "has no 'uses')\n";
+          // assert(false);
         }
       }
     }

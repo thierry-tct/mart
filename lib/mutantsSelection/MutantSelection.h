@@ -34,14 +34,31 @@ namespace selection {
 
 class MutantDependenceGraph //: public DependenceGraph<MutantNode>
 {
-  struct MutantDepends {
-    std::unordered_set<MutantIDType> outDataDependents; // x ---> x
-    std::unordered_set<MutantIDType> inDataDependents;  // this ---> x
-    std::unordered_set<MutantIDType> outCtrlDependents; // x ---> x
-    std::unordered_set<MutantIDType> inCtrlDependents;  // this ---> x
+  enum ASTType {
+    IF_COND = 1,
+    LOOP_COND = 2,
+    MEM_PTR_READ = 4,
+    WRITE_MEM = 8,
+    CALL_FUNC = 16,
+    RETURN = 32
+  };
 
-    std::unordered_set<MutantIDType>
-        tieDependents; // Share IR (mutants on same statement)
+  struct MutantDepends {
+    std::unordered_set<MutantIDType> outDataDependents; // this ---> x
+    std::unordered_set<MutantIDType> inDataDependents;  // x ---> this
+    std::unordered_set<MutantIDType> outCtrlDependents; // this ---> x
+    std::unordered_set<MutantIDType> inCtrlDependents;  // x ---> this
+
+    // Shared IR (mutants on same statement)
+    std::unordered_set<MutantIDType> tieDependents;
+
+    unsigned cfgDepth;   // number of BBs until its BBs following CFG
+    unsigned cfgPredNum; // number of predecessors BBs
+    unsigned cfgSuccNum; // number of successors BBs
+    unsigned complexity; // number of IRs in its expression
+
+    unsigned stmtASTType = 0; // ASTType of this mutant's statement
+    std::string mutantTypename;
   };
 
 private:
@@ -73,6 +90,26 @@ private:
   }
 
   void addDataCtrlFor(dg::LLVMDependenceGraph const *subIRDg);
+
+  // Others
+  void setCFGDepthPredSucNum(MutantIDType id, unsigned depth, unsigned prednum,
+                             unsigned succnum) {
+    mutantDGraphData[id].cfgDepth = depth;
+    mutantDGraphData[id].cfgPredNum = prednum;
+    mutantDGraphData[id].cfgSuccNum = succnum;
+  }
+
+  void setComplexity(MutantIDType id, unsigned cplx) {
+    mutantDGraphData[id].complexity = cplx;
+  }
+
+  void addstmtASTType(MutantIDType id, enum ASTType asttype) {
+    mutantDGraphData[id].stmtASTType |= asttype;
+  }
+
+  void setMutantTypename(MutantIDType id, std::string const &tname) {
+    mutantDGraphData[id].mutantTypename = tname;
+  }
 
 public:
   MutantDependenceGraph(MutantIDType nMuts) {
@@ -120,6 +157,17 @@ public:
   void dump(std::string filename);
 
   void load(std::string filename, MutantInfoList const &mutInfos);
+
+  // Others
+public:
+  // void getMutantsOfASTParentOf (MutantIDType id,
+  //                         std::vector<MutantIDType> &parentmutants);
+  // void getMutantsOfASTChildrenOf (MutantIDType id,
+  //                         std::vector<MutantIDType> &childrenmutants);
+  std::string const &getMutantName(MutantIDType id) const {
+    return mutantDGraphData[id].mutantTypename;
+  }
+
 }; // class MutantDependenceGraph
 
 class MutantSelection {
