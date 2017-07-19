@@ -34,15 +34,6 @@ namespace selection {
 
 class MutantDependenceGraph //: public DependenceGraph<MutantNode>
 {
-  enum ASTType {
-    IF_COND = 1,
-    LOOP_COND = 2,
-    MEM_PTR_READ = 4,
-    WRITE_MEM = 8,
-    CALL_FUNC = 16,
-    RETURN = 32
-  };
-
   struct MutantDepends {
     std::unordered_set<MutantIDType> outDataDependents; // this ---> x
     std::unordered_set<MutantIDType> inDataDependents;  // x ---> this
@@ -52,13 +43,15 @@ class MutantDependenceGraph //: public DependenceGraph<MutantNode>
     // Shared IR (mutants on same statement)
     std::unordered_set<MutantIDType> tieDependents;
 
-    unsigned cfgDepth;   // number of BBs until its BBs following CFG
-    unsigned cfgPredNum; // number of predecessors BBs
-    unsigned cfgSuccNum; // number of successors BBs
-    unsigned complexity; // number of IRs in its expression
+    unsigned cfgDepth = 0;   // number of BBs until its BBs following CFG
+    unsigned cfgPredNum = 0; // number of predecessors BBs
+    unsigned cfgSuccNum = 0; // number of successors BBs
+    unsigned complexity = 0; // number of IRs in its expression
 
-    unsigned stmtASTType = 0; // ASTType of this mutant's statement
+    std::string stmtBBTypename; 
     std::string mutantTypename;
+    std::unordered_set<std::string> astParentsOpcodeNames;
+    std::unordered_set<MutantIDType> astParentsMutants;
   };
 
 private:
@@ -92,7 +85,7 @@ private:
   void addDataCtrlFor(dg::LLVMDependenceGraph const *subIRDg);
 
   // Others
-  void setCFGDepthPredSucNum(MutantIDType id, unsigned depth, unsigned prednum,
+  void setCFGDepthPredSuccNum(MutantIDType id, unsigned depth, unsigned prednum,
                              unsigned succnum) {
     mutantDGraphData[id].cfgDepth = depth;
     mutantDGraphData[id].cfgPredNum = prednum;
@@ -103,14 +96,26 @@ private:
     mutantDGraphData[id].complexity = cplx;
   }
 
-  void addstmtASTType(MutantIDType id, enum ASTType asttype) {
-    mutantDGraphData[id].stmtASTType |= asttype;
+  void setStmtBBTypename(MutantIDType id, std::string bbtypename) {
+    mutantDGraphData[id].stmtBBTypename = bbtypename;
   }
 
   void setMutantTypename(MutantIDType id, std::string const &tname) {
     mutantDGraphData[id].mutantTypename = tname;
   }
 
+  void addAstParentsMutants(MutantIDType id, MutantIDType pId) {
+    mutantDGraphData[id].astParentsMutants.insert(pId);
+  }
+
+  void addAstParentsOpcodeNames(MutantIDType id, std::string opcode) {
+    mutantDGraphData[id].astParentsOpcodeNames.insert(opcode);
+  }
+
+  void addAstParents(MutantIDType id, llvm::Instruction const *astparent) {
+    mutantDGraphData[id].astParentsOpcodeNames.insert(astparent->getOpcodeName());
+    mutantDGraphData[id].astParentsMutants.insert(IR2mutantset.at(astparent).begin(), IR2mutantset.at(astparent).end());
+  }
 public:
   MutantDependenceGraph(MutantIDType nMuts) {
     mutantDGraphData.resize(nMuts + 1);
@@ -164,9 +169,37 @@ public:
   //                         std::vector<MutantIDType> &parentmutants);
   // void getMutantsOfASTChildrenOf (MutantIDType id,
   //                         std::vector<MutantIDType> &childrenmutants);
-  std::string const &getMutantName(MutantIDType id) const {
+  std::string const &getMutantTypename(MutantIDType id) const {
     return mutantDGraphData[id].mutantTypename;
   }
+  std::string const &getStmtBBTypename(MutantIDType id) const {
+    return mutantDGraphData[id].stmtBBTypename;
+  }
+
+  std::unordered_set<MutantIDType> const &getAstParentsMutants(MutantIDType id) const {
+    return mutantDGraphData[id].astParentsMutants;
+  }
+
+  std::unordered_set<std::string> const &getAstParentsOpcodeNames(MutantIDType id) const {
+    return mutantDGraphData[id].astParentsOpcodeNames;
+  }
+
+  unsigned getComplexity(MutantIDType id) const {
+    return mutantDGraphData[id].complexity;
+  }
+
+  unsigned getCfgDepth(MutantIDType id) const {
+    return mutantDGraphData[id].cfgDepth;
+  }
+
+  unsigned getCfgPredNum(MutantIDType id) const {
+    return mutantDGraphData[id].cfgPredNum;
+  }
+
+  unsigned getCfgSuccNum(MutantIDType id) const {
+    return mutantDGraphData[id].cfgSuccNum;
+  }
+
 
 }; // class MutantDependenceGraph
 

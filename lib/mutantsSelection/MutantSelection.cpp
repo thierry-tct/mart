@@ -14,6 +14,8 @@
 #include <cstdlib> /* srand, rand */
 #include <ctime>
 
+#include "llvm/Analysis/CFG.h"
+
 #include "MutantSelection.h"
 
 #ifndef ENABLE_CFG
@@ -133,10 +135,79 @@ bool MutantDependenceGraph::build(llvm::Module const &mod,
     load(mutant_depend_filename, mutInfos);
   }
 
-  // Add others (typename, complexity, cfgdepth, ast type,...) //TODO TODO
-  for (MutantIDType mutant_id = 1; mutant_id <= mutants_number; ++mutant_id) {
-    setMutantTypename(mutant_id, mutInfos.getMutantTypeName(mutant_id));
+  // Add others (typename, complexity, cfgdepth, ast type,...) 
+  // cfgDepth, prednum, succnum
+  std::unordered_map<const llvm::BasicBlock *, unsigned> block_depth_map;
+  std::queue<const llvm::BasicBlock *> workQ;
+  for (auto &func: mod) {
+    //workQ.clear();
+    block_depth_map.clear();
+    auto &entryBB = func.getEntryBlock();
+    workQ.push(&entryBB);
+    block_depth_map.emplace(&entryBB, 1);
+    while (!workQ.empty()) {  //BFS
+      auto *bb = workQ.front();
+      auto depth = block_depth_map.at(bb);
+      workQ.pop();
+      unsigned nSuccs = 0;
+      unsigned nPreds = 0;
+      for (auto succIt=llvm::succ_begin(bb), succE=llvm::succ_end(bb); succIt != succE; ++succIt) {
+        if (block_depth_map.count(*succIt) == 0) {
+          block_depth_map.emplace(*succIt, depth+1);
+	  workQ.push(*succIt);
+	}
+	++nSuccs;
+      }
+
+      for (auto predIt=llvm::pred_begin(bb), predE=llvm::pred_end(bb); predIt != predE; ++predIt) 
+        ++nPreds;
+      
+      std::string bbTypename = bb->getName().str();
+
+      // Update the info for all the mutants for this popped basic block TODO TODO
+      std::unordered_set<MutantIDType> mutantsofstmt; 
+      std::unordered_set<const llvm::Instruction *> visitedI;
+      for (auto &inst: *bb) { 
+        if (visitedI.count(&inst))
+	  continue;
+        mutantsofstmt.clear();
+        while (true) {
+	  std::unordered_set<MutantIDType> tmpmuts(IR2mutantset.at(&inst));
+	  std::unordered_set<MutantIDType> tmpnewmuts;
+	  for (auto mId: tmpmuts) {
+	    if (mutantsofstmt.insert(mId).second) {
+	      tmpnewmuts.insert(mId);
+	    }
+	  }
+	  if (tmpnewmuts.empty())
+	    break;
+          for (auto mId: tmpnewmuts) {
+	    for (auto *minst: mutant2IRset.at(mId)) {
+	      assert (llvm::dyn_cast<llvm::Instruction>(minst)->getParent() == bb 
+                       && "mutants spawning multiple BBs not yet implemented. TODO");
+              visitedI.insert(llvm::dyn_cast<llvm::Instruction>(minst));
+            }
+	    tmpmuts.insert(getTieDependents(mId).begin(), getTieDependents(mId).end());
+	  }
+        }
+	// set the info for each mutant here
+        for (auto mutant_id: mutantsofstmt) {
+          setMutantTypename(mutant_id, mutInfos.getMutantTypeName(mutant_id));
+          setStmtBBTypename(mutant_id, bbTypename);
+          setComplexity(mutant_id, mutantsofstmt.size());
+          setCFGDepthPredSuccNum(mutant_id, depth, nPreds, nSuccs);
+          auto &mutInsts = mutant2IRset.at(mutant_id);
+          for (auto *minst: mutInsts) {
+            for (auto *par: minst->users())
+              if (mutInsts.count(par) == 0)
+                if (auto astPar = llvm::dyn_cast<llvm::Instruction>(par))
+                  addAstParents(mutant_id, astPar);
+          }
+        }
+      }
+    }
   }
+
 }
 
 void MutantDependenceGraph::dump(std::string filename) {
@@ -164,6 +235,24 @@ void MutantDependenceGraph::dump(std::string filename) {
     for (auto tid : getTieDependents(mutant_id))
       tmparr.push_back(JsonBox::Value(std::to_string(tid)));
     tmpobj["tieDependents"] = tmparr;
+
+    //Others
+    tmparr.clear();
+    for (auto pmid : getAstParentsMutants(mutant_id))
+      tmparr.push_back(JsonBox::Value(std::to_string(pmid)));
+    tmpobj["astParentsMutants"] = tmparr;
+
+    tmparr.clear();
+    for (auto pocn : getAstParentsOpcodeNames(mutant_id))
+      tmparr.push_back(JsonBox::Value(pocn));
+    tmpobj["astParentsOpcodeNames"] = tmparr;
+
+    tmpobj["mutantTypename"] = JsonBox::Value(getMutantTypename(mutant_id));
+    tmpobj["stmtBBTypename"] = JsonBox::Value(getStmtBBTypename(mutant_id));
+    tmpobj["cfgDepth"] = JsonBox::Value(std::to_string(getCfgDepth(mutant_id)));
+    tmpobj["cfgPredNum"] = JsonBox::Value(std::to_string(getCfgPredNum(mutant_id)));
+    tmpobj["cfgSuccNum"] = JsonBox::Value(std::to_string(getCfgSuccNum(mutant_id)));
+    tmpobj["complexity"] = JsonBox::Value(std::to_string(getComplexity(mutant_id)));
 
     outListJSON.push_back(JsonBox::Value(tmpobj));
   }
@@ -239,11 +328,45 @@ void MutantDependenceGraph::load(std::string filename,
                                "represented as an intger string "
                                "(tieDependents)");
       std::string tmpstr = tid.getString();
-      addTieDependency(
-          mutant_id, mutantid_str2int.at(tmpstr)); // out of bound if the value
-                                                   // is not a mutant id as
-                                                   // unsigned (MutantIDType)
+      // out of bound if the value is not a mutant id as unsigned (MutantIDType)
+      addTieDependency(mutant_id, mutantid_str2int.at(tmpstr)); 
     }
+
+    //Others
+    assert(tmpobj["astParentsMutants"].isArray() &&
+           "'astParentsMutants' must be an Array");
+    tmparr = tmpobj["astParentsMutants"].getArray();
+    for (JsonBox::Value pm : tmparr) {
+      assert(pm.isString() && "the mutants should be "
+                               "represented as an intger string "
+                               "(astParentsMutants)");
+      std::string tmpstr = pm.getString();
+      // out of bound if the value is not a mutant id as unsigned (MutantIDType)
+      addAstParentsMutants(mutant_id, mutantid_str2int.at(tmpstr)); 
+    }
+
+    assert(tmpobj["astParentsOpcodeNames"].isArray() &&
+           "'astParentsopcodeNames' must be an Array");
+    tmparr = tmpobj["astParentsOpcodeNames"].getArray();
+    for (JsonBox::Value pocn : tmparr) {
+      assert(pocn.isString() && "the mutants should be "
+                               "represented as an intger string "
+                               "(astParentsMutants)");
+      std::string tmpstr = pocn.getString();
+      // out of bound if the value is not a mutant id as unsigned (MutantIDType)
+      addAstParentsOpcodeNames(mutant_id, tmpstr); 
+    }
+    
+    assert (tmpobj["mutantTypename"].isString() && "mutantTypename must be string");
+    setMutantTypename(mutant_id, tmpobj["mutantTypename"].getString());
+    assert (tmpobj["stmtBBTypename"].isString() && "stmtBBTypename must be string");
+    setStmtBBTypename(mutant_id, tmpobj["stmtBBTypename"].getString());
+    assert (tmpobj["cfgDepth"].isInteger() && "cfgDepth must be int");
+    assert (tmpobj["cfgPrednum"].isInteger() && "cfgPredNum must be int");
+    assert (tmpobj["cfgSuccNum"].isInteger() && "cfgSuccNum must be int");
+    setCFGDepthPredSuccNum(mutant_id, tmpobj["cfgDepth"].getInteger(), tmpobj["cfgPredNum"].getInteger(), tmpobj["cfgSuccNum"].getInteger());
+    assert (tmpobj["complexity"].isInteger() && "complexity must be int");
+    setComplexity(mutant_id, tmpobj["complexity"].getInteger());
   }
 }
 /////
