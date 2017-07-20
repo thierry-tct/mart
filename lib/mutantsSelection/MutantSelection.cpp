@@ -440,6 +440,7 @@ MutantSelection::pickMutant(std::unordered_set<MutantIDType> const &candidates,
   }
   
   if (numTopMuts == 0) {  //Normally should not happend. put this jsut in case ...
+    assert (false && "This function is called with candidate non empty");
     topScored.insert(topScored.end(), candidates.begin(), candidates.end());
   } else {
     topScored.reserve(numTopMuts);

@@ -114,7 +114,8 @@ private:
 
   void addAstParents(MutantIDType id, llvm::Instruction const *astparent) {
     mutantDGraphData[id].astParentsOpcodeNames.insert(astparent->getOpcodeName());
-    mutantDGraphData[id].astParentsMutants.insert(IR2mutantset.at(astparent).begin(), IR2mutantset.at(astparent).end());
+    if (IR2mutantset.count(astparent) > 0)
+      mutantDGraphData[id].astParentsMutants.insert(IR2mutantset.at(astparent).begin(), IR2mutantset.at(astparent).end());
   }
 public:
   MutantDependenceGraph(MutantIDType nMuts) {
