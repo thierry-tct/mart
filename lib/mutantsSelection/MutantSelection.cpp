@@ -34,7 +34,7 @@ using namespace mart;
 using namespace mart::selection;
 
 // Amplifier help reduce the different factors...
-#define AMPLIFIER 10000
+#define AMPLIFIER 10000000
 
 // class MutantDependenceGraph
 
@@ -437,7 +437,12 @@ MutantSelection::pickMutant(std::unordered_set<MutantIDType> const &candidates,
       topScored.push_back(mutant_id);
     }
   }
-  std::vector<MutantIDType> &choiceFinalRoundList = topScored;
+  
+  std::vector<MutantIDType> *choiceFinalRoundList;
+  if (topScored.empty())
+    choiceFinalRoundList = &candidates;
+  else
+    choiceFinalRoundList = &topScored;
 
   /*
   // Second see which among maximum score have smallest number of incoming
@@ -466,8 +471,8 @@ MutantSelection::pickMutant(std::unordered_set<MutantIDType> const &candidates,
   std::srand(std::time(NULL) + clock()); //+ clock() because fast running
   // program will generate same sequence
   // with only time(NULL)
-  std::random_shuffle(choiceFinalRoundList.begin(), choiceFinalRoundList.end());
-  MutantIDType chosenMutant = choiceFinalRoundList.front();
+  std::random_shuffle(choiceFinalRoundList->begin(), choiceFinalRoundList->end());
+  MutantIDType chosenMutant = choiceFinalRoundList->front();
   return chosenMutant;
 }
 
@@ -646,16 +651,26 @@ void MutantSelection::smartSelectMutants(
   }
   // ... Actual triming
   for (MutantIDType mutant_id = 1; mutant_id <= mutants_number; ++mutant_id) {
-    mutant_scores[mutant_id] += (mutantDGraph.getInDataDependents(mutant_id).size() - minInDataDep) * kInDataDep / (maxInDataDep - minInDataDep);
-    mutant_scores[mutant_id] += (mutantDGraph.getOutDataDependents(mutant_id).size() - minOutDataDep) * kOutDataDep / (maxOutDataDep - minOutDataDep);
-    mutant_scores[mutant_id] += (mutantDGraph.getInCtrlDependents(mutant_id).size() - minInCtrlDep) * kInCtrlDep / (maxInCtrlDep - minInCtrlDep);
-    mutant_scores[mutant_id] += (mutantDGraph.getOutCtrlDependents(mutant_id).size() - minOutCtrlDep) * kOutCtrlDep / (maxOutCtrlDep - minOutCtrlDep);
-    mutant_scores[mutant_id] += (mutantDGraph.getTieDependents(mutant_id).size() - minTieDep) * kTieDep / (maxTieDep - minTieDep);
-    mutant_scores[mutant_id] += (mutantDGraph.getComplexity(mutant_id) - minComplexity) * kComplexity / (maxComplexity - minComplexity);
-    mutant_scores[mutant_id] += (mutantDGraph.getCfgDepth(mutant_id) - minCfgDepth) * kCfgDepth / (maxCfgDepth - minCfgDepth);
-    mutant_scores[mutant_id] += (mutantDGraph.getCfgPredNum(mutant_id) - minCfgPredNum) * kCfgPredNum / (maxCfgPredNum - minCfgPredNum);
-    mutant_scores[mutant_id] += (mutantDGraph.getCfgSuccNum(mutant_id) - minCfgSuccNum) * kCfgSuccNum / (maxCfgSuccNum - minCfgSuccNum);
-    mutant_scores[mutant_id] += (mutantDGraph.getAstParentsOpcodeNames(mutant_id).size() - minNumAstParent) * kNumAstParent / (maxNumAstParent - minNumAstParent);
+    if (maxInDataDep != minInDataDep)
+      mutant_scores[mutant_id] += (mutantDGraph.getInDataDependents(mutant_id).size() - minInDataDep) * kInDataDep / (maxInDataDep - minInDataDep);
+    if (maxOutDataDep != minOutDataDep)
+      mutant_scores[mutant_id] += (mutantDGraph.getOutDataDependents(mutant_id).size() - minOutDataDep) * kOutDataDep / (maxOutDataDep - minOutDataDep);
+    if (maxInCtrlDep != minInCtrlDep)
+      mutant_scores[mutant_id] += (mutantDGraph.getInCtrlDependents(mutant_id).size() - minInCtrlDep) * kInCtrlDep / (maxInCtrlDep - minInCtrlDep);
+    if (maxOutCtrlDep != minOutCtrlDep)
+      mutant_scores[mutant_id] += (mutantDGraph.getOutCtrlDependents(mutant_id).size() - minOutCtrlDep) * kOutCtrlDep / (maxOutCtrlDep - minOutCtrlDep);
+    if (maxTieDep != minTieDep)
+      mutant_scores[mutant_id] += (mutantDGraph.getTieDependents(mutant_id).size() - minTieDep) * kTieDep / (maxTieDep - minTieDep);
+    if (maxComplexity != minComplexity)
+      mutant_scores[mutant_id] += (mutantDGraph.getComplexity(mutant_id) - minComplexity) * kComplexity / (maxComplexity - minComplexity);
+    if (maxCfgDepth != minCfgDepth)
+      mutant_scores[mutant_id] += (mutantDGraph.getCfgDepth(mutant_id) - minCfgDepth) * kCfgDepth / (maxCfgDepth - minCfgDepth);
+    if (maxCfgPredNum != minCfgPredNum)
+      mutant_scores[mutant_id] += (mutantDGraph.getCfgPredNum(mutant_id) - minCfgPredNum) * kCfgPredNum / (maxCfgPredNum - minCfgPredNum);
+    if (maxCfgSuccNum != minCfgSuccNum)
+      mutant_scores[mutant_id] += (mutantDGraph.getCfgSuccNum(mutant_id) - minCfgSuccNum) * kCfgSuccNum / (maxCfgSuccNum - minCfgSuccNum);
+    if (maxNumAstParent != minNumAstParent)
+      mutant_scores[mutant_id] += (mutantDGraph.getAstParentsOpcodeNames(mutant_id).size() - minNumAstParent) * kNumAstParent / (maxNumAstParent - minNumAstParent);
   }
 
   // For now put all ties here and append to list at the end
