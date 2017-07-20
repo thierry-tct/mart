@@ -428,21 +428,27 @@ MutantSelection::pickMutant(std::unordered_set<MutantIDType> const &candidates,
 
   // First see which are having the maximum score
   double top_score = -1/0.0; //0.0; // -Infinity
+  unsigned numTopMuts = 0;
   for (auto mutant_id : candidates) {
     if (scores[mutant_id] >= top_score) {
       if (scores[mutant_id] > top_score) {
         top_score = scores[mutant_id];
-        topScored.clear();
+        numTopMuts = 0;
       }
-      topScored.push_back(mutant_id);
+      ++numTopMuts;
     }
   }
   
-  std::vector<MutantIDType> *choiceFinalRoundList;
-  if (topScored.empty())
-    choiceFinalRoundList = &candidates;
-  else
-    choiceFinalRoundList = &topScored;
+  if (numTopMuts == 0) {  //Normally should not happend. put this jsut in case ...
+    topScored.insert(topScored.end(), candidates.begin(), candidates.end());
+  } else {
+    topScored.reserve(numTopMuts);
+    for (auto mutant_id : candidates)
+      if (scores[mutant_id] == top_score) {
+        topScored.push_back(mutant_id);
+      }
+  }
+  std::vector<MutantIDType> &choiceFinalRoundList = topScored;
 
   /*
   // Second see which among maximum score have smallest number of incoming
@@ -471,8 +477,8 @@ MutantSelection::pickMutant(std::unordered_set<MutantIDType> const &candidates,
   std::srand(std::time(NULL) + clock()); //+ clock() because fast running
   // program will generate same sequence
   // with only time(NULL)
-  std::random_shuffle(choiceFinalRoundList->begin(), choiceFinalRoundList->end());
-  MutantIDType chosenMutant = choiceFinalRoundList->front();
+  std::random_shuffle(choiceFinalRoundList.begin(), choiceFinalRoundList.end());
+  MutantIDType chosenMutant = choiceFinalRoundList.front();
   return chosenMutant;
 }
 
