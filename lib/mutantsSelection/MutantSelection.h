@@ -52,6 +52,12 @@ class MutantDependenceGraph //: public DependenceGraph<MutantNode>
     std::string mutantTypename;
     std::unordered_set<std::string> astParentsOpcodeNames;
     std::unordered_set<MutantIDType> astParentsMutants;
+    
+    // Higerer hop deps 
+    std::vector<std::unordered_set<MutantIDType>> higherHopsOutDataDependents;
+    std::vector<std::unordered_set<MutantIDType>> higherHopsInDataDependents; 
+    //std::vector<std::unordered_set<MutantIDType>> higherHopsOutCtrlDependents;  
+    //std::vector<std::unordered_set<MutantIDType>> higherHopsInCtrlDependents;
   };
 
 private:
@@ -117,6 +123,17 @@ private:
     if (IR2mutantset.count(astparent) > 0)
       mutantDGraphData[id].astParentsMutants.insert(IR2mutantset.at(astparent).begin(), IR2mutantset.at(astparent).end());
   }
+  
+  std::unordered_set<MutantIDType> &addHigherHopsOutDataDependents(MutantIDType id) {
+    mutantDGraphData[id].higherHopsOutDataDependents.emplace_back();
+    return mutantDGraphData[id].higherHopsOutDataDependents.back();
+  }
+  
+  std::unordered_set<MutantIDType> &addHigherHopsInDataDependents(MutantIDType id) {
+    mutantDGraphData[id].higherHopsInDataDependents.emplace_back();
+    return mutantDGraphData[id].higherHopsInDataDependents.back();
+  }
+  
 public:
   MutantDependenceGraph(MutantIDType nMuts) {
     mutantDGraphData.resize(nMuts + 1);
@@ -199,6 +216,20 @@ public:
 
   unsigned getCfgSuccNum(MutantIDType id) const {
     return mutantDGraphData[id].cfgSuccNum;
+  }
+  
+  const std::unordered_set<MutantIDType> &
+  getHopsOutDataDependents(MutantIDType mutant_id, unsigned hop) {
+    if (hop == 1)
+      return getOutDataDependents(mutant_id);
+    return mutantDGraphData[mutant_id].higherHopsOutDataDependents[hop-2];
+  }
+  
+  const std::unordered_set<MutantIDType> &
+  getHopsInDataDependents(MutantIDType mutant_id, unsigned hop) {
+    if (hop == 1)
+      return getInDataDependents(mutant_id);
+    return mutantDGraphData[mutant_id].higherHopsInDataDependents[hop-2];
   }
 
 

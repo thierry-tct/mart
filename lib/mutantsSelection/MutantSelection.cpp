@@ -36,6 +36,13 @@ using namespace mart::selection;
 // Amplifier help reduce the different factors...
 #define AMPLIFIER 10000000
 
+namespace {
+const double MAX_SCORE = 1.0;
+const double RELAX_STEP = 0.05 / AMPLIFIER;
+const double RELAX_THRESHOLD = 0.01 / AMPLIFIER; // 5 hops
+const double TIE_REDUCTION_DIFF = 0.2 / AMPLIFIER;
+}
+
 // class MutantDependenceGraph
 
 void MutantDependenceGraph::addDataCtrlFor(
@@ -213,6 +220,43 @@ bool MutantDependenceGraph::build(llvm::Module const &mod,
     // load from file
     load(mutant_depend_filename, mutInfos);
   }
+  
+  // get Higher hops data deps (XXX This is not stored in the cache)
+  //Skip hop 1    
+  unsigned curhop = 2;
+  double cur_relax_factor = RELAX_STEP / curhop;
+  
+  //compute hop 2 and above
+  while (cur_relax_factor >= RELAX_THRESHOLD) {
+    for (MutantIDType m_id = 1; m_id <= mutants_number; ++m_id) {
+      std::unordered_set<MutantIDType> &hhodDep = addHigherHopsOutDataDependents(m_id);
+      std::unordered_set<MutantIDType> &hhidDep = addHigherHopsInDataDependents(m_id);
+      //std::unordered_set<MutantIDType> &hhocDep = addHigherHopsOutCtrlDependents(m_id);
+      //std::unordered_set<MutantIDType> &hhicDep = addHigherHopsInCtrlDependents(m_id);
+      
+      for (auto oddM: getHopsOutDataDependents(m_id, curhop))
+        hhodDep.insert(
+            getHopsOutDataDependents(oddM, curhop-1).begin(),
+            getHopsOutDataDependents(oddM, curhop-1).end());
+      for (auto iddM: getHopsInDataDependents(m_id, curhop))
+        hhidDep.insert(
+            getHopsInDataDependents(iddM, curhop-1).begin(),
+            getHopsInDataDependents(iddM, curhop-1).end());
+      //for (auto ocdM: getHopsOutCtrlDependents(m_id, curhop))
+      //  hhocDep.insert(
+      //      getHopsOutCtrlDependents(ocdM, curhop).begin(),
+      //      getHopsOutCtrlDependents(ocdM, curhop).end());
+      //for (auto icdM: getHopsInCtrlDependents(m_id, curhop))
+      //  hhicDep.insert(
+      //      getHopsInCtrlDependents(icdM, curhop).begin(),
+      //      getHopsInCtrlDependents(icdM, curhop).end());
+    }
+    
+    //next hop
+    ++curhop;
+    cur_relax_factor = RELAX_STEP / curhop;
+  }
+  
   llvm::errs() << "\t... graph Builded/Loaded\n";
 }
 
@@ -489,63 +533,33 @@ MutantSelection::pickMutant(std::unordered_set<MutantIDType> const &candidates,
  */
 void MutantSelection::relaxMutant(MutantIDType mutant_id,
                                   std::vector<double> &scores) {
-  const double RELAX_STEP = 0.05 / AMPLIFIER;
-  const double RELAX_THRESHOLD = 0.01 / AMPLIFIER; // 5 hops
   // const MutantIDType ORIGINAL_ID = 0; //no mutant have id 0, that's the
   // original's
 
   // at data dependency hop n (in and out), and the corresponding node having
   // score x, set its value to x'={x - x*RELAX_STEP/n}, if (RELAX_STEP/n) >=
   // RELAX_THRESHOLD
-  std::unordered_set<MutantIDType> visited;
-  std::queue<MutantIDType> workQueue;
-  MutantIDType next_hop_first_mutant = mutant_id;
-  unsigned curhop = 0;
-  double cur_relax_factor = 0.0;
-  workQueue.push(mutant_id);
-  visited.insert(mutant_id);
-  while (!workQueue.empty()) {
-    auto elem = workQueue.front();
-    workQueue.pop();
-
-    if (next_hop_first_mutant == elem) {
-      ++curhop;
-      cur_relax_factor = RELAX_STEP / curhop;
-    }
-
-    // Check if treshold reached.
-    // Since we use BFS, when an element reaches the threshold, all consecutive
-    // element will also reach so we can safely stop
-    if (cur_relax_factor < RELAX_THRESHOLD)
-      break;
-
+  unsigned curhop = 1;
+  double cur_relax_factor = RELAX_STEP / curhop;
+  while (cur_relax_factor >= RELAX_THRESHOLD) {
+    
     // expand
-    for (auto inDatDepMut : mutantDGraph.getInDataDependents(elem)) {
-      // relax
-      if (visited.insert(inDatDepMut).second) {
-        if (next_hop_first_mutant == elem)
-          next_hop_first_mutant = inDatDepMut;
-        workQueue.push(inDatDepMut);
-      }
-
+    for (auto inDatDepMut : mutantDGraph.getHopsInDataDependents(mutant_id, curhop)) {
       // the score still decrease if there are many dependency path to this
       // mutants (ex: a=1; b=a+3; c=a+b;). here inDatDepMut is at 'a=1'
       // explore also the case where we increase back if it was already
       // visited(see out bellow)
       scores[inDatDepMut] -= scores[inDatDepMut] * cur_relax_factor;
     }
-    for (auto outDatDepMut : mutantDGraph.getOutDataDependents(elem)) {
-      // relax
-      if (visited.insert(outDatDepMut).second) {
-        if (next_hop_first_mutant == elem)
-          next_hop_first_mutant = outDatDepMut;
-        workQueue.push(outDatDepMut);
-      }
-
+    for (auto outDatDepMut : mutantDGraph.getHopsOutDataDependents(mutant_id, curhop)) {
       // the score still decrease if there are many dependency path to this
       // mutants (ex: a=1; b=a+3; c=a+b;). here inDatDepMut is at 'c=a+b'
       scores[outDatDepMut] -= scores[outDatDepMut] * cur_relax_factor;
     }
+    
+    //next hop
+    ++curhop;
+    cur_relax_factor = RELAX_STEP / curhop;
   }
 }
 
@@ -556,7 +570,6 @@ void MutantSelection::relaxMutant(MutantIDType mutant_id,
 void MutantSelection::smartSelectMutants(
     std::vector<MutantIDType> &selectedMutants,
     std::vector<double> &selectedScores) {
-  const double MAX_SCORE = 1.0;
 
   MutantIDType mutants_number = mutantInfos.getMutantsNumber();
 
@@ -681,8 +694,7 @@ void MutantSelection::smartSelectMutants(
   }
 
   // For now put all ties here and append to list at the end
-  std::unordered_set<MutantIDType> tiesTemporal;
-  double tieReductiondiff = 0.2 / AMPLIFIER;
+  //std::unordered_set<MutantIDType> tiesTemporal;
 
   while (!candidate_mutants.empty()) {
     auto mutant_id = pickMutant(candidate_mutants, mutant_scores);
@@ -707,18 +719,18 @@ void MutantSelection::smartSelectMutants(
     //for (auto tie_ids : mutantDGraph.getTieDependents(mutant_id))
     //  candidate_mutants.erase(tie_ids);
     for (auto tieMId: mutantDGraph.getTieDependents(mutant_id))
-      mutant_scores[mutant_id] -= tieReductiondiff;
+      mutant_scores[mutant_id] -= TIE_REDUCTION_DIFF;
 
     // Remove picked mutants from candidates
     candidate_mutants.erase(mutant_id);
   }
 
   // append the ties temporal to selection
-  selectedMutants.insert(selectedMutants.end(), tiesTemporal.begin(),
-                         tiesTemporal.end());
+  //selectedMutants.insert(selectedMutants.end(), tiesTemporal.begin(),
+  //                       tiesTemporal.end());
 
   // shuffle the part of selected with ties
-  auto tieStart =
+  /*auto tieStart =
       selectedMutants.begin() + (selectedMutants.size() - tiesTemporal.size());
   if (tieStart != selectedMutants.end()) {
     assert(tiesTemporal.count(*tieStart) &&
@@ -729,7 +741,7 @@ void MutantSelection::smartSelectMutants(
 
   for (auto mid : tiesTemporal)
     selectedScores.push_back(-1e-100); // default score for ties (very low
-                                       // value)
+                                       // value)*/
 
   if (selectedMutants.size() != mutants_number ||
       selectedScores.size() != mutants_number) {
