@@ -135,72 +135,81 @@ bool MutantDependenceGraph::build(llvm::Module const &mod,
     for (auto &funcdg : CF)
       addDataCtrlFor(funcdg.second);
 
-    // Add others (typename, complexity, cfgdepth, ast type,...) 
+    // Add others (typename, complexity, cfgdepth, ast type,...)
     // cfgDepth, prednum, succnum
     std::unordered_map<const llvm::BasicBlock *, unsigned> block_depth_map;
     std::queue<const llvm::BasicBlock *> workQ;
-    for (auto &func: mod) {
+    /// XXX: it could be possible that some mutants are not visted bellow
+    /// because their Basic block is unreachable, but all those are removed by
+    /// the compiler front-end, so it is actually impossible
+    for (auto &func : mod) {
       if (func.isDeclaration())
-          continue;
-      //workQ.clear();
+        continue;
+      // workQ.clear();
       block_depth_map.clear();
       auto &entryBB = func.getEntryBlock();
       workQ.push(&entryBB);
       block_depth_map.emplace(&entryBB, 1);
-      while (!workQ.empty()) {  //BFS
+      while (!workQ.empty()) { // BFS
         auto *bb = workQ.front();
         auto depth = block_depth_map.at(bb);
         workQ.pop();
         unsigned nSuccs = 0;
         unsigned nPreds = 0;
-        for (auto succIt=llvm::succ_begin(bb), succE=llvm::succ_end(bb); succIt != succE; ++succIt) {
+        for (auto succIt = llvm::succ_begin(bb), succE = llvm::succ_end(bb);
+             succIt != succE; ++succIt) {
           if (block_depth_map.count(*succIt) == 0) {
-            block_depth_map.emplace(*succIt, depth+1);
+            block_depth_map.emplace(*succIt, depth + 1);
             workQ.push(*succIt);
           }
           ++nSuccs;
         }
 
-        for (auto predIt=llvm::pred_begin(bb), predE=llvm::pred_end(bb); predIt != predE; ++predIt) 
+        for (auto predIt = llvm::pred_begin(bb), predE = llvm::pred_end(bb);
+             predIt != predE; ++predIt)
           ++nPreds;
-        
+
         std::string bbTypename = bb->getName().str();
 
-        // Update the info for all the mutants for this popped basic block TODO TODO
-        std::unordered_set<MutantIDType> mutantsofstmt; 
+        // Update the info for all the mutants for this popped basic block
+        std::unordered_set<MutantIDType> mutantsofstmt;
         std::unordered_set<const llvm::Instruction *> visitedI;
-        for (auto &inst: *bb) { 
+        for (auto &inst : *bb) {
           if (visitedI.count(&inst) || IR2mutantset.count(&inst) == 0)
             continue;
           mutantsofstmt.clear();
+          std::unordered_set<MutantIDType> tmpmuts(IR2mutantset.at(&inst));
+          std::unordered_set<MutantIDType> tmpnewmuts;
           while (true) {
-            std::unordered_set<MutantIDType> tmpmuts(IR2mutantset.at(&inst));
-            std::unordered_set<MutantIDType> tmpnewmuts;
-            for (auto mId: tmpmuts) {
+            tmpnewmuts.clear();
+            for (auto mId : tmpmuts) {
               if (mutantsofstmt.insert(mId).second) {
                 tmpnewmuts.insert(mId);
               }
             }
             if (tmpnewmuts.empty())
               break;
-            for (auto mId: tmpnewmuts) {
-              for (auto *minst: mutant2IRset.at(mId)) {
-                assert (llvm::dyn_cast<llvm::Instruction>(minst)->getParent() == bb 
-                         && "mutants spawning multiple BBs not yet implemented. TODO");
+            for (auto mId : tmpnewmuts) {
+              for (auto *minst : mutant2IRset.at(mId)) {
+                assert(
+                    llvm::dyn_cast<llvm::Instruction>(minst)->getParent() ==
+                        bb &&
+                    "mutants spawning multiple BBs not yet implemented. TODO");
                 visitedI.insert(llvm::dyn_cast<llvm::Instruction>(minst));
               }
-              tmpmuts.insert(getTieDependents(mId).begin(), getTieDependents(mId).end());
+              tmpmuts.insert(getTieDependents(mId).begin(),
+                             getTieDependents(mId).end());
             }
           }
           // set the info for each mutant here
-          for (auto mutant_id: mutantsofstmt) {
+          for (auto mutant_id : mutantsofstmt) {
             setMutantTypename(mutant_id, mutInfos.getMutantTypeName(mutant_id));
             setStmtBBTypename(mutant_id, bbTypename);
             setComplexity(mutant_id, mutantsofstmt.size());
             setCFGDepthPredSuccNum(mutant_id, depth, nPreds, nSuccs);
             auto &mutInsts = mutant2IRset.at(mutant_id);
-            for (auto *minst: mutInsts) {
-              for (auto *par: minst->users())
+            for (auto *minst : mutInsts) {
+              for (auto *par : minst->users())
                 if (mutInsts.count(par) == 0)
                   if (auto astPar = llvm::dyn_cast<llvm::Instruction>(par))
                     addAstParents(mutant_id, astPar);
@@ -220,43 +229,45 @@ bool MutantDependenceGraph::build(llvm::Module const &mod,
     // load from file
     load(mutant_depend_filename, mutInfos);
   }
-  
+
   // get Higher hops data deps (XXX This is not stored in the cache)
-  //Skip hop 1    
+  // Skip hop 1
   unsigned curhop = 2;
   double cur_relax_factor = RELAX_STEP / curhop;
-  
-  //compute hop 2 and above
+
+  // compute hop 2 and above
   while (cur_relax_factor >= RELAX_THRESHOLD) {
     for (MutantIDType m_id = 1; m_id <= mutants_number; ++m_id) {
-      std::unordered_set<MutantIDType> &hhodDep = addHigherHopsOutDataDependents(m_id);
-      std::unordered_set<MutantIDType> &hhidDep = addHigherHopsInDataDependents(m_id);
-      //std::unordered_set<MutantIDType> &hhocDep = addHigherHopsOutCtrlDependents(m_id);
-      //std::unordered_set<MutantIDType> &hhicDep = addHigherHopsInCtrlDependents(m_id);
-      
-      for (auto oddM: getHopsOutDataDependents(m_id, curhop))
-        hhodDep.insert(
-            getHopsOutDataDependents(oddM, curhop-1).begin(),
-            getHopsOutDataDependents(oddM, curhop-1).end());
-      for (auto iddM: getHopsInDataDependents(m_id, curhop))
-        hhidDep.insert(
-            getHopsInDataDependents(iddM, curhop-1).begin(),
-            getHopsInDataDependents(iddM, curhop-1).end());
-      //for (auto ocdM: getHopsOutCtrlDependents(m_id, curhop))
+      std::unordered_set<MutantIDType> &hhodDep =
+          addHigherHopsOutDataDependents(m_id);
+      std::unordered_set<MutantIDType> &hhidDep =
+          addHigherHopsInDataDependents(m_id);
+      // std::unordered_set<MutantIDType> &hhocDep =
+      // addHigherHopsOutCtrlDependents(m_id);
+      // std::unordered_set<MutantIDType> &hhicDep =
+      // addHigherHopsInCtrlDependents(m_id);
+
+      for (auto oddM : getHopsOutDataDependents(m_id, curhop))
+        hhodDep.insert(getHopsOutDataDependents(oddM, curhop - 1).begin(),
+                       getHopsOutDataDependents(oddM, curhop - 1).end());
+      for (auto iddM : getHopsInDataDependents(m_id, curhop))
+        hhidDep.insert(getHopsInDataDependents(iddM, curhop - 1).begin(),
+                       getHopsInDataDependents(iddM, curhop - 1).end());
+      // for (auto ocdM: getHopsOutCtrlDependents(m_id, curhop))
       //  hhocDep.insert(
       //      getHopsOutCtrlDependents(ocdM, curhop).begin(),
       //      getHopsOutCtrlDependents(ocdM, curhop).end());
-      //for (auto icdM: getHopsInCtrlDependents(m_id, curhop))
+      // for (auto icdM: getHopsInCtrlDependents(m_id, curhop))
       //  hhicDep.insert(
       //      getHopsInCtrlDependents(icdM, curhop).begin(),
       //      getHopsInCtrlDependents(icdM, curhop).end());
     }
-    
-    //next hop
+
+    // next hop
     ++curhop;
     cur_relax_factor = RELAX_STEP / curhop;
   }
-  
+
   llvm::errs() << "\t... graph Builded/Loaded\n";
 }
 
@@ -286,7 +297,7 @@ void MutantDependenceGraph::dump(std::string filename) {
       tmparr.push_back(JsonBox::Value(std::to_string(tid)));
     tmpobj["tieDependents"] = tmparr;
 
-    //Others
+    // Others
     tmparr.clear();
     for (auto pmid : getAstParentsMutants(mutant_id))
       tmparr.push_back(JsonBox::Value(std::to_string(pmid)));
@@ -300,9 +311,12 @@ void MutantDependenceGraph::dump(std::string filename) {
     tmpobj["mutantTypename"] = JsonBox::Value(getMutantTypename(mutant_id));
     tmpobj["stmtBBTypename"] = JsonBox::Value(getStmtBBTypename(mutant_id));
     tmpobj["cfgDepth"] = JsonBox::Value(std::to_string(getCfgDepth(mutant_id)));
-    tmpobj["cfgPredNum"] = JsonBox::Value(std::to_string(getCfgPredNum(mutant_id)));
-    tmpobj["cfgSuccNum"] = JsonBox::Value(std::to_string(getCfgSuccNum(mutant_id)));
-    tmpobj["complexity"] = JsonBox::Value(std::to_string(getComplexity(mutant_id)));
+    tmpobj["cfgPredNum"] =
+        JsonBox::Value(std::to_string(getCfgPredNum(mutant_id)));
+    tmpobj["cfgSuccNum"] =
+        JsonBox::Value(std::to_string(getCfgSuccNum(mutant_id)));
+    tmpobj["complexity"] =
+        JsonBox::Value(std::to_string(getComplexity(mutant_id)));
 
     outListJSON.push_back(JsonBox::Value(tmpobj));
   }
@@ -379,20 +393,20 @@ void MutantDependenceGraph::load(std::string filename,
                                "(tieDependents)");
       std::string tmpstr = tid.getString();
       // out of bound if the value is not a mutant id as unsigned (MutantIDType)
-      addTieDependency(mutant_id, mutantid_str2int.at(tmpstr)); 
+      addTieDependency(mutant_id, mutantid_str2int.at(tmpstr));
     }
 
-    //Others
+    // Others
     assert(tmpobj["astParentsMutants"].isArray() &&
            "'astParentsMutants' must be an Array");
     tmparr = tmpobj["astParentsMutants"].getArray();
     for (JsonBox::Value pm : tmparr) {
       assert(pm.isString() && "the mutants should be "
-                               "represented as an intger string "
-                               "(astParentsMutants)");
+                              "represented as an intger string "
+                              "(astParentsMutants)");
       std::string tmpstr = pm.getString();
       // out of bound if the value is not a mutant id as unsigned (MutantIDType)
-      addAstParentsMutants(mutant_id, mutantid_str2int.at(tmpstr)); 
+      addAstParentsMutants(mutant_id, mutantid_str2int.at(tmpstr));
     }
 
     assert(tmpobj["astParentsOpcodeNames"].isArray() &&
@@ -400,23 +414,29 @@ void MutantDependenceGraph::load(std::string filename,
     tmparr = tmpobj["astParentsOpcodeNames"].getArray();
     for (JsonBox::Value pocn : tmparr) {
       assert(pocn.isString() && "the mutants should be "
-                               "represented as an intger string "
-                               "(astParentsMutants)");
+                                "represented as an intger string "
+                                "(astParentsMutants)");
       std::string tmpstr = pocn.getString();
       // out of bound if the value is not a mutant id as unsigned (MutantIDType)
-      addAstParentsOpcodeNames(mutant_id, tmpstr); 
+      addAstParentsOpcodeNames(mutant_id, tmpstr);
     }
-    
-    assert (tmpobj["mutantTypename"].isString() && "mutantTypename must be string");
+
+    assert(tmpobj["mutantTypename"].isString() &&
+           "mutantTypename must be string");
     setMutantTypename(mutant_id, tmpobj["mutantTypename"].getString());
-    assert (tmpobj["stmtBBTypename"].isString() && "stmtBBTypename must be string");
+    assert(tmpobj["stmtBBTypename"].isString() &&
+           "stmtBBTypename must be string");
     setStmtBBTypename(mutant_id, tmpobj["stmtBBTypename"].getString());
-    assert (tmpobj["cfgDepth"].isInteger() && "cfgDepth must be int");
-    assert (tmpobj["cfgPrednum"].isInteger() && "cfgPredNum must be int");
-    assert (tmpobj["cfgSuccNum"].isInteger() && "cfgSuccNum must be int");
-    setCFGDepthPredSuccNum(mutant_id, tmpobj["cfgDepth"].getInteger(), tmpobj["cfgPredNum"].getInteger(), tmpobj["cfgSuccNum"].getInteger());
-    assert (tmpobj["complexity"].isInteger() && "complexity must be int");
-    setComplexity(mutant_id, tmpobj["complexity"].getInteger());
+    // assert (tmpobj["cfgDepth"].isString() && "cfgDepth must be int");
+    // assert (tmpobj["cfgPrednum"].isString() && "cfgPredNum must be int");
+    // assert (tmpobj["cfgSuccNum"].isString() && "cfgSuccNum must be int");
+    setCFGDepthPredSuccNum(
+        mutant_id, std::stoul(tmpobj["cfgDepth"].getToString(), nullptr, 0),
+        std::stoul(tmpobj["cfgPredNum"].getToString(), nullptr, 0),
+        std::stoul(tmpobj["cfgSuccNum"].getToString(), nullptr, 0));
+    // assert (tmpobj["complexity"].isString() && "complexity must be int");
+    setComplexity(mutant_id,
+                  std::stoul(tmpobj["complexity"].getToString(), nullptr, 0));
   }
 }
 /////
@@ -471,7 +491,7 @@ MutantSelection::pickMutant(std::unordered_set<MutantIDType> const &candidates,
   std::vector<MutantIDType> topScored;
 
   // First see which are having the maximum score
-  double top_score = -1/0.0; //0.0; // -Infinity
+  double top_score = -1 / 0.0; // 0.0; // -Infinity
   unsigned numTopMuts = 0;
   for (auto mutant_id : candidates) {
     if (scores[mutant_id] >= top_score) {
@@ -482,9 +502,10 @@ MutantSelection::pickMutant(std::unordered_set<MutantIDType> const &candidates,
       ++numTopMuts;
     }
   }
-  
-  if (numTopMuts == 0) {  //Normally should not happend. put this jsut in case ...
-    assert (false && "This function is called with candidate non empty");
+
+  if (numTopMuts ==
+      0) { // Normally should not happend. put this jsut in case ...
+    assert(false && "This function is called with candidate non empty");
     topScored.insert(topScored.end(), candidates.begin(), candidates.end());
   } else {
     topScored.reserve(numTopMuts);
@@ -542,22 +563,24 @@ void MutantSelection::relaxMutant(MutantIDType mutant_id,
   unsigned curhop = 1;
   double cur_relax_factor = RELAX_STEP / curhop;
   while (cur_relax_factor >= RELAX_THRESHOLD) {
-    
+
     // expand
-    for (auto inDatDepMut : mutantDGraph.getHopsInDataDependents(mutant_id, curhop)) {
+    for (auto inDatDepMut :
+         mutantDGraph.getHopsInDataDependents(mutant_id, curhop)) {
       // the score still decrease if there are many dependency path to this
       // mutants (ex: a=1; b=a+3; c=a+b;). here inDatDepMut is at 'a=1'
       // explore also the case where we increase back if it was already
       // visited(see out bellow)
       scores[inDatDepMut] -= scores[inDatDepMut] * cur_relax_factor;
     }
-    for (auto outDatDepMut : mutantDGraph.getHopsOutDataDependents(mutant_id, curhop)) {
+    for (auto outDatDepMut :
+         mutantDGraph.getHopsOutDataDependents(mutant_id, curhop)) {
       // the score still decrease if there are many dependency path to this
       // mutants (ex: a=1; b=a+3; c=a+b;). here inDatDepMut is at 'c=a+b'
       scores[outDatDepMut] -= scores[outDatDepMut] * cur_relax_factor;
     }
-    
-    //next hop
+
+    // next hop
     ++curhop;
     cur_relax_factor = RELAX_STEP / curhop;
   }
@@ -638,7 +661,7 @@ void MutantSelection::smartSelectMutants(
       maxOutCtrlDep = mutantDGraph.getOutCtrlDependents(mutant_id).size();
     if (mutantDGraph.getOutCtrlDependents(mutant_id).size() < minOutCtrlDep)
       minOutCtrlDep = mutantDGraph.getOutCtrlDependents(mutant_id).size();
-    
+
     if (mutantDGraph.getTieDependents(mutant_id).size() > maxTieDep)
       maxTieDep = mutantDGraph.getTieDependents(mutant_id).size();
     if (mutantDGraph.getTieDependents(mutant_id).size() < minTieDep)
@@ -664,37 +687,62 @@ void MutantSelection::smartSelectMutants(
     if (mutantDGraph.getCfgSuccNum(mutant_id) < minCfgSuccNum)
       minCfgSuccNum = mutantDGraph.getCfgSuccNum(mutant_id);
 
-    if (mutantDGraph.getAstParentsOpcodeNames(mutant_id).size() > maxNumAstParent)
+    if (mutantDGraph.getAstParentsOpcodeNames(mutant_id).size() >
+        maxNumAstParent)
       maxNumAstParent = mutantDGraph.getAstParentsOpcodeNames(mutant_id).size();
-    if (mutantDGraph.getAstParentsOpcodeNames(mutant_id).size() < minNumAstParent)
+    if (mutantDGraph.getAstParentsOpcodeNames(mutant_id).size() <
+        minNumAstParent)
       minNumAstParent = mutantDGraph.getAstParentsOpcodeNames(mutant_id).size();
   }
   // ... Actual triming
   for (MutantIDType mutant_id = 1; mutant_id <= mutants_number; ++mutant_id) {
     if (maxInDataDep != minInDataDep)
-      mutant_scores[mutant_id] += (mutantDGraph.getInDataDependents(mutant_id).size() - minInDataDep) * kInDataDep / (maxInDataDep - minInDataDep);
+      mutant_scores[mutant_id] +=
+          (mutantDGraph.getInDataDependents(mutant_id).size() - minInDataDep) *
+          kInDataDep / (maxInDataDep - minInDataDep);
     if (maxOutDataDep != minOutDataDep)
-      mutant_scores[mutant_id] += (mutantDGraph.getOutDataDependents(mutant_id).size() - minOutDataDep) * kOutDataDep / (maxOutDataDep - minOutDataDep);
+      mutant_scores[mutant_id] +=
+          (mutantDGraph.getOutDataDependents(mutant_id).size() -
+           minOutDataDep) *
+          kOutDataDep / (maxOutDataDep - minOutDataDep);
     if (maxInCtrlDep != minInCtrlDep)
-      mutant_scores[mutant_id] += (mutantDGraph.getInCtrlDependents(mutant_id).size() - minInCtrlDep) * kInCtrlDep / (maxInCtrlDep - minInCtrlDep);
+      mutant_scores[mutant_id] +=
+          (mutantDGraph.getInCtrlDependents(mutant_id).size() - minInCtrlDep) *
+          kInCtrlDep / (maxInCtrlDep - minInCtrlDep);
     if (maxOutCtrlDep != minOutCtrlDep)
-      mutant_scores[mutant_id] += (mutantDGraph.getOutCtrlDependents(mutant_id).size() - minOutCtrlDep) * kOutCtrlDep / (maxOutCtrlDep - minOutCtrlDep);
+      mutant_scores[mutant_id] +=
+          (mutantDGraph.getOutCtrlDependents(mutant_id).size() -
+           minOutCtrlDep) *
+          kOutCtrlDep / (maxOutCtrlDep - minOutCtrlDep);
     if (maxTieDep != minTieDep)
-      mutant_scores[mutant_id] += (mutantDGraph.getTieDependents(mutant_id).size() - minTieDep) * kTieDep / (maxTieDep - minTieDep);
+      mutant_scores[mutant_id] +=
+          (mutantDGraph.getTieDependents(mutant_id).size() - minTieDep) *
+          kTieDep / (maxTieDep - minTieDep);
     if (maxComplexity != minComplexity)
-      mutant_scores[mutant_id] += (mutantDGraph.getComplexity(mutant_id) - minComplexity) * kComplexity / (maxComplexity - minComplexity);
+      mutant_scores[mutant_id] +=
+          (mutantDGraph.getComplexity(mutant_id) - minComplexity) *
+          kComplexity / (maxComplexity - minComplexity);
     if (maxCfgDepth != minCfgDepth)
-      mutant_scores[mutant_id] += (mutantDGraph.getCfgDepth(mutant_id) - minCfgDepth) * kCfgDepth / (maxCfgDepth - minCfgDepth);
+      mutant_scores[mutant_id] +=
+          (mutantDGraph.getCfgDepth(mutant_id) - minCfgDepth) * kCfgDepth /
+          (maxCfgDepth - minCfgDepth);
     if (maxCfgPredNum != minCfgPredNum)
-      mutant_scores[mutant_id] += (mutantDGraph.getCfgPredNum(mutant_id) - minCfgPredNum) * kCfgPredNum / (maxCfgPredNum - minCfgPredNum);
+      mutant_scores[mutant_id] +=
+          (mutantDGraph.getCfgPredNum(mutant_id) - minCfgPredNum) *
+          kCfgPredNum / (maxCfgPredNum - minCfgPredNum);
     if (maxCfgSuccNum != minCfgSuccNum)
-      mutant_scores[mutant_id] += (mutantDGraph.getCfgSuccNum(mutant_id) - minCfgSuccNum) * kCfgSuccNum / (maxCfgSuccNum - minCfgSuccNum);
+      mutant_scores[mutant_id] +=
+          (mutantDGraph.getCfgSuccNum(mutant_id) - minCfgSuccNum) *
+          kCfgSuccNum / (maxCfgSuccNum - minCfgSuccNum);
     if (maxNumAstParent != minNumAstParent)
-      mutant_scores[mutant_id] += (mutantDGraph.getAstParentsOpcodeNames(mutant_id).size() - minNumAstParent) * kNumAstParent / (maxNumAstParent - minNumAstParent);
+      mutant_scores[mutant_id] +=
+          (mutantDGraph.getAstParentsOpcodeNames(mutant_id).size() -
+           minNumAstParent) *
+          kNumAstParent / (maxNumAstParent - minNumAstParent);
   }
 
   // For now put all ties here and append to list at the end
-  //std::unordered_set<MutantIDType> tiesTemporal;
+  // std::unordered_set<MutantIDType> tiesTemporal;
 
   while (!candidate_mutants.empty()) {
     auto mutant_id = pickMutant(candidate_mutants, mutant_scores);
@@ -713,12 +761,12 @@ void MutantSelection::smartSelectMutants(
     visited_mutants.insert(mutantDGraph.getTieDependents(mutant_id).begin(),
                            mutantDGraph.getTieDependents(mutant_id).end());
 
-    //tiesTemporal.insert(mutantDGraph.getTieDependents(mutant_id).begin(),
+    // tiesTemporal.insert(mutantDGraph.getTieDependents(mutant_id).begin(),
     //                    mutantDGraph.getTieDependents(mutant_id).end());
     //// -- Remove Tie Dependents from candidates
-    //for (auto tie_ids : mutantDGraph.getTieDependents(mutant_id))
+    // for (auto tie_ids : mutantDGraph.getTieDependents(mutant_id))
     //  candidate_mutants.erase(tie_ids);
-    for (auto tieMId: mutantDGraph.getTieDependents(mutant_id))
+    for (auto tieMId : mutantDGraph.getTieDependents(mutant_id))
       mutant_scores[mutant_id] -= TIE_REDUCTION_DIFF;
 
     // Remove picked mutants from candidates
@@ -726,7 +774,7 @@ void MutantSelection::smartSelectMutants(
   }
 
   // append the ties temporal to selection
-  //selectedMutants.insert(selectedMutants.end(), tiesTemporal.begin(),
+  // selectedMutants.insert(selectedMutants.end(), tiesTemporal.begin(),
   //                       tiesTemporal.end());
 
   // shuffle the part of selected with ties
