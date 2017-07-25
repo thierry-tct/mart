@@ -39,8 +39,8 @@ using namespace mart::selection;
 namespace {
 const double MAX_SCORE = 1.0;
 const double RELAX_STEP = 0.05 / AMPLIFIER;
-const double RELAX_THRESHOLD = 0.01 / AMPLIFIER; // 5 hops
-const double TIE_REDUCTION_DIFF = 0.2 / AMPLIFIER;
+const double RELAX_THRESHOLD = 0.04 / AMPLIFIER; // 2 hops
+const double TIE_REDUCTION_DIFF = 0.07 / AMPLIFIER;
 }
 
 // class MutantDependenceGraph
@@ -168,8 +168,10 @@ bool MutantDependenceGraph::build(llvm::Module const &mod,
         for (auto predIt = llvm::pred_begin(bb), predE = llvm::pred_end(bb);
              predIt != predE; ++predIt)
           ++nPreds;
-
-        std::string bbTypename = bb->getName().str();
+        
+        auto bbtypenameend = bb->getName().find('.');   //First dot
+        bbtypenameend = bb->getName().find('.', bbtypenameend);  //second dot
+        std::string bbTypename = bb->getName().substr(0, bbtypenameend).str();
 
         // Update the info for all the mutants for this popped basic block
         std::unordered_set<MutantIDType> mutantsofstmt;
@@ -242,10 +244,10 @@ bool MutantDependenceGraph::build(llvm::Module const &mod,
           addHigherHopsOutDataDependents(m_id);
       std::unordered_set<MutantIDType> &hhidDep =
           addHigherHopsInDataDependents(m_id);
-      // std::unordered_set<MutantIDType> &hhocDep =
-      // addHigherHopsOutCtrlDependents(m_id);
-      // std::unordered_set<MutantIDType> &hhicDep =
-      // addHigherHopsInCtrlDependents(m_id);
+      std::unordered_set<MutantIDType> &hhocDep =
+          addHigherHopsOutCtrlDependents(m_id);
+      std::unordered_set<MutantIDType> &hhicDep =
+          addHigherHopsInCtrlDependents(m_id);
 
       for (auto oddM : getHopsOutDataDependents(m_id, curhop))
         hhodDep.insert(getHopsOutDataDependents(oddM, curhop - 1).begin(),
@@ -253,14 +255,12 @@ bool MutantDependenceGraph::build(llvm::Module const &mod,
       for (auto iddM : getHopsInDataDependents(m_id, curhop))
         hhidDep.insert(getHopsInDataDependents(iddM, curhop - 1).begin(),
                        getHopsInDataDependents(iddM, curhop - 1).end());
-      // for (auto ocdM: getHopsOutCtrlDependents(m_id, curhop))
-      //  hhocDep.insert(
-      //      getHopsOutCtrlDependents(ocdM, curhop).begin(),
-      //      getHopsOutCtrlDependents(ocdM, curhop).end());
-      // for (auto icdM: getHopsInCtrlDependents(m_id, curhop))
-      //  hhicDep.insert(
-      //      getHopsInCtrlDependents(icdM, curhop).begin(),
-      //      getHopsInCtrlDependents(icdM, curhop).end());
+      for (auto ocdM: getHopsOutCtrlDependents(m_id, curhop))
+        hhocDep.insert(getHopsOutCtrlDependents(ocdM, curhop - 1).begin(),
+                       getHopsOutCtrlDependents(ocdM, curhop - 1).end());
+      for (auto icdM: getHopsInCtrlDependents(m_id, curhop))
+        hhicDep.insert(getHopsInCtrlDependents(icdM, curhop - 1).begin(),
+                       getHopsInCtrlDependents(icdM, curhop - 1).end());
     }
 
     // next hop
@@ -578,6 +578,16 @@ void MutantSelection::relaxMutant(MutantIDType mutant_id,
       // the score still decrease if there are many dependency path to this
       // mutants (ex: a=1; b=a+3; c=a+b;). here inDatDepMut is at 'c=a+b'
       scores[outDatDepMut] -= scores[outDatDepMut] * cur_relax_factor;
+    }
+
+    // XXX: For now we increase score for those ctrl dependents. TODO TODO
+    for (auto inCtrlDepMut :
+         mutantDGraph.getHopsInCtrlDependents(mutant_id, curhop)) {
+      scores[inCtrlDepMut] += scores[inCtrlDepMut] * cur_relax_factor;
+    }
+    for (auto outCtrlDepMut :
+         mutantDGraph.getHopsOutCtrlDependents(mutant_id, curhop)) {
+      scores[outCtrlDepMut] += scores[outCtrlDepMut] * cur_relax_factor;
     }
 
     // next hop

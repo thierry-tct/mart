@@ -56,9 +56,8 @@ class MutantDependenceGraph //: public DependenceGraph<MutantNode>
     // Higerer hop deps
     std::vector<std::unordered_set<MutantIDType>> higherHopsOutDataDependents;
     std::vector<std::unordered_set<MutantIDType>> higherHopsInDataDependents;
-    // std::vector<std::unordered_set<MutantIDType>>
-    // higherHopsOutCtrlDependents;
-    // std::vector<std::unordered_set<MutantIDType>> higherHopsInCtrlDependents;
+    std::vector<std::unordered_set<MutantIDType>> higherHopsOutCtrlDependents;
+    std::vector<std::unordered_set<MutantIDType>> higherHopsInCtrlDependents;
   };
 
 private:
@@ -139,6 +138,18 @@ private:
   addHigherHopsInDataDependents(MutantIDType id) {
     mutantDGraphData[id].higherHopsInDataDependents.emplace_back();
     return mutantDGraphData[id].higherHopsInDataDependents.back();
+  }
+
+  std::unordered_set<MutantIDType> &
+  addHigherHopsOutCtrlDependents(MutantIDType id) {
+    mutantDGraphData[id].higherHopsOutCtrlDependents.emplace_back();
+    return mutantDGraphData[id].higherHopsOutCtrlDependents.back();
+  }
+
+  std::unordered_set<MutantIDType> &
+  addHigherHopsInCtrlDependents(MutantIDType id) {
+    mutantDGraphData[id].higherHopsInCtrlDependents.emplace_back();
+    return mutantDGraphData[id].higherHopsInCtrlDependents.back();
   }
 
 public:
@@ -243,6 +254,19 @@ public:
     return mutantDGraphData[mutant_id].higherHopsInDataDependents[hop - 2];
   }
 
+  const std::unordered_set<MutantIDType> &
+  getHopsOutCtrlDependents(MutantIDType mutant_id, unsigned hop) {
+    if (hop == 1)
+      return getOutCtrlDependents(mutant_id);
+    return mutantDGraphData[mutant_id].higherHopsOutCtrlDependents[hop - 2];
+  }
+
+  const std::unordered_set<MutantIDType> &
+  getHopsInCtrlDependents(MutantIDType mutant_id, unsigned hop) {
+    if (hop == 1)
+      return getInCtrlDependents(mutant_id);
+    return mutantDGraphData[mutant_id].higherHopsInCtrlDependents[hop - 2];
+  }
 }; // class MutantDependenceGraph
 
 class MutantSelection {
