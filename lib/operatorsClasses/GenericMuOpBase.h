@@ -763,14 +763,16 @@ protected:
     if (gep->getNumIndices() < 1)
       return nullptr;
     llvm::Value const *ptrOprd = gep->getPointerOperand();
-    llvm::Type const *ptrOprdElemType = 
-            llvm::dyn_cast<llvm::PointerType>(ptrOprd->getType())
-                ->getPointerElementType();
+    llvm::Type const *ptrOprdElemType =
+        llvm::dyn_cast<llvm::PointerType>(ptrOprd->getType())
+            ->getPointerElementType();
     // if the pointer operand points to a non sequential type, the pointer must
     // come from load instruction, and the 1st idx of get will be the index
     // needed
     if (llvm::isa<llvm::PointerType>(ptrOprdElemType)) {
-      assert(gep->getNumIndices() == 1 && "Gep Must have 1 index when the pointee type is a pointer (must load before doing any other Gep)"); 
+      assert(gep->getNumIndices() == 1 && "Gep Must have 1 index when the "
+                                          "pointee type is a pointer (must "
+                                          "load before doing any other Gep)");
       index = 0;
       return *(gep->idx_begin() + index);
     } else if (!llvm::isa<llvm::SequentialType>(ptrOprdElemType)) {

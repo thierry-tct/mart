@@ -44,7 +44,7 @@ const double TIE_REDUCTION_DIFF = 0.07 / AMPLIFIER;
 }
 
 // class MutantDependenceGraph
-
+/// This Function is written using dg's DG2Dot.h... as reference
 void MutantDependenceGraph::addDataCtrlFor(
     dg::LLVMDependenceGraph const *subIRDg) {
   for (auto nodeIt = subIRDg->begin(), ne = subIRDg->end(); nodeIt != ne;
@@ -67,6 +67,28 @@ void MutantDependenceGraph::addDataCtrlFor(
           if (m_id_from != m_id_ctrlto)
             addCtrlDependency(m_id_from, m_id_ctrlto);
     }
+  }
+  /// dg mainly store Control dependencies here (between BBs)
+  for (auto it : subIRDg->getBlocks()) {
+    auto *dgbbFrom = it.second;
+    for (auto dgbbTo : dgbbFrom->controlDependence()) {
+      llvm::Value *irFrom = dgbbFrom->getLastNode()->getKey();
+      llvm::Value *irCtrlTo = dgbbTo->getFirstNode()->getKey();
+      for (MutantIDType m_id_from : IR2mutantset[irFrom])
+        for (MutantIDType m_id_ctrlto : IR2mutantset[irCtrlTo])
+          if (m_id_from != m_id_ctrlto)
+            addCtrlDependency(m_id_from, m_id_ctrlto);
+    }
+
+    // XXX Should we consider Pos-Dominators as dependencies??
+    /*for (auto *dgbbTo : dgbbFrom->getPostDomFrontiers()) {
+      llvm::Value *irFrom = dgbbFrom->getFirstNode()->getKey();
+      llvm::Value *irCtrlTo = dgbbTo->getLastNode()->getKey();
+      for (MutantIDType m_id_from : IR2mutantset[irFrom])
+        for (MutantIDType m_id_ctrlto : IR2mutantset[irCtrlTo])
+          if (m_id_from != m_id_ctrlto)
+            addCtrlDependency(m_id_from, m_id_ctrlto);
+    }*/
   }
 }
 
@@ -168,9 +190,12 @@ bool MutantDependenceGraph::build(llvm::Module const &mod,
         for (auto predIt = llvm::pred_begin(bb), predE = llvm::pred_end(bb);
              predIt != predE; ++predIt)
           ++nPreds;
-        
-        auto bbtypenameend = bb->getName().find('.');   //First dot
-        bbtypenameend = bb->getName().find('.', bbtypenameend);  //second dot
+
+        // remore count numbering if existing (after last dot)
+        auto bbtypenameend = llvm::StringRef::npos; // Last dot
+        if (bb->getName().back() == '.' || bb->getName().back() >= '0' ||
+            bb->getName().back() <= '9')
+          bbtypenameend = bb->getName().rfind('.');
         std::string bbTypename = bb->getName().substr(0, bbtypenameend).str();
 
         // Update the info for all the mutants for this popped basic block
@@ -255,10 +280,10 @@ bool MutantDependenceGraph::build(llvm::Module const &mod,
       for (auto iddM : getHopsInDataDependents(m_id, curhop))
         hhidDep.insert(getHopsInDataDependents(iddM, curhop - 1).begin(),
                        getHopsInDataDependents(iddM, curhop - 1).end());
-      for (auto ocdM: getHopsOutCtrlDependents(m_id, curhop))
+      for (auto ocdM : getHopsOutCtrlDependents(m_id, curhop))
         hhocDep.insert(getHopsOutCtrlDependents(ocdM, curhop - 1).begin(),
                        getHopsOutCtrlDependents(ocdM, curhop - 1).end());
-      for (auto icdM: getHopsInCtrlDependents(m_id, curhop))
+      for (auto icdM : getHopsInCtrlDependents(m_id, curhop))
         hhicDep.insert(getHopsInCtrlDependents(icdM, curhop - 1).begin(),
                        getHopsInCtrlDependents(icdM, curhop - 1).end());
     }
@@ -366,10 +391,8 @@ void MutantDependenceGraph::load(std::string filename,
                                 "represented as an intger string "
                                 "(outDataDepends)");
       std::string tmpstr = odid.getString();
-      addDataDependency(
-          mutant_id, mutantid_str2int.at(tmpstr)); // out of bound if the value
-                                                   // is not a mutant id as
-                                                   // unsigned (MutantIDType)
+      // out of bound if the value is not a mutant id as unsigned (MutantIDType)
+      addDataDependency(mutant_id, mutantid_str2int.at(tmpstr));
     }
     assert(tmpobj["outCtrlDependents"].isArray() &&
            "'outCtrlDependents' must be an Array");
@@ -379,10 +402,8 @@ void MutantDependenceGraph::load(std::string filename,
                                 "represented as an intger string "
                                 "(outCtrlDepends)");
       std::string tmpstr = ocid.getString();
-      addCtrlDependency(
-          mutant_id, mutantid_str2int.at(tmpstr)); // out of bound if the value
-                                                   // is not a mutant id as
-                                                   // unsigned (MutantIDType)
+      // out of bound if the value is not a mutant id as unsigned (MutantIDType)
+      addCtrlDependency(mutant_id, mutantid_str2int.at(tmpstr));
     }
     assert(tmpobj["tieDependents"].isArray() &&
            "'tieDependents' must be an Array");
