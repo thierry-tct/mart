@@ -294,7 +294,7 @@ public:
     buildDependenceGraphs(mutant_depend_filename, rerundg, isFlowSensitive);
   }
   void smartSelectMutants(std::vector<MutantIDType> &selectedMutants,
-                          std::vector<double> &selectedScores);
+                          std::vector<double> &selectedScores, std::string weightsJsonfilename);
   void randomMutants(std::vector<MutantIDType> &spreadSelectedMutants,
                      std::vector<MutantIDType> &dummySelectedMutants,
                      unsigned long number);

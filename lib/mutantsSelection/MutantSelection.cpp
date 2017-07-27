@@ -74,10 +74,23 @@ void MutantDependenceGraph::addDataCtrlFor(
     for (auto dgbbTo : dgbbFrom->controlDependence()) {
       llvm::Value *irFrom = dgbbFrom->getLastNode()->getKey();
       llvm::Value *irCtrlTo = dgbbTo->getFirstNode()->getKey();
-      for (MutantIDType m_id_from : IR2mutantset[irFrom])
-        for (MutantIDType m_id_ctrlto : IR2mutantset[irCtrlTo])
-          if (m_id_from != m_id_ctrlto)
-            addCtrlDependency(m_id_from, m_id_ctrlto);
+
+      // XXX as irFrom is a terminator instruction, and do not really have value
+      // we make it's operands as ctrl dependency source as well
+      llvm::SmallVector<llvm::Value *, 2> fromIRs;
+      fromIRs.push_back(irFrom); //add terminator
+      for (llvm::Value *oprd: llvm::dyn_cast<llvm::User>(irFrom)->operand_values())
+        if (llvm::isa<llvm::Instruction>(oprd))
+          fromIRs.push_back(oprd);
+
+      for (llvm::Value *cvFrom: fromIRs) {
+        for (auto &cinstTo: *(llvm::dyn_cast<llvm::Instruction>(irCtrlTo)->getParent())) {
+          for (MutantIDType m_id_from : IR2mutantset[cvFrom])
+            for (MutantIDType m_id_ctrlto : IR2mutantset[&cinstTo])
+              if (m_id_from != m_id_ctrlto)
+                addCtrlDependency(m_id_from, m_id_ctrlto);
+        }
+      }
     }
 
     // XXX Should we consider Pos-Dominators as dependencies??
@@ -601,14 +614,14 @@ void MutantSelection::relaxMutant(MutantIDType mutant_id,
       scores[outDatDepMut] -= scores[outDatDepMut] * cur_relax_factor;
     }
 
-    // XXX: For now we increase score for those ctrl dependents. TODO TODO
+    // XXX: For now we decrease score for those ctrl dependents. TODO TODO
     for (auto inCtrlDepMut :
          mutantDGraph.getHopsInCtrlDependents(mutant_id, curhop)) {
-      scores[inCtrlDepMut] += scores[inCtrlDepMut] * cur_relax_factor;
+      scores[inCtrlDepMut] -= scores[inCtrlDepMut] * cur_relax_factor;
     }
     for (auto outCtrlDepMut :
          mutantDGraph.getHopsOutCtrlDependents(mutant_id, curhop)) {
-      scores[outCtrlDepMut] += scores[outCtrlDepMut] * cur_relax_factor;
+      scores[outCtrlDepMut] -= scores[outCtrlDepMut] * cur_relax_factor;
     }
 
     // next hop
@@ -623,7 +636,7 @@ void MutantSelection::relaxMutant(MutantIDType mutant_id,
  */
 void MutantSelection::smartSelectMutants(
     std::vector<MutantIDType> &selectedMutants,
-    std::vector<double> &selectedScores) {
+    std::vector<double> &selectedScores, std::string weightsJsonfilename) {
 
   MutantIDType mutants_number = mutantInfos.getMutantsNumber();
 
@@ -673,274 +686,313 @@ void MutantSelection::smartSelectMutants(
   unsigned minNumAstParent = (unsigned)-1;
   double kNumAstParent = -0.01 / AMPLIFIER;
 
-  // ... Initialize max, mins
-  for (MutantIDType mutant_id = 1; mutant_id <= mutants_number; ++mutant_id) {
-    if (mutantDGraph.getInDataDependents(mutant_id).size() > maxInDataDep)
-      maxInDataDep = mutantDGraph.getInDataDependents(mutant_id).size();
-    if (mutantDGraph.getInDataDependents(mutant_id).size() < minInDataDep)
-      minInDataDep = mutantDGraph.getInDataDependents(mutant_id).size();
-    if (mutantDGraph.getOutDataDependents(mutant_id).size() > maxOutDataDep)
-      maxOutDataDep = mutantDGraph.getOutDataDependents(mutant_id).size();
-    if (mutantDGraph.getOutDataDependents(mutant_id).size() < minOutDataDep)
-      minOutDataDep = mutantDGraph.getOutDataDependents(mutant_id).size();
+  // Re-initialise the weights from the JSON weight file when applicable
+  if (!weightsJsonfilename.empty()) {
+    JsonBox::Value jbvalue;
+    jbvalue.loadFromFile(weightsJsonfilename);
+    assert(jbvalue.isObject() &&
+           "The JSON file for weights must contain JSON Object");
+    JsonBox::Object wo = jbvalue.getObject();
 
-    if (mutantDGraph.getInCtrlDependents(mutant_id).size() > maxInCtrlDep)
-      maxInCtrlDep = mutantDGraph.getInCtrlDependents(mutant_id).size();
-    if (mutantDGraph.getInCtrlDependents(mutant_id).size() < minInCtrlDep)
-      minInCtrlDep = mutantDGraph.getInCtrlDependents(mutant_id).size();
-    if (mutantDGraph.getOutCtrlDependents(mutant_id).size() > maxOutCtrlDep)
-      maxOutCtrlDep = mutantDGraph.getOutCtrlDependents(mutant_id).size();
-    if (mutantDGraph.getOutCtrlDependents(mutant_id).size() < minOutCtrlDep)
-      minOutCtrlDep = mutantDGraph.getOutCtrlDependents(mutant_id).size();
+    assert (wo.count("wInDataDep") && wo["wInDataDep"].isDouble());
+    kInDataDep = std::stod(wo["wInDataDep"].getString());
 
-    if (mutantDGraph.getTieDependents(mutant_id).size() > maxTieDep)
-      maxTieDep = mutantDGraph.getTieDependents(mutant_id).size();
-    if (mutantDGraph.getTieDependents(mutant_id).size() < minTieDep)
-      minTieDep = mutantDGraph.getTieDependents(mutant_id).size();
+    assert (wo.count("wOutDataDep") && wo["wOutDataDep"].isDouble());
+    kOutDataDep = std::stod(wo["wOutDataDep"].getString());
 
-    if (mutantDGraph.getComplexity(mutant_id) > maxComplexity)
-      maxComplexity = mutantDGraph.getComplexity(mutant_id);
-    if (mutantDGraph.getComplexity(mutant_id) < minComplexity)
-      minComplexity = mutantDGraph.getComplexity(mutant_id);
+    assert (wo.count("wInCtrlDep") && wo["wInCtrlDep"].isDouble());
+    kInCtrlDep = std::stod(wo["wInCtrlDep"].getString());
 
-    if (mutantDGraph.getCfgDepth(mutant_id) > maxCfgDepth)
-      maxCfgDepth = mutantDGraph.getCfgDepth(mutant_id);
-    if (mutantDGraph.getCfgDepth(mutant_id) < minCfgDepth)
-      minCfgDepth = mutantDGraph.getCfgDepth(mutant_id);
+    assert (wo.count("wOutCtrlDep") && wo["wOutCtrlDep"].isDouble());
+    kOutCtrlDep = std::stod(wo["wOutCtrlDep"].getString());
 
-    if (mutantDGraph.getCfgPredNum(mutant_id) > maxCfgPredNum)
-      maxCfgPredNum = mutantDGraph.getCfgPredNum(mutant_id);
-    if (mutantDGraph.getCfgPredNum(mutant_id) < minCfgPredNum)
-      minCfgPredNum = mutantDGraph.getCfgPredNum(mutant_id);
+    assert (wo.count("wTieDep") && wo["wTieDep"].isDouble());
+    kTieDep = std::stod(wo["wTieDep"].getString());
 
-    if (mutantDGraph.getCfgSuccNum(mutant_id) > maxCfgSuccNum)
-      maxCfgSuccNum = mutantDGraph.getCfgSuccNum(mutant_id);
-    if (mutantDGraph.getCfgSuccNum(mutant_id) < minCfgSuccNum)
-      minCfgSuccNum = mutantDGraph.getCfgSuccNum(mutant_id);
+    assert (wo.count("wComplexity") && wo["wComplexity"].isDouble());
+    kComplexity = std::stod(wo["wComplexity"].getString());
 
-    if (mutantDGraph.getAstParentsOpcodeNames(mutant_id).size() >
-        maxNumAstParent)
-      maxNumAstParent = mutantDGraph.getAstParentsOpcodeNames(mutant_id).size();
-    if (mutantDGraph.getAstParentsOpcodeNames(mutant_id).size() <
-        minNumAstParent)
-      minNumAstParent = mutantDGraph.getAstParentsOpcodeNames(mutant_id).size();
-  }
-  // ... Actual triming
-  for (MutantIDType mutant_id = 1; mutant_id <= mutants_number; ++mutant_id) {
-    if (maxInDataDep != minInDataDep)
-      mutant_scores[mutant_id] +=
-          (mutantDGraph.getInDataDependents(mutant_id).size() - minInDataDep) *
-          kInDataDep / (maxInDataDep - minInDataDep);
-    if (maxOutDataDep != minOutDataDep)
-      mutant_scores[mutant_id] +=
-          (mutantDGraph.getOutDataDependents(mutant_id).size() -
-           minOutDataDep) *
-          kOutDataDep / (maxOutDataDep - minOutDataDep);
-    if (maxInCtrlDep != minInCtrlDep)
-      mutant_scores[mutant_id] +=
-          (mutantDGraph.getInCtrlDependents(mutant_id).size() - minInCtrlDep) *
-          kInCtrlDep / (maxInCtrlDep - minInCtrlDep);
-    if (maxOutCtrlDep != minOutCtrlDep)
-      mutant_scores[mutant_id] +=
-          (mutantDGraph.getOutCtrlDependents(mutant_id).size() -
-           minOutCtrlDep) *
-          kOutCtrlDep / (maxOutCtrlDep - minOutCtrlDep);
-    if (maxTieDep != minTieDep)
-      mutant_scores[mutant_id] +=
-          (mutantDGraph.getTieDependents(mutant_id).size() - minTieDep) *
-          kTieDep / (maxTieDep - minTieDep);
-    if (maxComplexity != minComplexity)
-      mutant_scores[mutant_id] +=
-          (mutantDGraph.getComplexity(mutant_id) - minComplexity) *
-          kComplexity / (maxComplexity - minComplexity);
-    if (maxCfgDepth != minCfgDepth)
-      mutant_scores[mutant_id] +=
-          (mutantDGraph.getCfgDepth(mutant_id) - minCfgDepth) * kCfgDepth /
-          (maxCfgDepth - minCfgDepth);
-    if (maxCfgPredNum != minCfgPredNum)
-      mutant_scores[mutant_id] +=
-          (mutantDGraph.getCfgPredNum(mutant_id) - minCfgPredNum) *
-          kCfgPredNum / (maxCfgPredNum - minCfgPredNum);
-    if (maxCfgSuccNum != minCfgSuccNum)
-      mutant_scores[mutant_id] +=
-          (mutantDGraph.getCfgSuccNum(mutant_id) - minCfgSuccNum) *
-          kCfgSuccNum / (maxCfgSuccNum - minCfgSuccNum);
-    if (maxNumAstParent != minNumAstParent)
-      mutant_scores[mutant_id] +=
-          (mutantDGraph.getAstParentsOpcodeNames(mutant_id).size() -
-           minNumAstParent) *
-          kNumAstParent / (maxNumAstParent - minNumAstParent);
+    assert (wo.count("wCfgDepth") && wo["wCfgDepth"].isDouble());
+    kCfgDepth = std::stod(wo["wCfgDepth"].getString());
+
+    assert (wo.count("wCfgPredNum") && wo["wCfgPredNum"].isDouble());
+    kCfgPredNum = std::stod(wo["wCfgPredNum"].getString());
+
+    assert (wo.count("wCfgSuccNum") && wo["wCfgSuccNum"].isDouble());
+    kCfgSuccNum = std::stod(wo["wCfgSuccNum"].getString());
+
+    assert (wo.count("wNumAstParent") && wo["wNumAstParent"].isDouble());
+    kNumAstParent = std::stod(wo["wNumAstParent"].getString());
   }
 
-  // For now put all ties here and append to list at the end
-  // std::unordered_set<MutantIDType> tiesTemporal;
+    // ... Initialize max, mins
+    for (MutantIDType mutant_id = 1; mutant_id <= mutants_number; ++mutant_id) {
+      if (mutantDGraph.getInDataDependents(mutant_id).size() > maxInDataDep)
+        maxInDataDep = mutantDGraph.getInDataDependents(mutant_id).size();
+      if (mutantDGraph.getInDataDependents(mutant_id).size() < minInDataDep)
+        minInDataDep = mutantDGraph.getInDataDependents(mutant_id).size();
+      if (mutantDGraph.getOutDataDependents(mutant_id).size() > maxOutDataDep)
+        maxOutDataDep = mutantDGraph.getOutDataDependents(mutant_id).size();
+      if (mutantDGraph.getOutDataDependents(mutant_id).size() < minOutDataDep)
+        minOutDataDep = mutantDGraph.getOutDataDependents(mutant_id).size();
 
-  while (!candidate_mutants.empty()) {
-    auto mutant_id = pickMutant(candidate_mutants, mutant_scores);
-    //-----llvm::errs()<<candidate_mutants.size()<<"
-    //"<<mutant_scores[mutant_id]<<"\n";
-    // Stop if the selected mutant has a score less than the threshold
-    // if (mutant_scores[mutant_id] < score_threshold)
-    //    break;
+      if (mutantDGraph.getInCtrlDependents(mutant_id).size() > maxInCtrlDep)
+        maxInCtrlDep = mutantDGraph.getInCtrlDependents(mutant_id).size();
+      if (mutantDGraph.getInCtrlDependents(mutant_id).size() < minInCtrlDep)
+        minInCtrlDep = mutantDGraph.getInCtrlDependents(mutant_id).size();
+      if (mutantDGraph.getOutCtrlDependents(mutant_id).size() > maxOutCtrlDep)
+        maxOutCtrlDep = mutantDGraph.getOutCtrlDependents(mutant_id).size();
+      if (mutantDGraph.getOutCtrlDependents(mutant_id).size() < minOutCtrlDep)
+        minOutCtrlDep = mutantDGraph.getOutCtrlDependents(mutant_id).size();
 
-    selectedMutants.push_back(mutant_id);
-    selectedScores.push_back(mutant_scores[mutant_id]);
-    relaxMutant(mutant_id, mutant_scores);
+      if (mutantDGraph.getTieDependents(mutant_id).size() > maxTieDep)
+        maxTieDep = mutantDGraph.getTieDependents(mutant_id).size();
+      if (mutantDGraph.getTieDependents(mutant_id).size() < minTieDep)
+        minTieDep = mutantDGraph.getTieDependents(mutant_id).size();
 
-    // insert the picked mutants and its tie-dependents into visited set
-    visited_mutants.insert(mutant_id);
-    visited_mutants.insert(mutantDGraph.getTieDependents(mutant_id).begin(),
-                           mutantDGraph.getTieDependents(mutant_id).end());
+      if (mutantDGraph.getComplexity(mutant_id) > maxComplexity)
+        maxComplexity = mutantDGraph.getComplexity(mutant_id);
+      if (mutantDGraph.getComplexity(mutant_id) < minComplexity)
+        minComplexity = mutantDGraph.getComplexity(mutant_id);
 
-    // tiesTemporal.insert(mutantDGraph.getTieDependents(mutant_id).begin(),
-    //                    mutantDGraph.getTieDependents(mutant_id).end());
-    //// -- Remove Tie Dependents from candidates
-    // for (auto tie_ids : mutantDGraph.getTieDependents(mutant_id))
-    //  candidate_mutants.erase(tie_ids);
-    for (auto tieMId : mutantDGraph.getTieDependents(mutant_id))
-      mutant_scores[mutant_id] -= TIE_REDUCTION_DIFF;
+      if (mutantDGraph.getCfgDepth(mutant_id) > maxCfgDepth)
+        maxCfgDepth = mutantDGraph.getCfgDepth(mutant_id);
+      if (mutantDGraph.getCfgDepth(mutant_id) < minCfgDepth)
+        minCfgDepth = mutantDGraph.getCfgDepth(mutant_id);
 
-    // Remove picked mutants from candidates
-    candidate_mutants.erase(mutant_id);
+      if (mutantDGraph.getCfgPredNum(mutant_id) > maxCfgPredNum)
+        maxCfgPredNum = mutantDGraph.getCfgPredNum(mutant_id);
+      if (mutantDGraph.getCfgPredNum(mutant_id) < minCfgPredNum)
+        minCfgPredNum = mutantDGraph.getCfgPredNum(mutant_id);
+
+      if (mutantDGraph.getCfgSuccNum(mutant_id) > maxCfgSuccNum)
+        maxCfgSuccNum = mutantDGraph.getCfgSuccNum(mutant_id);
+      if (mutantDGraph.getCfgSuccNum(mutant_id) < minCfgSuccNum)
+        minCfgSuccNum = mutantDGraph.getCfgSuccNum(mutant_id);
+
+      if (mutantDGraph.getAstParentsOpcodeNames(mutant_id).size() >
+          maxNumAstParent)
+        maxNumAstParent = mutantDGraph.getAstParentsOpcodeNames(mutant_id).size();
+      if (mutantDGraph.getAstParentsOpcodeNames(mutant_id).size() <
+          minNumAstParent)
+        minNumAstParent = mutantDGraph.getAstParentsOpcodeNames(mutant_id).size();
+    }
+    // ... Actual triming
+    for (MutantIDType mutant_id = 1; mutant_id <= mutants_number; ++mutant_id) {
+      if (maxInDataDep != minInDataDep)
+        mutant_scores[mutant_id] +=
+            (mutantDGraph.getInDataDependents(mutant_id).size() - minInDataDep) *
+            kInDataDep / (maxInDataDep - minInDataDep);
+      if (maxOutDataDep != minOutDataDep)
+        mutant_scores[mutant_id] +=
+            (mutantDGraph.getOutDataDependents(mutant_id).size() -
+             minOutDataDep) *
+            kOutDataDep / (maxOutDataDep - minOutDataDep);
+      if (maxInCtrlDep != minInCtrlDep)
+        mutant_scores[mutant_id] +=
+            (mutantDGraph.getInCtrlDependents(mutant_id).size() - minInCtrlDep) *
+            kInCtrlDep / (maxInCtrlDep - minInCtrlDep);
+      if (maxOutCtrlDep != minOutCtrlDep)
+        mutant_scores[mutant_id] +=
+            (mutantDGraph.getOutCtrlDependents(mutant_id).size() -
+             minOutCtrlDep) *
+            kOutCtrlDep / (maxOutCtrlDep - minOutCtrlDep);
+      if (maxTieDep != minTieDep)
+        mutant_scores[mutant_id] +=
+            (mutantDGraph.getTieDependents(mutant_id).size() - minTieDep) *
+            kTieDep / (maxTieDep - minTieDep);
+      if (maxComplexity != minComplexity)
+        mutant_scores[mutant_id] +=
+            (mutantDGraph.getComplexity(mutant_id) - minComplexity) *
+            kComplexity / (maxComplexity - minComplexity);
+      if (maxCfgDepth != minCfgDepth)
+        mutant_scores[mutant_id] +=
+            (mutantDGraph.getCfgDepth(mutant_id) - minCfgDepth) * kCfgDepth /
+            (maxCfgDepth - minCfgDepth);
+      if (maxCfgPredNum != minCfgPredNum)
+        mutant_scores[mutant_id] +=
+            (mutantDGraph.getCfgPredNum(mutant_id) - minCfgPredNum) *
+            kCfgPredNum / (maxCfgPredNum - minCfgPredNum);
+      if (maxCfgSuccNum != minCfgSuccNum)
+        mutant_scores[mutant_id] +=
+            (mutantDGraph.getCfgSuccNum(mutant_id) - minCfgSuccNum) *
+            kCfgSuccNum / (maxCfgSuccNum - minCfgSuccNum);
+      if (maxNumAstParent != minNumAstParent)
+        mutant_scores[mutant_id] +=
+            (mutantDGraph.getAstParentsOpcodeNames(mutant_id).size() -
+             minNumAstParent) *
+            kNumAstParent / (maxNumAstParent - minNumAstParent);
+    }
+
+    // For now put all ties here and append to list at the end
+    // std::unordered_set<MutantIDType> tiesTemporal;
+
+    while (!candidate_mutants.empty()) {
+      auto mutant_id = pickMutant(candidate_mutants, mutant_scores);
+      //-----llvm::errs()<<candidate_mutants.size()<<"
+      //"<<mutant_scores[mutant_id]<<"\n";
+      // Stop if the selected mutant has a score less than the threshold
+      // if (mutant_scores[mutant_id] < score_threshold)
+      //    break;
+
+      selectedMutants.push_back(mutant_id);
+      selectedScores.push_back(mutant_scores[mutant_id]);
+      relaxMutant(mutant_id, mutant_scores);
+
+      // insert the picked mutants and its tie-dependents into visited set
+      visited_mutants.insert(mutant_id);
+      visited_mutants.insert(mutantDGraph.getTieDependents(mutant_id).begin(),
+                             mutantDGraph.getTieDependents(mutant_id).end());
+
+      // tiesTemporal.insert(mutantDGraph.getTieDependents(mutant_id).begin(),
+      //                    mutantDGraph.getTieDependents(mutant_id).end());
+      //// -- Remove Tie Dependents from candidates
+      // for (auto tie_ids : mutantDGraph.getTieDependents(mutant_id))
+      //  candidate_mutants.erase(tie_ids);
+      for (auto tieMId : mutantDGraph.getTieDependents(mutant_id))
+        mutant_scores[mutant_id] -= TIE_REDUCTION_DIFF;
+
+      // Remove picked mutants from candidates
+      candidate_mutants.erase(mutant_id);
+    }
+
+    // append the ties temporal to selection
+    // selectedMutants.insert(selectedMutants.end(), tiesTemporal.begin(),
+    //                       tiesTemporal.end());
+
+    // shuffle the part of selected with ties
+    /*auto tieStart =
+        selectedMutants.begin() + (selectedMutants.size() - tiesTemporal.size());
+    if (tieStart != selectedMutants.end()) {
+      assert(tiesTemporal.count(*tieStart) &&
+             "Error: miscomputation above. Report bug");
+      std::srand(std::time(NULL) + clock()); //+ clock() because fast running
+      std::random_shuffle(tieStart, selectedMutants.end());
+    }
+
+    for (auto mid : tiesTemporal)
+      selectedScores.push_back(-1e-100); // default score for ties (very low
+                                         // value)*/
+
+    if (selectedMutants.size() != mutants_number ||
+        selectedScores.size() != mutants_number) {
+      llvm::errs() << "\nError: Bug in Selection: some mutants left out or added "
+                      "many times: Mutants number = ";
+      llvm::errs() << mutants_number
+                   << ", Selected number = " << selectedMutants.size()
+                   << ", selected scores number = " << selectedScores.size()
+                   << "\n\n";
+    }
   }
 
-  // append the ties temporal to selection
-  // selectedMutants.insert(selectedMutants.end(), tiesTemporal.begin(),
-  //                       tiesTemporal.end());
+  void MutantSelection::randomMutants(
+      std::vector<MutantIDType> &spreadSelectedMutants,
+      std::vector<MutantIDType> &dummySelectedMutants, unsigned long number) {
+    MutantIDType mutants_number = mutantInfos.getMutantsNumber();
 
-  // shuffle the part of selected with ties
-  /*auto tieStart =
-      selectedMutants.begin() + (selectedMutants.size() - tiesTemporal.size());
-  if (tieStart != selectedMutants.end()) {
-    assert(tiesTemporal.count(*tieStart) &&
-           "Error: miscomputation above. Report bug");
-    std::srand(std::time(NULL) + clock()); //+ clock() because fast running
-    std::random_shuffle(tieStart, selectedMutants.end());
-  }
+    assert(mutantDGraph.isBuilt() && "This function must be called after the "
+                                     "mutantDGraph is build. We need mutants "
+                                     "IRs");
 
-  for (auto mid : tiesTemporal)
-    selectedScores.push_back(-1e-100); // default score for ties (very low
-                                       // value)*/
+    spreadSelectedMutants.reserve(mutants_number);
+    dummySelectedMutants.reserve(mutants_number);
 
-  if (selectedMutants.size() != mutants_number ||
-      selectedScores.size() != mutants_number) {
-    llvm::errs() << "\nError: Bug in Selection: some mutants left out or added "
-                    "many times: Mutants number = ";
-    llvm::errs() << mutants_number
-                 << ", Selected number = " << selectedMutants.size()
-                 << ", selected scores number = " << selectedScores.size()
-                 << "\n\n";
-  }
-}
+    /// \brief Spread Random
+    std::vector<llvm::Value const *> mutatedIRs;
+    std::unordered_map<llvm::Value const *, std::unordered_set<MutantIDType>>
+        work_map(mutantDGraph.getIR2mutantsetMap());
 
-void MutantSelection::randomMutants(
-    std::vector<MutantIDType> &spreadSelectedMutants,
-    std::vector<MutantIDType> &dummySelectedMutants, unsigned long number) {
-  MutantIDType mutants_number = mutantInfos.getMutantsNumber();
+    mutatedIRs.reserve(work_map.size());
+    for (auto &ir2mutset : work_map) {
+      mutatedIRs.push_back(ir2mutset.first);
+    }
 
-  assert(mutantDGraph.isBuilt() && "This function must be called after the "
-                                   "mutantDGraph is build. We need mutants "
-                                   "IRs");
+    bool someselected = true;
+    while (someselected) {
+      someselected = false;
 
-  spreadSelectedMutants.reserve(mutants_number);
-  dummySelectedMutants.reserve(mutants_number);
+      // shuflle IRs
+      std::srand(std::time(NULL) + clock()); //+ clock() because fast running
+      // program will generate same sequence
+      // with only time(NULL)
+      std::random_shuffle(mutatedIRs.begin(), mutatedIRs.end());
 
-  /// \brief Spread Random
-  std::vector<llvm::Value const *> mutatedIRs;
-  std::unordered_map<llvm::Value const *, std::unordered_set<MutantIDType>>
-      work_map(mutantDGraph.getIR2mutantsetMap());
+      unsigned long numberofnulled = 0;
+      std::srand(std::time(NULL) + clock()); //+ clock() because fast running
+      // program will generate same sequence
+      // with only time(NULL)
+      for (unsigned long irPos = 0, irE = mutatedIRs.size(); irPos < irE;
+           ++irPos) {
+        // randomly select one of its mutant
+        auto &mutSet = work_map.at(mutatedIRs[irPos]);
+        if (mutSet.empty()) {
+          mutatedIRs[irPos] = nullptr;
+          ++numberofnulled;
+          continue;
+        } else {
+          auto rnd = std::rand() % mutSet.size();
+          auto sit = mutSet.begin();
+          std::advance(sit, rnd);
+          auto selMut = *sit;
+          spreadSelectedMutants.push_back(selMut);
+          someselected = true;
 
-  mutatedIRs.reserve(work_map.size());
-  for (auto &ir2mutset : work_map) {
-    mutatedIRs.push_back(ir2mutset.first);
-  }
-
-  bool someselected = true;
-  while (someselected) {
-    someselected = false;
-
-    // shuflle IRs
-    std::srand(std::time(NULL) + clock()); //+ clock() because fast running
-    // program will generate same sequence
-    // with only time(NULL)
-    std::random_shuffle(mutatedIRs.begin(), mutatedIRs.end());
-
-    unsigned long numberofnulled = 0;
-    std::srand(std::time(NULL) + clock()); //+ clock() because fast running
-    // program will generate same sequence
-    // with only time(NULL)
-    for (unsigned long irPos = 0, irE = mutatedIRs.size(); irPos < irE;
-         ++irPos) {
-      // randomly select one of its mutant
-      auto &mutSet = work_map.at(mutatedIRs[irPos]);
-      if (mutSet.empty()) {
-        mutatedIRs[irPos] = nullptr;
-        ++numberofnulled;
-        continue;
-      } else {
-        auto rnd = std::rand() % mutSet.size();
-        auto sit = mutSet.begin();
-        std::advance(sit, rnd);
-        auto selMut = *sit;
-        spreadSelectedMutants.push_back(selMut);
-        someselected = true;
-
-        for (auto *m_ir : mutantDGraph.getIRsOfMut(selMut))
-          work_map.at(m_ir).erase(selMut);
+          for (auto *m_ir : mutantDGraph.getIRsOfMut(selMut))
+            work_map.at(m_ir).erase(selMut);
+        }
+      }
+      // remove those that are null
+      if (numberofnulled > 0) {
+        std::sort(mutatedIRs.rbegin(),
+                  mutatedIRs.rend()); // reverse sort (the null are at  the end:
+                                      // the last numberofnulled values)
+        mutatedIRs.erase(mutatedIRs.begin() +
+                             (mutatedIRs.size() - numberofnulled),
+                         mutatedIRs.end());
       }
     }
-    // remove those that are null
-    if (numberofnulled > 0) {
-      std::sort(mutatedIRs.rbegin(),
-                mutatedIRs.rend()); // reverse sort (the null are at  the end:
-                                    // the last numberofnulled values)
-      mutatedIRs.erase(mutatedIRs.begin() +
-                           (mutatedIRs.size() - numberofnulled),
-                       mutatedIRs.end());
+
+    assert(spreadSelectedMutants.size() == mutants_number &&
+           "Bug in the selection program"); // DBG
+
+    if (spreadSelectedMutants.size() > number)
+      spreadSelectedMutants.resize(number);
+
+    /******/
+
+    /// \brief Dummy Random
+    for (MutantIDType mutant_id = 1; mutant_id <= mutants_number; ++mutant_id) {
+      dummySelectedMutants.push_back(mutant_id);
     }
+
+    // shuffle
+    std::srand(std::time(NULL) + clock()); //+ clock() because fast running
+                                           // program will generate same sequence
+    // with only time(NULL)
+    std::random_shuffle(dummySelectedMutants.begin(), dummySelectedMutants.end());
+
+    // keep only the needed number
+    if (dummySelectedMutants.size() > number)
+      dummySelectedMutants.resize(number);
   }
 
-  assert(spreadSelectedMutants.size() == mutants_number &&
-         "Bug in the selection program"); // DBG
+  void MutantSelection::randomSDLMutants(
+      std::vector<MutantIDType> &selectedMutants, unsigned long number) {
+    /// Insert all SDL mutants here, note that any two SDL spawn different IRs
+    MutantIDType mutants_number = mutantInfos.getMutantsNumber();
+    for (MutantIDType mutant_id = 1; mutant_id <= mutants_number; ++mutant_id) {
+      std::string nametype = mutantInfos.getMutantTypeName(mutant_id);
+      if (UserMaps::containsDeleteStmtConfName(nametype))
+        selectedMutants.push_back(mutant_id);
+    }
 
-  if (spreadSelectedMutants.size() > number)
-    spreadSelectedMutants.resize(number);
+    // shuffle
+    std::srand(std::time(NULL) + clock()); //+ clock() because fast running
+                                           // program will generate same sequence
+    // with only time(NULL)
+    std::random_shuffle(selectedMutants.begin(), selectedMutants.end());
 
-  /******/
-
-  /// \brief Dummy Random
-  for (MutantIDType mutant_id = 1; mutant_id <= mutants_number; ++mutant_id) {
-    dummySelectedMutants.push_back(mutant_id);
+    // keep only the needed number
+    if (selectedMutants.size() > number)
+      selectedMutants.resize(number);
   }
-
-  // shuffle
-  std::srand(std::time(NULL) + clock()); //+ clock() because fast running
-                                         // program will generate same sequence
-  // with only time(NULL)
-  std::random_shuffle(dummySelectedMutants.begin(), dummySelectedMutants.end());
-
-  // keep only the needed number
-  if (dummySelectedMutants.size() > number)
-    dummySelectedMutants.resize(number);
-}
-
-void MutantSelection::randomSDLMutants(
-    std::vector<MutantIDType> &selectedMutants, unsigned long number) {
-  /// Insert all SDL mutants here, note that any two SDL spawn different IRs
-  MutantIDType mutants_number = mutantInfos.getMutantsNumber();
-  for (MutantIDType mutant_id = 1; mutant_id <= mutants_number; ++mutant_id) {
-    std::string nametype = mutantInfos.getMutantTypeName(mutant_id);
-    if (UserMaps::containsDeleteStmtConfName(nametype))
-      selectedMutants.push_back(mutant_id);
-  }
-
-  // shuffle
-  std::srand(std::time(NULL) + clock()); //+ clock() because fast running
-                                         // program will generate same sequence
-  // with only time(NULL)
-  std::random_shuffle(selectedMutants.begin(), selectedMutants.end());
-
-  // keep only the needed number
-  if (selectedMutants.size() > number)
-    selectedMutants.resize(number);
-}
