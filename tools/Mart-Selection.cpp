@@ -113,7 +113,8 @@ int main(int argc, char **argv) {
       llvm::cl::init(100));
   llvm::cl::opt<std::string> smartSelectionWeightsJSON(
       "smart-weights-json",
-      llvm::cl::desc("(optional) Specify the JSON file containing custom weights"),
+      llvm::cl::desc(
+          "(optional) Specify the JSON file containing custom weights"),
       llvm::cl::init(""));
 
   llvm::cl::SetVersionPrinter(printVersion);
@@ -204,7 +205,8 @@ int main(int argc, char **argv) {
   std::vector<double> selectedScores;
   for (unsigned si = 0; si < numberOfRandomSelections; ++si) {
     selectedScores.clear(); // FIXME: for repetition if useful, get all datas
-    selection.smartSelectMutants(selectedMutants1[si], selectedScores, smartSelectionWeightsJSON);
+    selection.smartSelectMutants(selectedMutants1[si], selectedScores,
+                                 smartSelectionWeightsJSON);
   }
   mutantListAsJsON<MutantIDType>(selectedMutants1, smartSelectionOutJson);
   mutantListAsJsON<double>(std::vector<std::vector<double>>({selectedScores}),
