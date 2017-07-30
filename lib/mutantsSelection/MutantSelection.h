@@ -32,6 +32,20 @@ class LLVMDependenceGraph;
 namespace mart {
 namespace selection {
 
+class PredictionModule {
+  std::string modelFilename;
+public:
+  PredictionModule (std::string modelfile): modelFilename(modelfile) {}
+  /// make prediction for data in @param X_matrix and put the results into prediction
+  /// Each contained vector correspond to a feature
+  void predict (std::vector<std::vector<float>> const &X_matrix, std::vector<float> &prediction);
+
+  /// Train model and write model into predictionModelFilename
+  /// Each contained vector correspond to a feature
+  void train (std::vector<std::vector<float>> const &X_matrix, std::vector<bool> const &isCoupled);
+}; // PredictionModule
+
+
 class MutantDependenceGraph //: public DependenceGraph<MutantNode>
 {
   struct MutantDepends {
@@ -191,6 +205,9 @@ public:
     return mutantDGraphData[mutant_id].tieDependents;
   }
 
+  // if @param featuresnames is not null put the ordered feature names in it
+  void computeMutantFeatures(std::vector<std::vector<float>> &featuresmatrix, std::vector<std::string> &featuresnames);
+
   bool build(llvm::Module const &mod, dg::LLVMDependenceGraph const *irDg,
              MutantInfoList const &mutInfos,
              std::string mutant_depend_filename);
@@ -286,6 +303,7 @@ private:
   MutantIDType pickMutant(std::unordered_set<MutantIDType> const &candidates,
                           std::vector<double> const &scores);
   void relaxMutant(MutantIDType mutant_id, std::vector<double> &scores);
+  void getMachineLearningPrediction(std::vector<float> &couplingProbabilitiesOut, std::string modelFilename); 
 
 public:
   MutantSelection(llvm::Module &inMod, MutantInfoList const &mInf,
@@ -295,9 +313,12 @@ public:
         mutantDGraph(mInf.getMutantsNumber()) {
     buildDependenceGraphs(mutant_depend_filename, rerundg, isFlowSensitive);
   }
+  void dumpMutantsFeaturesToCSV(std::string csvFilename) {
+    mutantDGraph.exportMutantFeaturesCSV(csvFilename);
+  }
   void smartSelectMutants(std::vector<MutantIDType> &selectedMutants,
                           std::vector<double> &selectedScores,
-                          std::string weightsJsonfilename);
+                          std::string trainedModelFilename);
   void randomMutants(std::vector<MutantIDType> &spreadSelectedMutants,
                      std::vector<MutantIDType> &dummySelectedMutants,
                      unsigned long number);

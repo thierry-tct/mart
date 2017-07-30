@@ -32,9 +32,11 @@
 
 using namespace mart;
 
+#define TOOLNAME "Mart"
+#include "tools_commondefs.h"
+
 static std::string outputDir("mart-out-");
 static const std::string mutantsFolder("mutants.out");
-static const std::string mutantsInfosFileName("mutantsInfos.json");
 static const std::string generalInfo("info");
 static std::stringstream loginfo;
 static std::string outFile;
@@ -58,7 +60,7 @@ bool dumpMutantsCallback(Mutation *mutEng,
   // weak mutation
   if (wmModule) {
     llvm::outs() << "Mart@Progress: writing weak mutation...\n";
-    std::string wmFilePath = outputDir + "/" + outFile + ".WM.bc";
+    std::string wmFilePath = outputDir + "/" + outFile + wmOutIRFileSuffix;
     if (!ReadWriteIRObj::writeIR(wmModule, wmFilePath)) {
       assert(false && "Failed to output weak mutation IR file");
     }
@@ -239,16 +241,6 @@ bool dumpMutantsCallback(Mutation *mutEng,
   return true;
 }
 
-void printVersion() {
-  llvm::outs() << "\nMart (Framework for Multi-Programming Language Mutation "
-                  "Testing based on LLVM)\n";
-  llvm::outs() << "\tMart 1.0\n";
-  llvm::outs() << "\nLLVM (http://llvm.org/):\n";
-  llvm::outs() << "\tLLVM version " << LLVM_VERSION_MAJOR << "."
-               << LLVM_VERSION_MINOR << "." << LLVM_VERSION_PATCH << "\n";
-  llvm::outs() << "\tLLVM tools dir: " << LLVM_TOOLS_BINARY_DIR << "\n";
-  llvm::outs() << "\n";
-}
 
 int main(int argc, char **argv) {
 // Remove the option we don't want to display in help
@@ -316,18 +308,7 @@ int main(int argc, char **argv) {
   bool dumpMetaObj = false;
 #endif //#ifdef MART_SEMU_GENMU_OBJECTFILE
 
-  char *tmpStr = nullptr;
-
-  std::string useful_conf_dir;
-
-  tmpStr = new char[1 + std::strlen(argv[0])]; // Alocate tmpStr1
-  std::strcpy(tmpStr, argv[0]);
-  useful_conf_dir.assign(dirname(tmpStr)); // TODO: check this for install,
-                                           // where to put useful. (see klee's)
-  delete[] tmpStr;
-  tmpStr = nullptr; // del tmpStr1
-
-  useful_conf_dir += "/useful/";
+  std::string useful_conf_dir = getUsefulAbsPath(argv[0]);
 
   const char *defaultMconfFile = "mconf-scope/default_allmax.mconf";
 
@@ -427,6 +408,7 @@ int main(int argc, char **argv) {
 
   //@ Output file name root
 
+  char *tmpStr = nullptr;
   tmpStr = new char[1 + inputIRfile.length()]; // Alocate tmpStr2
   std::strcpy(tmpStr, inputIRfile.c_str());
   outFile.assign(
@@ -446,13 +428,13 @@ int main(int argc, char **argv) {
 
   //@ Store Phi2Mem-preprocessed module with the same name of the input file
   if (!ReadWriteIRObj::writeIR(preProPhi2MemModule.get(),
-                               outputDir + "/" + outFile + ".bc"))
+                               outputDir + "/" + outFile + commonIRSuffix))
     assert(false && "Failed to output Phi-preprocessed IR file");
 
   //@ Print pre-TCE meta-mutant
   if (dumpPreTCEMeta) {
     if (!ReadWriteIRObj::writeIR(moduleM, outputDir + "/" + outFile +
-                                              ".preTCE.MetaMu.bc"))
+                                              preTCEMetaIRFileSuffix))
       assert(false && "Failed to output pre-TCE meta-mutatant IR file");
     // mut.dumpMutantInfos (outputDir+"//"+outFile+"mutantLocs-preTCE.json");
   }
@@ -478,7 +460,7 @@ int main(int argc, char **argv) {
   //@ Print post-TCE meta-mutant
   if (!disableDumpMetaIRbc) {
     if (!ReadWriteIRObj::writeIR(moduleM,
-                                 outputDir + "/" + outFile + ".MetaMu.bc"))
+                                 outputDir + "/" + outFile + metaMuIRFileSuffix))
       assert(false && "Failed to output post-TCE meta-mutatant IR file");
   }
 
@@ -522,7 +504,7 @@ mutantsDir+"//"+std::to_string(mid)+"//"+outFile+".bc"))
 #endif
     // TODO: insert mutant selection code into the cloned module
     if (!ReadWriteIRObj::writeObj(forObjModule.get(),
-                                  outputDir + "/" + outFile + ".MetaMu.o"))
+                                  outputDir + "/" + outFile + metaMuObjFileSuffix))
       assert(false && "Failed to output meta-mutatant object file");
   }
 #endif //#ifdef MART_SEMU_GENMU_OBJECTFILE

@@ -4,3 +4,6 @@
 [submodule "lib/third-parties/dg"]
 	path = lib/third-parties/dg
 	url = https://github.com/mchalupa/dg.git
+[submodule "lib/third-parties/FastBDT"]
+	path = lib/third-parties/FastBDT
+	url = https://github.com/thomaskeck/FastBDT.git

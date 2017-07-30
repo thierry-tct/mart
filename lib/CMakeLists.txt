@@ -1,6 +1,7 @@
 if (MART_SEMU_GENMU)
 
     include_directories( ${CMAKE_CURRENT_SOURCE_DIR}/operatorsClasses )
+    #include_directories(${CMAKE_CURRENT_BINARY_DIR}/third-parties/FastBDT/include)
     #include_directories( ${CMAKE_CURRENT_SOURCE_DIR}/third-parties )
     
     add_custom_command ( OUTPUT ${CMAKE_CURRENT_SOURCE_DIR}/AUTOGEN_mutation_op_headers.h.inc
@@ -41,14 +42,15 @@ if (MART_SEMU_GENMU)
     
     #Mutant Selection
     add_subdirectory(third-parties/dg)     #Add dg build dir
+    add_subdirectory(third-parties/FastBDT)     #Add FastBDT build dir
     add_library(MutantSelection SHARED
         mutantsSelection/MutantSelection.cpp
     )
-    target_include_directories( MutantSelection PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/third-parties/dg/src )
-    target_link_libraries(MutantSelection UserMaps JsonBox LLVMdg) #LLVMpta PTA RD 
+    target_include_directories( MutantSelection PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/third-parties/dg/src ${CMAKE_CURRENT_BINARY_DIR}/third-parties/FastBDT/include)
+    target_link_libraries(MutantSelection UserMaps JsonBox LLVMdg FastBDT_shared) #LLVMpta PTA RD 
         
-	install(TARGETS KLEE-SEMu-GenMu MutantSelection
-		LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR})
+    install(TARGETS KLEE-SEMu-GenMu MutantSelection
+            LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR})
 
     install(FILES
             mutation.h
