@@ -359,114 +359,114 @@ void MutantDependenceGraph::computeMutantFeatures(std::vector<std::vector<float>
   const std::string nsuff_outctrldep("-outctrldep");
   const std::string nsuff_inctrldep("-inctrldep");
 
-  std::unordered_map<std::string, std::vector<float> *> mutantFeatures;
+  std::unordered_map<std::string, unsigned long long> mutantFeatures;
   // insert features names
   features_matrix.emplace_back();
   features_matrix.back().reserve(nummuts);
   features_names.emplace_back("Complexity");
-  mutantFeatures[features_names.back()] = &features_matrix.back();
+  mutantFeatures[features_names.back()] = features_matrix.size() - 1;
   
   features_matrix.emplace_back();
   features_matrix.back().reserve(nummuts);
   features_names.emplace_back("CfgDepth");
-  mutantFeatures[features_names.back()] = &features_matrix.back();
+  mutantFeatures[features_names.back()] = features_matrix.size() - 1;
   
   features_matrix.emplace_back();
   features_matrix.back().reserve(nummuts);
   features_names.emplace_back("CfgPredNum");
-  mutantFeatures[features_names.back()] = &features_matrix.back();
+  mutantFeatures[features_names.back()] = features_matrix.size() - 1;
   
   features_matrix.emplace_back();
   features_matrix.back().reserve(nummuts);
   features_names.emplace_back("CfgSuccNum");
-  mutantFeatures[features_names.back()] = &features_matrix.back();
+  mutantFeatures[features_names.back()] = features_matrix.size() - 1;
   
   features_matrix.emplace_back();
   features_matrix.back().reserve(nummuts);
   features_names.emplace_back("AstNumParents");
-  mutantFeatures[features_names.back()] = &features_matrix.back();
+  mutantFeatures[features_names.back()] = features_matrix.size() - 1;
   
   features_matrix.emplace_back();
   features_matrix.back().reserve(nummuts);
   features_names.emplace_back("NumOutDataDeps");
-  mutantFeatures[features_names.back()] = &features_matrix.back();
+  mutantFeatures[features_names.back()] = features_matrix.size() - 1;
   
   features_matrix.emplace_back();
   features_matrix.back().reserve(nummuts);
   features_names.emplace_back("NumInDataDeps");
-  mutantFeatures[features_names.back()] = &features_matrix.back();
+  mutantFeatures[features_names.back()] = features_matrix.size() - 1;
   
   features_matrix.emplace_back();
   features_matrix.back().reserve(nummuts);
   features_names.emplace_back("NumOutCtrlDeps");
-  mutantFeatures[features_names.back()] = &features_matrix.back();
+  mutantFeatures[features_names.back()] = features_matrix.size() - 1;
   
   features_matrix.emplace_back();
   features_matrix.back().reserve(nummuts);
   features_names.emplace_back("NumInCtrlDeps");
-  mutantFeatures[features_names.back()] = &features_matrix.back();
+  mutantFeatures[features_names.back()] = features_matrix.size() - 1;
   
   features_matrix.emplace_back();
   features_matrix.back().reserve(nummuts);
   features_names.emplace_back("NumTieDeps");
-  mutantFeatures[features_names.back()] = &features_matrix.back();
+  mutantFeatures[features_names.back()] = features_matrix.size() - 1;
   
   features_matrix.emplace_back();
   features_matrix.back().reserve(nummuts);
   features_names.emplace_back("AstParentsNumOutDataDeps");
-  mutantFeatures[features_names.back()] = &features_matrix.back();
+  mutantFeatures[features_names.back()] = features_matrix.size() - 1;
   
   features_matrix.emplace_back();
   features_matrix.back().reserve(nummuts);
   features_names.emplace_back("AstParentsNumInDataDeps");
-  mutantFeatures[features_names.back()] = &features_matrix.back();
+  mutantFeatures[features_names.back()] = features_matrix.size() - 1;
   
   features_matrix.emplace_back();
   features_matrix.back().reserve(nummuts);
   features_names.emplace_back("AstParentsNumOutCtrlDeps");
-  mutantFeatures[features_names.back()] = &features_matrix.back();
+  mutantFeatures[features_names.back()] = features_matrix.size() - 1;
   
   features_matrix.emplace_back();
   features_matrix.back().reserve(nummuts);
   features_names.emplace_back("AstParentsNumInCtrlDeps");
-  mutantFeatures[features_names.back()] = &features_matrix.back();
+  mutantFeatures[features_names.back()] = features_matrix.size() - 1;
   
   features_matrix.emplace_back();
   features_matrix.back().reserve(nummuts);
   features_names.emplace_back("AstParentsNumTieDeps");
-  mutantFeatures[features_names.back()] = &features_matrix.back();
+  mutantFeatures[features_names.back()] = features_matrix.size() - 1;
   
   // mutant typename as one hot form
   for (auto &mtname : allMutantTypenames) {
 		features_matrix.emplace_back();
 		features_matrix.back().reserve(nummuts);
 		features_names.emplace_back(mtname);
-    mutantFeatures[features_names.back()] = &features_matrix.back(); // mutant's XXX
+    mutantFeatures[features_names.back()] = features_matrix.size() - 1; // mutant's XXX
     
     features_matrix.emplace_back();
 		features_matrix.back().reserve(nummuts);
 		features_names.emplace_back(mtname + nsuff_astparent);
-    mutantFeatures[features_names.back()] = &features_matrix.back();
+    mutantFeatures[features_names.back()] = features_matrix.size() - 1;
     
     features_matrix.emplace_back();
 		features_matrix.back().reserve(nummuts);
 		features_names.emplace_back(mtname + nsuff_outdatadep);
-    mutantFeatures[features_names.back()] = &features_matrix.back();
+    mutantFeatures[features_names.back()] = features_matrix.size() - 1;
     
     features_matrix.emplace_back();
 		features_matrix.back().reserve(nummuts);
 		features_names.emplace_back(mtname + nsuff_indatadep);
-    mutantFeatures[features_names.back()] = &features_matrix.back();
+    mutantFeatures[features_names.back()] = features_matrix.size() - 1;
     
     features_matrix.emplace_back();
 		features_matrix.back().reserve(nummuts);
 		features_names.emplace_back(mtname + nsuff_outctrldep);
-    mutantFeatures[features_names.back()] = &features_matrix.back();
+    mutantFeatures[features_names.back()] = features_matrix.size() - 1;
     
     features_matrix.emplace_back();
 		features_matrix.back().reserve(nummuts);
 		features_names.emplace_back(mtname + nsuff_inctrldep);
-    mutantFeatures[features_names.back()] = &features_matrix.back();
+    mutantFeatures[features_names.back()] = features_matrix.size() - 1;
   }
   
   // stmt BB typename as one hot form
@@ -474,32 +474,32 @@ void MutantDependenceGraph::computeMutantFeatures(std::vector<std::vector<float>
   	features_matrix.emplace_back();
 		features_matrix.back().reserve(nummuts);
 		features_names.emplace_back(sbbtname);
-    mutantFeatures[features_names.back()] = &features_matrix.back();
+    mutantFeatures[features_names.back()] = features_matrix.size() - 1;
     
     features_matrix.emplace_back();
 		features_matrix.back().reserve(nummuts);
 		features_names.emplace_back(sbbtname + nsuff_astparent);
-    mutantFeatures[features_names.back()] = &features_matrix.back();
+    mutantFeatures[features_names.back()] = features_matrix.size() - 1;
     
     features_matrix.emplace_back();
 		features_matrix.back().reserve(nummuts);
 		features_names.emplace_back(sbbtname + nsuff_outdatadep);
-    mutantFeatures[features_names.back()] = &features_matrix.back();
+    mutantFeatures[features_names.back()] = features_matrix.size() - 1;
     
     features_matrix.emplace_back();
 		features_matrix.back().reserve(nummuts);
 		features_names.emplace_back(sbbtname + nsuff_indatadep);
-    mutantFeatures[features_names.back()] = &features_matrix.back();
+    mutantFeatures[features_names.back()] = features_matrix.size() - 1;
     
     features_matrix.emplace_back();
 		features_matrix.back().reserve(nummuts);
 		features_names.emplace_back(sbbtname + nsuff_outctrldep);
-    mutantFeatures[features_names.back()] = &features_matrix.back();
+    mutantFeatures[features_names.back()] = features_matrix.size() - 1;
     
     features_matrix.emplace_back();
 		features_matrix.back().reserve(nummuts);
 		features_names.emplace_back(sbbtname + nsuff_inctrldep);
-    mutantFeatures[features_names.back()] = &features_matrix.back();
+    mutantFeatures[features_names.back()] = features_matrix.size() - 1;
   }
 
 
@@ -527,6 +527,7 @@ void MutantDependenceGraph::computeMutantFeatures(std::vector<std::vector<float>
     std::unordered_set<MutantIDType> pinDataDeps;
     std::unordered_set<MutantIDType> poutCtrlDeps;
     std::unordered_set<MutantIDType> pinCtrlDeps;
+    std::unordered_set<MutantIDType> pTieDeps;
     for (auto parent_id : getAstParentsMutants(mutant_id)) {
       poutDataDeps.insert(getOutDataDependents(parent_id).begin(),
                           getOutDataDependents(parent_id).end());
@@ -536,12 +537,15 @@ void MutantDependenceGraph::computeMutantFeatures(std::vector<std::vector<float>
                           getOutCtrlDependents(parent_id).end());
       pinCtrlDeps.insert(getInCtrlDependents(parent_id).begin(),
                          getInCtrlDependents(parent_id).end());
+     	pTieDeps.insert(getTieDependents(parent_id).begin(),
+                         getTieDependents(parent_id).end());
     }
 
     featureValuesPost1Hot["AstParentsNumOutDataDeps"] = poutDataDeps.size();
     featureValuesPost1Hot["AstParentsNumInDataDeps"] = pinDataDeps.size();
     featureValuesPost1Hot["AstParentsNumOutCtrlDeps"] = poutCtrlDeps.size();
     featureValuesPost1Hot["AstParentsNumInCtrlDeps"] = pinCtrlDeps.size();
+    featureValuesPost1Hot["AstParentsNumTieDeps"] = pTieDeps.size();
 
     /// One Hot Features: first initialize all to 0 then increment as they are
     /// found
@@ -586,29 +590,28 @@ void MutantDependenceGraph::computeMutantFeatures(std::vector<std::vector<float>
     }
 
     /// Append this mutant feature values to the mutant features table
+    //llvm::errs() << mutantFeatures.size()<< " " << featureValuesPost1Hot.size()<< "\n";
     assert(mutantFeatures.size() == featureValuesPost1Hot.size() &&
            "must have same size");
     for (auto &mfIt : featureValuesPost1Hot) {
-      mutantFeatures.at(mfIt.first)->push_back(mfIt.second);
+      features_matrix.at(mutantFeatures.at(mfIt.first)).push_back(mfIt.second);
     }
   }
 
   /// Normalize each feature value between 0 and 1 to have a normalization
   /// accross programs
-  for (auto &feature_val : mutantFeatures) {
-    auto mM = std::minmax_element(feature_val.second->begin(),
-                                  feature_val.second->end());
+  for (auto &feature_val : mutantFeatures) { 
+    auto mM = std::minmax_element(features_matrix.at(feature_val.second).begin(),
+                                  features_matrix.at(feature_val.second).end());
     auto min = *(mM.first);
     auto max = *(mM.second);
     auto max_min = max - min;
 
     // normalize
     if (max > min)
-      for (auto It = feature_val.second->begin(), Ie = feature_val.second->end();
-           It != Ie; ++Ie)
+      for (auto It = features_matrix.at(feature_val.second).begin(), Ie = features_matrix.at(feature_val.second).end(); It != Ie; ++It)
         *It = (*It - min) / max_min;
   }
-  
   assert (mutantFeatures.size() == features_matrix.size() && mutantFeatures.size() == features_names.size() && "@MutantSelection: Please report Bug!");
 }
 

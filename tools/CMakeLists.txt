@@ -5,16 +5,29 @@ if (MART_SEMU_GENMU)
 	string(REGEX REPLACE "\n$" "" GITVERSION "${GITVERSION}")
 	add_definitions(-DGIT_VERSION="${GITVERSION}")
 
+    # Mutation
 	add_executable(mart Mart.cpp)
 	target_link_libraries(mart KLEE-SEMu-GenMu)
 
 	install(TARGETS mart
 		RUNTIME DESTINATION bin)
 		
+    # Selection
+    add_executable(mart-selection Mart-Selection.cpp)
+	target_link_libraries(mart-selection MutantSelection)
+	install(TARGETS mart-selection
+		RUNTIME DESTINATION bin)
+		
+	# Training predictor
+	add_executable(mart-training Mart-Training.cpp)
+	target_link_libraries(mart-training MutantSelection)
+	install(TARGETS mart-training
+		RUNTIME DESTINATION bin)
+		
 	# WM Log Driver
-	add_custom_command ( OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/useful/wmlog-driver.bc ${CMAKE_CURRENT_BINARY_DIR}/useful/CompileAllMuts.sh  ${CMAKE_CURRENT_BINARY_DIR}/useful/create_mconf.py ${CMAKE_CURRENT_BINARY_DIR}/useful/mconf-scope/default_allmax.mconf
+	add_custom_command ( OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/useful/wmlog-driver.bc ${CMAKE_CURRENT_BINARY_DIR}/useful/CompileAllMuts.sh  ${CMAKE_CURRENT_BINARY_DIR}/useful/create_mconf.py ${CMAKE_CURRENT_BINARY_DIR}/useful/mconf-scope/default_allmax.mconf ${CMAKE_CURRENT_BINARY_DIR}/useful/trained-models/default-trained.model
                  POST_BUILD 
-                 DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/useful/wmlog-driver.c ${CMAKE_CURRENT_SOURCE_DIR}/useful/CompileAllMuts.sh ${CMAKE_CURRENT_SOURCE_DIR}/useful/create_mconf.py
+                 DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/useful/wmlog-driver.c ${CMAKE_CURRENT_SOURCE_DIR}/useful/CompileAllMuts.sh ${CMAKE_CURRENT_SOURCE_DIR}/useful/create_mconf.py ${CMAKE_CURRENT_SOURCE_DIR}/useful/trained-models/default-trained.model
                  COMMAND mkdir -p ${CMAKE_CURRENT_BINARY_DIR}/useful/mconf-scope
                  COMMAND ${LLVM_BUILD_PATH}/bin/clang -c -emit-llvm ${CMAKE_CURRENT_SOURCE_DIR}/useful/wmlog-driver.c -o  ${CMAKE_CURRENT_BINARY_DIR}/useful/wmlog-driver.bc
                  COMMAND cp -f ${CMAKE_CURRENT_SOURCE_DIR}/useful/CompileAllMuts.sh ${CMAKE_CURRENT_BINARY_DIR}/useful/CompileAllMuts.sh
@@ -22,19 +35,17 @@ if (MART_SEMU_GENMU)
                  COMMAND cp -f ${CMAKE_CURRENT_SOURCE_DIR}/useful/create_mconf.py ${CMAKE_CURRENT_BINARY_DIR}/useful/create_mconf.py
                  COMMAND python ${CMAKE_CURRENT_BINARY_DIR}/useful/create_mconf.py ${CMAKE_CURRENT_BINARY_DIR}/useful/mconf-scope/default_allmax.mconf > /dev/null
                  
+                 # prediction model
+                 COMMAND mkdir -p ${CMAKE_CURRENT_BINARY_DIR}/useful/trained-models
+                 COMMAND cp -f ${CMAKE_CURRENT_SOURCE_DIR}/useful/trained-models/default-trained.model ${CMAKE_CURRENT_BINARY_DIR}/useful/trained-models/default-trained.model
+                 
                  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/)
     
     add_custom_target(
                  Compilewmlogdriver ALL
-                 DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/useful/wmlog-driver.bc ${CMAKE_CURRENT_BINARY_DIR}/useful/CompileAllMuts.sh ${CMAKE_CURRENT_BINARY_DIR}/useful/create_mconf.py ${CMAKE_CURRENT_BINARY_DIR}/useful/mconf-scope/default_allmax.mconf
+                 DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/useful/wmlog-driver.bc ${CMAKE_CURRENT_BINARY_DIR}/useful/CompileAllMuts.sh ${CMAKE_CURRENT_BINARY_DIR}/useful/create_mconf.py ${CMAKE_CURRENT_BINARY_DIR}/useful/mconf-scope/default_allmax.mconf ${CMAKE_CURRENT_BINARY_DIR}/useful/trained-models/default-trained.model
                 )
             
-    # Selection
-    add_executable(mart-selection Mart-Selection.cpp)
-	target_link_libraries(mart-selection MutantSelection)
-	install(TARGETS mart-selection
-		RUNTIME DESTINATION bin)
-                
 endif (MART_SEMU_GENMU)
 
 include_directories('../lib')
