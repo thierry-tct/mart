@@ -66,6 +66,7 @@ void PredictionModule::predict (std::vector<std::vector<float>> const &X_matrix,
 /// Train model and write model into predictionModelFilename
 /// Each contained vector correspond to a feature
 void PredictionModule::train (std::vector<std::vector<float>> const &X_matrix, std::vector<bool> const &isCoupled) {
+	assert (!X_matrix.empty() && !isCoupled.empty() && "Error: calling train with empty data");
   std::vector<float> weights (X_matrix.back().size(), 1.0);
   FastBDT::Classifier classifier;
   classifier.fit(X_matrix, isCoupled, weights);
@@ -1012,13 +1013,16 @@ void MutantSelection::smartSelectMutants(
   /// to be coupled, for each mutant
   std::vector<float> isCoupledProbability;
   getMachineLearningPrediction(isCoupledProbability, trainedModelFilename);
+  assert (isCoupledProbability.size() == mutants_number && "returned prediction list do not match with number of mutants");
 
   // XXX TODO: temporary
   for (MutantIDType mid=1; mid <= mutants_number; ++mid)
-    if (isCoupledProbability[mid-1] > 0.5) selectedMutants.push_back(isCoupledProbability[mid-1]);
-  for (MutantIDType mid=1; mid <= mutants_number; ++mid)
-    if (isCoupledProbability[mid-1] <= 0.5) selectedMutants.push_back(isCoupledProbability[mid-1]);
-  selectedScores.insert(selectedScores.end(), isCoupledProbability.begin(), isCoupledProbability.end());
+  	selectedMutants.push_back(mid);
+  std::sort(selectedMutants.begin(), selectedMutants.end(), [isCoupledProbability](MutantIDType a, MutantIDType b) {
+        return (isCoupledProbability[a-1] > isCoupledProbability[b-1]);   
+  });
+  //for (auto i : selectedMutants) llvm::errs() << isCoupledProbability[i-1] << " ";
+  selectedScores.insert(selectedScores.end(), isCoupledProbability.begin(), isCoupledProbability.end());  //INCORRECT this line, just to fill..
   return;  // TODO TODO TODO
 
   // Choose starting mutants (random for now: 1 mutant per dependency cluster)

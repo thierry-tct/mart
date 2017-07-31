@@ -41,11 +41,11 @@ void loadDescription (std::string inputDescriptionFile, std::vector<std::pair<st
   }
 }
 
-void readXY (std::string fileX, std::string fileY, std::unordered_map<std::string, std::vector<float>> matrixX, std::vector<bool> vectorY) {
+void readXY (std::string const &fileX, std::string const &fileY, std::unordered_map<std::string, std::vector<float>> &matrixX, std::vector<bool> &vectorY) {
   //read Y
   std::ifstream listin(fileY);
   std::string line;
-  std::getline(listin, line);  //read the headeer and discard
+  std::getline(listin, line);  //read the header and discard
   int isCoupled;
   while(std::getline(listin, line)) {
     std::istringstream ssin(line);
@@ -83,7 +83,7 @@ void readXY (std::string fileX, std::string fileY, std::unordered_map<std::strin
   assert (vectorY.size() == matrixX.begin()->second.size());
 }
 
-void merge2into1(std::unordered_map<std::string, std::vector<float>> matrixX1, std::vector<bool> vectorY1, std::unordered_map<std::string, std::vector<float>> matrixX2, std::vector<bool> vectorY2, std::string size) {
+void merge2into1(std::unordered_map<std::string, std::vector<float>> &matrixX1, std::vector<bool> &vectorY1, std::unordered_map<std::string, std::vector<float>> const &matrixX2, std::vector<bool> const &vectorY2, std::string const &size) {
   auto curTotNMuts = vectorY1.size();
   std::vector<MutantIDType> eventsIndices(vectorY2.size(), 0);
   for (MutantIDType v=0, ve = vectorY2.size(); v < ve; ++v)
@@ -93,7 +93,7 @@ void merge2into1(std::unordered_map<std::string, std::vector<float>> matrixX1, s
   
   MutantIDType num_muts = eventsIndices.size();
   if (size.back() == '%') {
-    num_muts *= std::min((MutantIDType)100, (MutantIDType)std::stoul(size)) / 100;
+    num_muts = (num_muts * std::min((MutantIDType)100, (MutantIDType)std::stoul(size))) / 100;
   } else {
     num_muts = std::min((MutantIDType)num_muts, (MutantIDType)std::stoul(size));
   }
@@ -175,11 +175,13 @@ int main(int argc, char **argv) {
     programTrainSets.emplace_back(Xfilename, Yfilename);
   }
 
+  llvm::outs() << "# Specified " << programTrainSets.size() << " projects sets in description.\n";
+  
   /// Construct the data for the prediction
   // get the actual training size
   unsigned long num_programs = programTrainSets.size();
   if (trainingSetProgramSize.back() == '%') {
-    num_programs *= std::min((unsigned long)100, std::stoul(trainingSetProgramSize)) / 100;
+    num_programs = (num_programs * std::min((unsigned long)100, std::stoul(trainingSetProgramSize))) / 100;
   } else {
     num_programs = std::min(num_programs, std::stoul(trainingSetProgramSize));
   }
@@ -200,8 +202,6 @@ int main(int argc, char **argv) {
       selectedPrograms.push_back(pos);
   }
 
-  // missing value (features related to one hot encoding) are filled with 0
-  //TODO
   std::vector<std::vector<float>> Xmatrix;
   std::vector<bool> Yvector;
   
@@ -209,15 +209,30 @@ int main(int argc, char **argv) {
   std::unordered_map<std::string, std::vector<float>> tmpXmapmatrix;
   std::vector<bool> tmpYvector;
 
-  for (auto &pair: programTrainSets) {
-    readXY (pair.first, pair.second, tmpXmapmatrix, tmpYvector);
-    merge2into1(Xmapmatrix, Yvector, tmpXmapmatrix, tmpYvector, trainingSetEventSize);
+  llvm::outs() << "# Loading CSVs for " << selectedPrograms.size() << " programs ...\n";
+  
+  //for (auto &pair: programTrainSets) {
+  for (auto posindex: selectedPrograms) {
+    auto &pair = programTrainSets.at(posindex);
+    tmpXmapmatrix.clear();
+    tmpYvector.clear();
+    readXY (pair.first, pair.second, tmpXmapmatrix, tmpYvector);  //time costly
+    merge2into1(Xmapmatrix, Yvector, tmpXmapmatrix, tmpYvector, trainingSetEventSize); 
   }
+  
+  llvm::outs() << "# CSVs Loaded. Preparing training data ...\n";
   
   // convert Xmapmatrix to Xmatrix
   for (auto &it: Xmapmatrix) {
     Xmatrix.push_back(it.second);
   }
+  
+  //verify data
+  assert (!Yvector.empty() && !Xmatrix.empty() && "mart-training@error: training data cannot be empty");
+  for (auto featVect: Xmatrix)
+    assert (featVect.size() == Yvector.size() && "mart-training@error: all feature vector in X must have same size with Y");
+  
+  llvm::outs() << "# X Matrix and Y Vector ready. Training ...\n";
   
   PredictionModule predmod(outputModelFilename);
   predmod.train(Xmatrix, Yvector);
