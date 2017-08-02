@@ -34,6 +34,10 @@ namespace selection {
 
 class PredictionModule {
   std::string modelFilename;
+  void fastBDTPredict (std::vector<std::vector<float>> const &X_matrix, std::vector<float> &prediction);
+  void fastBDTTrain (std::vector<std::vector<float>> const &X_matrix, std::vector<bool> const &isCoupled);
+  void randomForestPredict (std::vector<std::vector<float>> const &X_matrix, std::vector<float> &prediction);
+  void randomForestTrain (std::vector<std::vector<float>> const &X_matrix, std::vector<bool> const &isCoupled);
 public:
   PredictionModule (std::string modelfile): modelFilename(modelfile) {}
   /// make prediction for data in @param X_matrix and put the results into prediction
@@ -165,6 +169,12 @@ private:
     mutantDGraphData[id].higherHopsInCtrlDependents.emplace_back();
     return mutantDGraphData[id].higherHopsInCtrlDependents.back();
   }
+  
+  /// Make MCL expansions for a adjacency matrix
+  //void graphMCL (std::vector<std::vector<float>> &adjacencyMatrix);
+  
+  /// make a graph using DD, CD as edges (higher edge weight to DD). Each node on the graph correspond to tie dependent mutants 
+  //void computeMarkovCLusters (std::vector<std::vector<MutantIDType>> &clusters);
 
 public:
   MutantDependenceGraph(MutantIDType nMuts) {
@@ -317,8 +327,9 @@ public:
     mutantDGraph.exportMutantFeaturesCSV(csvFilename);
   }
   void smartSelectMutants(std::vector<MutantIDType> &selectedMutants,
-                          std::vector<double> &selectedScores,
-                          std::string trainedModelFilename);
+                          //std::vector<double> &selectedScores,
+                          std::vector<float> &cachedPrediction,
+                          std::string trainedModelFilename, bool mlOnly);
   void randomMutants(std::vector<MutantIDType> &spreadSelectedMutants,
                      std::vector<MutantIDType> &dummySelectedMutants,
                      unsigned long number);

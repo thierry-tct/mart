@@ -1078,7 +1078,7 @@ struct StatementSearch {
       llvm::errs() << "Error (Mutation::doMutate): Problem with IR - "
                       "statements are not atomic ("
                    << stmtIRcount
-                   << "). Maybe reg2mem was applied to input module...\n";
+                   << "). Maybe mem2reg was applied to input module...\n";
       for (auto *rr : matchStmtIR.toMatchIRs)          // DEBUG
         llvm::dyn_cast<llvm::Instruction>(rr)->dump(); // DEBUG
       assert(false);

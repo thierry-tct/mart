@@ -230,8 +230,9 @@ int main(int argc, char **argv) {
       llvm::errs() << "Mart@Warning: Nothing Done because selection and dump features disabled\n";
   } else {
     std::string smartSelectionOutJson = outDir + "/" + "smartSelection.json";
-    std::string scoresForSmartSelectionOutJson =
-        outDir + "/" + "scoresForSmartSelection.json";
+    std::string mlOnlySelectionOutJson = outDir + "/" + "mlOnlySelection.json";
+    //std::string scoresForSmartSelectionOutJson =
+    //    outDir + "/" + "scoresForSmartSelection.json";
     std::string randomSDLelectionOutJson =
         outDir + "/" + "randomSDLSelection.json";
     std::string spreadRandomSelectionOutJson =
@@ -246,15 +247,17 @@ int main(int argc, char **argv) {
     curClockTime = clock();
     selectedMutants1.clear();
     selectedMutants1.resize(numberOfRandomSelections);
-    std::vector<double> selectedScores;
+    //std::vector<double> selectedScores;
+    // to make experiment faster XXX: Note to take this in consideration when 
+    // measuring the algorithm time
+    std::vector<float> cachedPrediction;
     for (unsigned si = 0; si < numberOfRandomSelections; ++si) {
-      selectedScores.clear(); // FIXME: for repetition if useful, get all datas
-      selection.smartSelectMutants(selectedMutants1[si], selectedScores,
-                                   smartSelectionTrainedModel);
+      selection.smartSelectMutants(selectedMutants1[si], cachedPrediction,
+                                   smartSelectionTrainedModel, false/*mlOnly*/);
     }
     mutantListAsJsON<MutantIDType>(selectedMutants1, smartSelectionOutJson);
-    mutantListAsJsON<double>(std::vector<std::vector<double>>({selectedScores}),
-                             scoresForSmartSelectionOutJson);
+    //mutantListAsJsON<double>(std::vector<std::vector<double>>({selectedScores}),
+    //                         scoresForSmartSelectionOutJson);
     llvm::outs() << "Mart@Progress: smart selection took: "
                  << (float)(clock() - curClockTime) / CLOCKS_PER_SEC
                  << " Seconds.\n";
@@ -264,6 +267,26 @@ int main(int argc, char **argv) {
     number = selectedMutants1.back().size();
     assert(number == mutantInfo.getMutantsNumber() &&
            "The number of mutants mismatch. Bug in Selection function!");
+           
+    
+    llvm::outs() << "Doing ML Only Selection...\n";
+    curClockTime = clock();
+    selectedMutants1.clear();
+    selectedMutants1.resize(numberOfRandomSelections);
+    //std::vector<double> selectedScores;
+    // to make experiment faster XXX: Note to take this in consideration when 
+    // measuring the algorithm time
+    for (unsigned si = 0; si < numberOfRandomSelections; ++si) {
+      selection.smartSelectMutants(selectedMutants1[si], cachedPrediction,
+                                   smartSelectionTrainedModel, true/*mlOnly*/);
+    }
+    mutantListAsJsON<MutantIDType>(selectedMutants1, mlOnlySelectionOutJson);
+    llvm::outs() << "Mart@Progress: ML Only selection took: "
+                 << (float)(clock() - curClockTime) / CLOCKS_PER_SEC
+                 << " Seconds.\n";
+    loginfo << "Mart@Progress: ML Only selection took: "
+            << (float)(clock() - curClockTime) / CLOCKS_PER_SEC << " Seconds.\n";
+
 
     llvm::outs() << "Doing dummy and spread random selection...\n";
     curClockTime = clock();

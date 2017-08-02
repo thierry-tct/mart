@@ -26,6 +26,9 @@ using namespace mart::selection;
 #define TOOLNAME "Mart-Training"
 #include "tools_commondefs.h"
 
+#define NaN (0.0)
+
+
 void loadDescription (std::string inputDescriptionFile, std::vector<std::pair<std::string, std::string>> &programTrainSets) {
   std::ifstream csvin(inputDescriptionFile);
   std::string line;
@@ -100,7 +103,7 @@ void merge2into1(std::unordered_map<std::string, std::vector<float>> &matrixX1, 
   num_muts = std::max(num_muts, (MutantIDType)1);
   eventsIndices.resize(num_muts);
   
-  auto missing = 0.0/0.0;
+  auto missing = NaN;
   //equilibrate by adding missing features into matrixX1  
   for (auto &feat_It: matrixX2) 
     if (matrixX1.count(feat_It.first) == 0){
@@ -236,6 +239,27 @@ int main(int argc, char **argv) {
   
   PredictionModule predmod(outputModelFilename);
   predmod.train(Xmatrix, Yvector);
+  
+  //Check prediction score
+  float sum = 0;
+  unsigned ntruecoupl, numcorrect, couplecorrect, npredcoupl;
+  numcorrect = couplecorrect = npredcoupl = ntruecoupl = 0;
+  std::vector<float> scores;
+  predmod.predict(Xmatrix, scores);
+  for(unsigned int i = 0; i < scores.size(); ++i) { 
+    if (Yvector[i]-scores[i] < 0.5 && Yvector[i]-scores[i] > -0.5) 
+        numcorrect++;
+    if (scores[i]>0.5) 
+        npredcoupl++;
+    if (Yvector[i]) {
+      ntruecoupl++;
+      if (Yvector[i]-scores[i] < 0.5 && Yvector[i]-scores[i] > -0.5) 
+        couplecorrect++;
+    }
+    sum += (static_cast<int>(Yvector[i])-scores[i])*(static_cast<int>(Yvector[i])-scores[i]); 
+  } 
+  llvm::errs() << "SUM: " << sum << ", Acc: " << numcorrect*100.0/Yvector.size() << ", Coupled Acc:" << 100.0*couplecorrect/npredcoupl << ", Coupled Found: " << 100.0*couplecorrect/ntruecoupl << "\n"; 
+
 
   std::cout << "\n# Training completed, model written to file " << outputModelFilename << "\n\n";
   return 0;

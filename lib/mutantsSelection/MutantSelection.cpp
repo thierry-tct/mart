@@ -22,6 +22,11 @@
 //https://github.com/thomaskeck/FastBDT
 #include "../third-parties/FastBDT/include/Classifier.h"   //FastBDT
 
+//https://github.com/bjoern-andres/random-forest
+#include "../third-parties/random-forest/include/andres/marray.hxx" 
+#include "../third-parties/random-forest/include/andres/ml/decision-trees.hxx" 
+
+
 #ifndef ENABLE_CFG
 #define ENABLE_CFG // needed by dg
 #endif
@@ -43,13 +48,11 @@ using namespace mart::selection;
 namespace {
 const double MAX_SCORE = 1.0;
 const double RELAX_STEP = 0.05 / AMPLIFIER;
-const double RELAX_THRESHOLD = 0.05 / AMPLIFIER; // 1 hops
+const double RELAX_THRESHOLD = 0.01 / AMPLIFIER; // 5 hops
 const double TIE_REDUCTION_DIFF = 0.03 / AMPLIFIER;
 }
 
-/// make prediction for data in @param X_matrix and put the results into prediction
-/// Each contained vector correspond to a feature
-void PredictionModule::predict (std::vector<std::vector<float>> const &X_matrix, std::vector<float> &prediction) {
+void PredictionModule::fastBDTPredict (std::vector<std::vector<float>> const &X_matrix, std::vector<float> &prediction) {
   std::fstream in_stream(modelFilename, std::ios_base::in);
   FastBDT::Classifier classifier(in_stream);
   std::vector<float> event;
@@ -63,18 +66,71 @@ void PredictionModule::predict (std::vector<std::vector<float>> const &X_matrix,
   }
 }
 
-/// Train model and write model into predictionModelFilename
-/// Each contained vector correspond to a feature
-void PredictionModule::train (std::vector<std::vector<float>> const &X_matrix, std::vector<bool> const &isCoupled) {
+void PredictionModule::fastBDTTrain (std::vector<std::vector<float>> const &X_matrix, std::vector<bool> const &isCoupled) {
 	assert (!X_matrix.empty() && !isCoupled.empty() && "Error: calling train with empty data");
   std::vector<float> weights (X_matrix.back().size(), 1.0);
   FastBDT::Classifier classifier;
+  classifier.SetNTrees(2000); 
+  classifier.SetDepth(5); 
   classifier.fit(X_matrix, isCoupled, weights);
   //std::cout << "Score " << GetIrisScore(classifier) << std::endl;
   std::fstream out_stream(modelFilename, std::ios_base::out | std::ios_base::trunc);
   out_stream << classifier << std::endl;
   out_stream.close();
 }
+
+void PredictionModule::randomForestPredict (std::vector<std::vector<float>> const &X_matrix, std::vector<float> &prediction) {
+  std::fstream in_stream(modelFilename, std::ios_base::in);
+  andres::ml::DecisionForest<double, unsigned char, double> decisionForest;
+  decisionForest.deserialize(in_stream);
+  auto nFeatures = X_matrix.size();
+  auto nEvents = X_matrix.back().size();
+  andres::Matrix<double> features(nEvents, nFeatures);
+  andres::Vector<double> probabilities; 
+  for (unsigned col=0; col < nFeatures; ++col)
+    for (MutantIDType row=0, lastr=nEvents; row < lastr; ++row)
+      features(row, col) = X_matrix[col][row];
+  decisionForest.predict(features, probabilities); 
+
+  for(auto p_val: probabilities) 
+    prediction.push_back(p_val);
+}
+
+void PredictionModule::randomForestTrain (std::vector<std::vector<float>> const &X_matrix, std::vector<bool> const &isCoupled) {
+	assert (!X_matrix.empty() && !isCoupled.empty() && "Error: calling train with empty data");
+  std::vector<float> weights (X_matrix.back().size(), 1.0);
+  andres::ml::DecisionForest<double, unsigned char, double> decisionForest;
+  const size_t numberOfDecisionTrees = 1;  ///10 
+  auto nFeatures = X_matrix.size();
+  auto nEvents = X_matrix.back().size();
+  andres::Matrix<double> features(nEvents, nFeatures);
+  andres::Vector<unsigned char> labels(isCoupled.size());
+  for (MutantIDType row=0, lastr = nEvents; row < lastr; ++row)
+    labels[row] = (char)isCoupled[row];
+  for (unsigned col=0; col < nFeatures; ++col)
+    for (MutantIDType row=0, lastr = nEvents; row < lastr; ++row)
+      features(row, col) = X_matrix[col][row];
+  decisionForest.learn(features, labels, numberOfDecisionTrees);
+  std::fstream out_stream(modelFilename, std::ios_base::out | std::ios_base::trunc);
+  decisionForest.serialize(out_stream);
+  out_stream.close();
+}
+
+/// make prediction for data in @param X_matrix and put the results into prediction
+/// Each contained vector correspond to a feature
+void PredictionModule::predict (std::vector<std::vector<float>> const &X_matrix, std::vector<float> &prediction) {
+  fastBDTPredict(X_matrix, prediction);
+  //randomForestPredict(X_matrix, prediction);
+}
+
+/// Train model and write model into predictionModelFilename
+/// Each contained vector correspond to a feature
+void PredictionModule::train (std::vector<std::vector<float>> const &X_matrix, std::vector<bool> const &isCoupled) {
+  fastBDTTrain(X_matrix, isCoupled);
+  //randomForestTrain(X_matrix, isCoupled);
+}
+
+
 
 // class MutantDependenceGraph
 /// This Function is written using dg's DG2Dot.h... as reference
@@ -1002,40 +1058,69 @@ void MutantSelection::getMachineLearningPrediction(std::vector<float> &couplingP
  */
 void MutantSelection::smartSelectMutants(
     std::vector<MutantIDType> &selectedMutants,
-    std::vector<double> &selectedScores, std::string trainedModelFilename) {
+    std::vector<float> &cachedPrediction, std::string trainedModelFilename, bool mlOnly) {
 
   MutantIDType mutants_number = mutantInfos.getMutantsNumber();
 
   selectedMutants.reserve(mutants_number);
-  selectedScores.reserve(mutants_number);
   
-  /// Get Machine Learning coupling prediction into a vector as probability 
-  /// to be coupled, for each mutant
-  std::vector<float> isCoupledProbability;
-  getMachineLearningPrediction(isCoupledProbability, trainedModelFilename);
-  assert (isCoupledProbability.size() == mutants_number && "returned prediction list do not match with number of mutants");
-
-  // XXX TODO: temporary
-  for (MutantIDType mid=1; mid <= mutants_number; ++mid)
-  	selectedMutants.push_back(mid);
-  std::sort(selectedMutants.begin(), selectedMutants.end(), [isCoupledProbability](MutantIDType a, MutantIDType b) {
-        return (isCoupledProbability[a-1] > isCoupledProbability[b-1]);   
-  });
-  //for (auto i : selectedMutants) llvm::errs() << isCoupledProbability[i-1] << " ";
-  selectedScores.insert(selectedScores.end(), isCoupledProbability.begin(), isCoupledProbability.end());  //INCORRECT this line, just to fill..
-  return;  // TODO TODO TODO
-
   // Choose starting mutants (random for now: 1 mutant per dependency cluster)
   std::vector<double> mutant_scores(mutants_number + 1);
   std::unordered_set<MutantIDType> visited_mutants;
   std::unordered_set<MutantIDType> candidate_mutants;
+  
+  /// Get Machine Learning coupling prediction into a vector as probability 
+  /// to be coupled, for each mutant
+  std::vector<float> isCoupledProbability;
+  if (cachedPrediction.empty()) {
+    getMachineLearningPrediction(isCoupledProbability, trainedModelFilename);
+    cachedPrediction = isCoupledProbability;
+  } else {
+    isCoupledProbability = cachedPrediction;
+  }
+  assert (isCoupledProbability.size() == mutants_number && "returned prediction list do not match with number of mutants");
+  
+  // hash the probabilities to 0 or 1
+  for (auto it=isCoupledProbability.begin(), ie=isCoupledProbability.end(); it!=ie; ++it)
+    *it = (*it > 0.5);
+  
+  if (mlOnly) {
+    // XXX TODO: temporary
+    for (MutantIDType mid=1; mid <= mutants_number; ++mid)
+    	selectedMutants.push_back(mid);
+    std::sort(selectedMutants.begin(), selectedMutants.end(), [isCoupledProbability](MutantIDType a, MutantIDType b) {
+          return (isCoupledProbability[a-1] > isCoupledProbability[b-1]);   //<: lower to higher, >: higher to lower
+    });
+    // randomize within same score
+    auto ifirst = selectedMutants.begin();
+    auto ilast = ifirst;
+    auto isize = ifirst + selectedMutants.size() -1;
+    auto iend = selectedMutants.end();
+    while (ilast != iend) {
+      if (*ifirst != *isize) {
+        while (*ifirst == *ilast)
+          ++ilast;
+        //randomize 
+        std::srand(std::time(NULL) + clock()); //+ clock() because fast running
+        std::random_shuffle(ifirst, ilast-1);
+        ifirst = ilast;
+      } else {
+        ilast = iend;
+        std::srand(std::time(NULL) + clock()); //+ clock() because fast running
+        std::random_shuffle(ifirst, ilast);
+      }
+    }
+    //for (auto i : selectedMutants) llvm::errs() << isCoupledProbability[i-1] << " ";
+    return;  // TODO TODO TODO
+  }
 
   // Initialize scores
   for (MutantIDType mutant_id = 1; mutant_id <= mutants_number; ++mutant_id) {
-    mutant_scores[mutant_id] = MAX_SCORE;
+    mutant_scores[mutant_id] = MAX_SCORE + isCoupledProbability[mutant_id - 1];
     candidate_mutants.insert(mutant_id);
   }
 
+/*
   // XXX trim initial score according the mutants features
   unsigned maxInDataDep = 0;
   unsigned minInDataDep = (unsigned)-1;
@@ -1067,6 +1152,7 @@ void MutantSelection::smartSelectMutants(
   unsigned maxNumAstParent = 0;
   unsigned minNumAstParent = (unsigned)-1;
   double kNumAstParent = 0.0 / AMPLIFIER;
+*/
 
   // Re-initialise the weights from the JSON weight file when applicable
   /*if (!weightsJsonfilename.empty()) {
@@ -1107,6 +1193,7 @@ void MutantSelection::smartSelectMutants(
     kNumAstParent = std::stod(wo["wNumAstParent"].getString());
   }*/
 
+/*
   // ... Initialize max, mins
   for (MutantIDType mutant_id = 1; mutant_id <= mutants_number; ++mutant_id) {
     if (mutantDGraph.getInDataDependents(mutant_id).size() > maxInDataDep)
@@ -1205,6 +1292,7 @@ void MutantSelection::smartSelectMutants(
            minNumAstParent) *
           kNumAstParent / (maxNumAstParent - minNumAstParent);
   }
+*/
 
   // For now put all ties here and append to list at the end
   // std::unordered_set<MutantIDType> tiesTemporal;
@@ -1218,7 +1306,6 @@ void MutantSelection::smartSelectMutants(
     //    break;
 
     selectedMutants.push_back(mutant_id);
-    selectedScores.push_back(mutant_scores[mutant_id]);
     relaxMutant(mutant_id, mutant_scores);
 
     // insert the picked mutants and its tie-dependents into visited set
@@ -1256,13 +1343,12 @@ void MutantSelection::smartSelectMutants(
     selectedScores.push_back(-1e-100); // default score for ties (very low
                                        // value)*/
 
-  if (selectedMutants.size() != mutants_number ||
-      selectedScores.size() != mutants_number) {
+  if (selectedMutants.size() != mutants_number) {
     llvm::errs() << "\nError: Bug in Selection: some mutants left out or added "
                     "many times: Mutants number = ";
     llvm::errs() << mutants_number
                  << ", Selected number = " << selectedMutants.size()
-                 << ", selected scores number = " << selectedScores.size()
+                 //<< ", selected scores number = " << selectedScores.size()
                  << "\n\n";
   }
 }
