@@ -66,11 +66,11 @@ void PredictionModule::fastBDTPredict (std::vector<std::vector<float>> const &X_
   }
 }
 
-void PredictionModule::fastBDTTrain (std::vector<std::vector<float>> const &X_matrix, std::vector<bool> const &isCoupled) {
+void PredictionModule::fastBDTTrain (std::vector<std::vector<float>> const &X_matrix, std::vector<bool> const &isCoupled, unsigned treeNumber) {
 	assert (!X_matrix.empty() && !isCoupled.empty() && "Error: calling train with empty data");
   std::vector<float> weights (X_matrix.back().size(), 1.0);
   FastBDT::Classifier classifier;
-  classifier.SetNTrees(2000); 
+  classifier.SetNTrees(treeNumber); 
   classifier.SetDepth(5); 
   classifier.fit(X_matrix, isCoupled, weights);
   //std::cout << "Score " << GetIrisScore(classifier) << std::endl;
@@ -96,7 +96,7 @@ void PredictionModule::randomForestPredict (std::vector<std::vector<float>> cons
     prediction.push_back(p_val);
 }
 
-void PredictionModule::randomForestTrain (std::vector<std::vector<float>> const &X_matrix, std::vector<bool> const &isCoupled) {
+void PredictionModule::randomForestTrain (std::vector<std::vector<float>> const &X_matrix, std::vector<bool> const &isCoupled, unsigned treeNumber) {
 	assert (!X_matrix.empty() && !isCoupled.empty() && "Error: calling train with empty data");
   std::vector<float> weights (X_matrix.back().size(), 1.0);
   andres::ml::DecisionForest<double, unsigned char, double> decisionForest;
@@ -125,7 +125,7 @@ void PredictionModule::predict (std::vector<std::vector<float>> const &X_matrix,
 
 /// Train model and write model into predictionModelFilename
 /// Each contained vector correspond to a feature
-void PredictionModule::train (std::vector<std::vector<float>> const &X_matrix, std::vector<bool> const &isCoupled) {
+void PredictionModule::train (std::vector<std::vector<float>> const &X_matrix, std::vector<bool> const &isCoupled, unsigned treeNumber) {
   fastBDTTrain(X_matrix, isCoupled);
   //randomForestTrain(X_matrix, isCoupled);
 }

@@ -158,6 +158,11 @@ int main(int argc, char **argv) {
       "train-set-program-size",
       llvm::cl::desc("(optional) Specify the the size of the training set w.r.t the input data program number. Append '%' to the number to have percentage. If this is not 100%, the algorithm with try to select the random set that cover the maximum number of features for the specified size"),
       llvm::cl::init("100%"));
+  llvm::cl::opt<unsigned> treesNumber(
+      "trees-number",
+      llvm::cl::desc("(optional) Specify the number of trees in tree based classifier "
+                     ".default is 1000 trees"),
+      llvm::cl::init(1000));
 
 
   llvm::cl::SetVersionPrinter(printVersion);
@@ -238,7 +243,7 @@ int main(int argc, char **argv) {
   llvm::outs() << "# X Matrix and Y Vector ready. Training ...\n";
   
   PredictionModule predmod(outputModelFilename);
-  predmod.train(Xmatrix, Yvector);
+  predmod.train(Xmatrix, Yvector, treesNumber);
   
   //Check prediction score
   float sum = 0;

@@ -35,9 +35,9 @@ namespace selection {
 class PredictionModule {
   std::string modelFilename;
   void fastBDTPredict (std::vector<std::vector<float>> const &X_matrix, std::vector<float> &prediction);
-  void fastBDTTrain (std::vector<std::vector<float>> const &X_matrix, std::vector<bool> const &isCoupled);
+  void fastBDTTrain (std::vector<std::vector<float>> const &X_matrix, std::vector<bool> const &isCoupled, unsigned treeNumber=5000);
   void randomForestPredict (std::vector<std::vector<float>> const &X_matrix, std::vector<float> &prediction);
-  void randomForestTrain (std::vector<std::vector<float>> const &X_matrix, std::vector<bool> const &isCoupled);
+  void randomForestTrain (std::vector<std::vector<float>> const &X_matrix, std::vector<bool> const &isCoupled, unsigned treeNumber=10);
 public:
   PredictionModule (std::string modelfile): modelFilename(modelfile) {}
   /// make prediction for data in @param X_matrix and put the results into prediction
@@ -46,7 +46,7 @@ public:
 
   /// Train model and write model into predictionModelFilename
   /// Each contained vector correspond to a feature
-  void train (std::vector<std::vector<float>> const &X_matrix, std::vector<bool> const &isCoupled);
+  void train (std::vector<std::vector<float>> const &X_matrix, std::vector<bool> const &isCoupled, unsigned treeNumber=1000);
 }; // PredictionModule
 
 
