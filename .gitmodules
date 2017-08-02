@@ -7,3 +7,6 @@
 [submodule "lib/third-parties/FastBDT"]
 	path = lib/third-parties/FastBDT
 	url = https://github.com/thierry-tct/FastBDT.git
+[submodule "lib/third-parties/random-forest"]
+	path = lib/third-parties/random-forest
+	url = https://github.com/thierry-tct/random-forest.git
