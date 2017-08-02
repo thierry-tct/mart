@@ -1081,8 +1081,8 @@ void MutantSelection::smartSelectMutants(
   assert (isCoupledProbability.size() == mutants_number && "returned prediction list do not match with number of mutants");
   
   // hash the probabilities to 0 or 1
-  for (auto it=isCoupledProbability.begin(), ie=isCoupledProbability.end(); it!=ie; ++it)
-    *it = (*it > 0.5);
+  //for (auto it=isCoupledProbability.begin(), ie=isCoupledProbability.end(); it!=ie; ++it)
+  //  *it = (*it > 0.5);
   
   if (mlOnly) {
     // XXX TODO: temporary
