@@ -6,4 +6,4 @@
 	url = https://github.com/thierry-tct/dg.git
 [submodule "lib/third-parties/FastBDT"]
 	path = lib/third-parties/FastBDT
-	url = https://github.com/thomaskeck/FastBDT.git
+	url = https://github.com/thierry-tct/FastBDT.git
