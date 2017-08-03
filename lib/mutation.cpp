@@ -1237,10 +1237,22 @@ bool Mutation::doMutate() {
           continue;
         } else {
           if (curLiveStmtSearch && !curLiveStmtSearch->isCompleted()) {
-            remainMultiBBLiveStmts.insert(curLiveStmtSearch);
-            curLiveStmtSearch = StatementSearch::switchFromTo(
-                &*itBBlock, curLiveStmtSearch,
-                srcStmtsSearchList.createNewElem(&*itBBlock)); //(re)initialize
+            // TODO TODO: Implement the option (1) of Splitting when a
+            // statement,
+            // is non-atomic, at preprocessing (demoting reg to mem
+            // on the atomicity breaking values).
+            // XXX For now, we merge the non atomic statement with its
+            // 'in between' statement (make a bit of harm to whole stmt mutation
+            // like SDL, whle option 1 will make a bit of harm to mutation
+            // involving several IRs).
+            // this is done by creating new stmt search only when on new BB
+            if (curLiveStmtSearch->isOnNewBasicBlock(&*itBBlock)) {
+              remainMultiBBLiveStmts.insert(curLiveStmtSearch);
+              curLiveStmtSearch = StatementSearch::switchFromTo(
+                  &*itBBlock, curLiveStmtSearch,
+                  srcStmtsSearchList.createNewElem(
+                      &*itBBlock)); //(re)initialize
+            }
           } else {
             curLiveStmtSearch = StatementSearch::switchFromTo(
                 &*itBBlock, nullptr,

@@ -1072,6 +1072,15 @@ struct StatementSearch {
     return (stmtIRcount == 0 && !matchStmtIR.toMatchIRs.empty());
   }
 
+  /// return true if this statement search is on a block different than
+  /// the block where it was created
+  inline bool isOnNewBasicBlock(llvm::BasicBlock *curBB) {
+    // atomicityInBB will never be NULL if it is new BB and the stmt
+    // has parts on a previous one (see switchFromTo())
+    // return true if: atomicityInBB is not null and BB differs
+    return (atomicityInBB != nullptr && atomicityInBB != curBB);
+  }
+
   void checkAtomicityInBB(llvm::BasicBlock *curBB) {
     if (atomicityInBB == curBB) {
       curBB->dump();

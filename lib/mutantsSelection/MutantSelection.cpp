@@ -19,13 +19,12 @@
 
 #include "MutantSelection.h"
 
-//https://github.com/thomaskeck/FastBDT
-#include "../third-parties/FastBDT/include/Classifier.h"   //FastBDT
+// https://github.com/thomaskeck/FastBDT
+#include "../third-parties/FastBDT/include/Classifier.h" //FastBDT
 
-//https://github.com/bjoern-andres/random-forest
-#include "../third-parties/random-forest/include/andres/marray.hxx" 
-#include "../third-parties/random-forest/include/andres/ml/decision-trees.hxx" 
-
+// https://github.com/bjoern-andres/random-forest
+#include "../third-parties/random-forest/include/andres/marray.hxx"
+#include "../third-parties/random-forest/include/andres/ml/decision-trees.hxx"
 
 #ifndef ENABLE_CFG
 #define ENABLE_CFG // needed by dg
@@ -52,85 +51,99 @@ const double RELAX_THRESHOLD = 0.01 / AMPLIFIER; // 5 hops
 const double TIE_REDUCTION_DIFF = 0.03 / AMPLIFIER;
 }
 
-void PredictionModule::fastBDTPredict (std::vector<std::vector<float>> const &X_matrix, std::vector<float> &prediction) {
+void PredictionModule::fastBDTPredict(
+    std::vector<std::vector<float>> const &X_matrix,
+    std::vector<float> &prediction) {
   std::fstream in_stream(modelFilename, std::ios_base::in);
   FastBDT::Classifier classifier(in_stream);
   std::vector<float> event;
   event.reserve(X_matrix.size());
   unsigned long long eventNumber = X_matrix.back().size();
-  for(unsigned long long eIndex = 0; eIndex < eventNumber; ++eIndex) {
+  for (unsigned long long eIndex = 0; eIndex < eventNumber; ++eIndex) {
     event.clear();
-    for (auto &feature: X_matrix)
+    for (auto &feature : X_matrix)
       event.push_back(feature[eIndex]);
     prediction.push_back(classifier.predict(event));
   }
 }
 
-void PredictionModule::fastBDTTrain (std::vector<std::vector<float>> const &X_matrix, std::vector<bool> const &isCoupled, unsigned treeNumber) {
-	assert (!X_matrix.empty() && !isCoupled.empty() && "Error: calling train with empty data");
-  std::vector<float> weights (X_matrix.back().size(), 1.0);
+void PredictionModule::fastBDTTrain(
+    std::vector<std::vector<float>> const &X_matrix,
+    std::vector<bool> const &isCoupled, unsigned treeNumber, unsigned treeDepth) {
+  assert(!X_matrix.empty() && !isCoupled.empty() &&
+         "Error: calling train with empty data");
+  std::vector<float> weights(X_matrix.back().size(), 1.0);
   FastBDT::Classifier classifier;
-  classifier.SetNTrees(treeNumber); 
-  classifier.SetDepth(5); 
+  classifier.SetNTrees(treeNumber);
+  classifier.SetDepth(treeDepth);
   classifier.fit(X_matrix, isCoupled, weights);
-  //std::cout << "Score " << GetIrisScore(classifier) << std::endl;
-  std::fstream out_stream(modelFilename, std::ios_base::out | std::ios_base::trunc);
+  // std::cout << "Score " << GetIrisScore(classifier) << std::endl;
+  std::fstream out_stream(modelFilename,
+                          std::ios_base::out | std::ios_base::trunc);
   out_stream << classifier << std::endl;
   out_stream.close();
 }
 
-void PredictionModule::randomForestPredict (std::vector<std::vector<float>> const &X_matrix, std::vector<float> &prediction) {
+void PredictionModule::randomForestPredict(
+    std::vector<std::vector<float>> const &X_matrix,
+    std::vector<float> &prediction) {
   std::fstream in_stream(modelFilename, std::ios_base::in);
   andres::ml::DecisionForest<double, unsigned char, double> decisionForest;
   decisionForest.deserialize(in_stream);
   auto nFeatures = X_matrix.size();
   auto nEvents = X_matrix.back().size();
   andres::Matrix<double> features(nEvents, nFeatures);
-  andres::Vector<double> probabilities; 
-  for (unsigned col=0; col < nFeatures; ++col)
-    for (MutantIDType row=0, lastr=nEvents; row < lastr; ++row)
+  andres::Vector<double> probabilities;
+  for (unsigned col = 0; col < nFeatures; ++col)
+    for (MutantIDType row = 0, lastr = nEvents; row < lastr; ++row)
       features(row, col) = X_matrix[col][row];
-  decisionForest.predict(features, probabilities); 
+  decisionForest.predict(features, probabilities);
 
-  for(auto p_val: probabilities) 
+  for (auto p_val : probabilities)
     prediction.push_back(p_val);
 }
 
-void PredictionModule::randomForestTrain (std::vector<std::vector<float>> const &X_matrix, std::vector<bool> const &isCoupled, unsigned treeNumber) {
-	assert (!X_matrix.empty() && !isCoupled.empty() && "Error: calling train with empty data");
-  std::vector<float> weights (X_matrix.back().size(), 1.0);
+void PredictionModule::randomForestTrain(
+    std::vector<std::vector<float>> const &X_matrix,
+    std::vector<bool> const &isCoupled, unsigned treeNumber) {
+  assert(!X_matrix.empty() && !isCoupled.empty() &&
+         "Error: calling train with empty data");
+  std::vector<float> weights(X_matrix.back().size(), 1.0);
   andres::ml::DecisionForest<double, unsigned char, double> decisionForest;
-  const size_t numberOfDecisionTrees = 1;  ///10 
+  const size_t numberOfDecisionTrees = treeNumber; /// 10
   auto nFeatures = X_matrix.size();
   auto nEvents = X_matrix.back().size();
   andres::Matrix<double> features(nEvents, nFeatures);
   andres::Vector<unsigned char> labels(isCoupled.size());
-  for (MutantIDType row=0, lastr = nEvents; row < lastr; ++row)
+  for (MutantIDType row = 0, lastr = nEvents; row < lastr; ++row)
     labels[row] = (char)isCoupled[row];
-  for (unsigned col=0; col < nFeatures; ++col)
-    for (MutantIDType row=0, lastr = nEvents; row < lastr; ++row)
+  for (unsigned col = 0; col < nFeatures; ++col)
+    for (MutantIDType row = 0, lastr = nEvents; row < lastr; ++row)
       features(row, col) = X_matrix[col][row];
   decisionForest.learn(features, labels, numberOfDecisionTrees);
-  std::fstream out_stream(modelFilename, std::ios_base::out | std::ios_base::trunc);
+  std::fstream out_stream(modelFilename,
+                          std::ios_base::out | std::ios_base::trunc);
   decisionForest.serialize(out_stream);
   out_stream.close();
 }
 
-/// make prediction for data in @param X_matrix and put the results into prediction
+/// make prediction for data in @param X_matrix and put the results into
+/// prediction
 /// Each contained vector correspond to a feature
-void PredictionModule::predict (std::vector<std::vector<float>> const &X_matrix, std::vector<float> &prediction) {
+void PredictionModule::predict(std::vector<std::vector<float>> const &X_matrix,
+                               std::vector<float> &prediction) {
   fastBDTPredict(X_matrix, prediction);
-  //randomForestPredict(X_matrix, prediction);
+  // randomForestPredict(X_matrix, prediction);
 }
 
 /// Train model and write model into predictionModelFilename
 /// Each contained vector correspond to a feature
-void PredictionModule::train (std::vector<std::vector<float>> const &X_matrix, std::vector<bool> const &isCoupled, unsigned treeNumber) {
-  fastBDTTrain(X_matrix, isCoupled);
-  //randomForestTrain(X_matrix, isCoupled);
+void PredictionModule::train(std::vector<std::vector<float>> const &X_matrix,
+                             std::vector<bool> const &isCoupled,
+                             unsigned treeNumber, unsigned treeDepth) {
+  fastBDTTrain(X_matrix, isCoupled, treeNumber, treeDepth);
+  // randomForestTrain(X_matrix, isCoupled. treeNumber);
 }
-
-
 
 // class MutantDependenceGraph
 /// This Function is written using dg's DG2Dot.h... as reference
@@ -400,8 +413,10 @@ bool MutantDependenceGraph::build(llvm::Module const &mod,
   llvm::errs() << "\t... graph Builded/Loaded\n";
 }
 
-void MutantDependenceGraph::computeMutantFeatures(std::vector<std::vector<float>> &features_matrix, std::vector<std::string> &features_names) {
-	auto nummuts = getMutantsNumber();
+void MutantDependenceGraph::computeMutantFeatures(
+    std::vector<std::vector<float>> &features_matrix,
+    std::vector<std::string> &features_names) {
+  auto nummuts = getMutantsNumber();
 
   // Features requiring One Hot Encodin (more like python pandas' get_dummies)
   std::unordered_set<std::string> allMutantTypenames; // all mutantTypeNames
@@ -422,143 +437,143 @@ void MutantDependenceGraph::computeMutantFeatures(std::vector<std::vector<float>
   features_matrix.back().reserve(nummuts);
   features_names.emplace_back("Complexity");
   mutantFeatures[features_names.back()] = features_matrix.size() - 1;
-  
+
   features_matrix.emplace_back();
   features_matrix.back().reserve(nummuts);
   features_names.emplace_back("CfgDepth");
   mutantFeatures[features_names.back()] = features_matrix.size() - 1;
-  
+
   features_matrix.emplace_back();
   features_matrix.back().reserve(nummuts);
   features_names.emplace_back("CfgPredNum");
   mutantFeatures[features_names.back()] = features_matrix.size() - 1;
-  
+
   features_matrix.emplace_back();
   features_matrix.back().reserve(nummuts);
   features_names.emplace_back("CfgSuccNum");
   mutantFeatures[features_names.back()] = features_matrix.size() - 1;
-  
+
   features_matrix.emplace_back();
   features_matrix.back().reserve(nummuts);
   features_names.emplace_back("AstNumParents");
   mutantFeatures[features_names.back()] = features_matrix.size() - 1;
-  
+
   features_matrix.emplace_back();
   features_matrix.back().reserve(nummuts);
   features_names.emplace_back("NumOutDataDeps");
   mutantFeatures[features_names.back()] = features_matrix.size() - 1;
-  
+
   features_matrix.emplace_back();
   features_matrix.back().reserve(nummuts);
   features_names.emplace_back("NumInDataDeps");
   mutantFeatures[features_names.back()] = features_matrix.size() - 1;
-  
+
   features_matrix.emplace_back();
   features_matrix.back().reserve(nummuts);
   features_names.emplace_back("NumOutCtrlDeps");
   mutantFeatures[features_names.back()] = features_matrix.size() - 1;
-  
+
   features_matrix.emplace_back();
   features_matrix.back().reserve(nummuts);
   features_names.emplace_back("NumInCtrlDeps");
   mutantFeatures[features_names.back()] = features_matrix.size() - 1;
-  
+
   features_matrix.emplace_back();
   features_matrix.back().reserve(nummuts);
   features_names.emplace_back("NumTieDeps");
   mutantFeatures[features_names.back()] = features_matrix.size() - 1;
-  
+
   features_matrix.emplace_back();
   features_matrix.back().reserve(nummuts);
   features_names.emplace_back("AstParentsNumOutDataDeps");
   mutantFeatures[features_names.back()] = features_matrix.size() - 1;
-  
+
   features_matrix.emplace_back();
   features_matrix.back().reserve(nummuts);
   features_names.emplace_back("AstParentsNumInDataDeps");
   mutantFeatures[features_names.back()] = features_matrix.size() - 1;
-  
+
   features_matrix.emplace_back();
   features_matrix.back().reserve(nummuts);
   features_names.emplace_back("AstParentsNumOutCtrlDeps");
   mutantFeatures[features_names.back()] = features_matrix.size() - 1;
-  
+
   features_matrix.emplace_back();
   features_matrix.back().reserve(nummuts);
   features_names.emplace_back("AstParentsNumInCtrlDeps");
   mutantFeatures[features_names.back()] = features_matrix.size() - 1;
-  
+
   features_matrix.emplace_back();
   features_matrix.back().reserve(nummuts);
   features_names.emplace_back("AstParentsNumTieDeps");
   mutantFeatures[features_names.back()] = features_matrix.size() - 1;
-  
+
   // mutant typename as one hot form
   for (auto &mtname : allMutantTypenames) {
-		features_matrix.emplace_back();
-		features_matrix.back().reserve(nummuts);
-		features_names.emplace_back(mtname);
-    mutantFeatures[features_names.back()] = features_matrix.size() - 1; // mutant's XXX
-    
     features_matrix.emplace_back();
-		features_matrix.back().reserve(nummuts);
-		features_names.emplace_back(mtname + nsuff_astparent);
-    mutantFeatures[features_names.back()] = features_matrix.size() - 1;
-    
+    features_matrix.back().reserve(nummuts);
+    features_names.emplace_back(mtname);
+    mutantFeatures[features_names.back()] =
+        features_matrix.size() - 1; // mutant's XXX
+
     features_matrix.emplace_back();
-		features_matrix.back().reserve(nummuts);
-		features_names.emplace_back(mtname + nsuff_outdatadep);
+    features_matrix.back().reserve(nummuts);
+    features_names.emplace_back(mtname + nsuff_astparent);
     mutantFeatures[features_names.back()] = features_matrix.size() - 1;
-    
+
     features_matrix.emplace_back();
-		features_matrix.back().reserve(nummuts);
-		features_names.emplace_back(mtname + nsuff_indatadep);
+    features_matrix.back().reserve(nummuts);
+    features_names.emplace_back(mtname + nsuff_outdatadep);
     mutantFeatures[features_names.back()] = features_matrix.size() - 1;
-    
+
     features_matrix.emplace_back();
-		features_matrix.back().reserve(nummuts);
-		features_names.emplace_back(mtname + nsuff_outctrldep);
+    features_matrix.back().reserve(nummuts);
+    features_names.emplace_back(mtname + nsuff_indatadep);
     mutantFeatures[features_names.back()] = features_matrix.size() - 1;
-    
+
     features_matrix.emplace_back();
-		features_matrix.back().reserve(nummuts);
-		features_names.emplace_back(mtname + nsuff_inctrldep);
+    features_matrix.back().reserve(nummuts);
+    features_names.emplace_back(mtname + nsuff_outctrldep);
     mutantFeatures[features_names.back()] = features_matrix.size() - 1;
-  }
-  
-  // stmt BB typename as one hot form
-  for (auto &sbbtname : allStmtBBTypenames) {
-  	features_matrix.emplace_back();
-		features_matrix.back().reserve(nummuts);
-		features_names.emplace_back(sbbtname);
-    mutantFeatures[features_names.back()] = features_matrix.size() - 1;
-    
+
     features_matrix.emplace_back();
-		features_matrix.back().reserve(nummuts);
-		features_names.emplace_back(sbbtname + nsuff_astparent);
-    mutantFeatures[features_names.back()] = features_matrix.size() - 1;
-    
-    features_matrix.emplace_back();
-		features_matrix.back().reserve(nummuts);
-		features_names.emplace_back(sbbtname + nsuff_outdatadep);
-    mutantFeatures[features_names.back()] = features_matrix.size() - 1;
-    
-    features_matrix.emplace_back();
-		features_matrix.back().reserve(nummuts);
-		features_names.emplace_back(sbbtname + nsuff_indatadep);
-    mutantFeatures[features_names.back()] = features_matrix.size() - 1;
-    
-    features_matrix.emplace_back();
-		features_matrix.back().reserve(nummuts);
-		features_names.emplace_back(sbbtname + nsuff_outctrldep);
-    mutantFeatures[features_names.back()] = features_matrix.size() - 1;
-    
-    features_matrix.emplace_back();
-		features_matrix.back().reserve(nummuts);
-		features_names.emplace_back(sbbtname + nsuff_inctrldep);
+    features_matrix.back().reserve(nummuts);
+    features_names.emplace_back(mtname + nsuff_inctrldep);
     mutantFeatures[features_names.back()] = features_matrix.size() - 1;
   }
 
+  // stmt BB typename as one hot form
+  for (auto &sbbtname : allStmtBBTypenames) {
+    features_matrix.emplace_back();
+    features_matrix.back().reserve(nummuts);
+    features_names.emplace_back(sbbtname);
+    mutantFeatures[features_names.back()] = features_matrix.size() - 1;
+
+    features_matrix.emplace_back();
+    features_matrix.back().reserve(nummuts);
+    features_names.emplace_back(sbbtname + nsuff_astparent);
+    mutantFeatures[features_names.back()] = features_matrix.size() - 1;
+
+    features_matrix.emplace_back();
+    features_matrix.back().reserve(nummuts);
+    features_names.emplace_back(sbbtname + nsuff_outdatadep);
+    mutantFeatures[features_names.back()] = features_matrix.size() - 1;
+
+    features_matrix.emplace_back();
+    features_matrix.back().reserve(nummuts);
+    features_names.emplace_back(sbbtname + nsuff_indatadep);
+    mutantFeatures[features_names.back()] = features_matrix.size() - 1;
+
+    features_matrix.emplace_back();
+    features_matrix.back().reserve(nummuts);
+    features_names.emplace_back(sbbtname + nsuff_outctrldep);
+    mutantFeatures[features_names.back()] = features_matrix.size() - 1;
+
+    features_matrix.emplace_back();
+    features_matrix.back().reserve(nummuts);
+    features_names.emplace_back(sbbtname + nsuff_inctrldep);
+    mutantFeatures[features_names.back()] = features_matrix.size() - 1;
+  }
 
   /// Creafeature values for all mutants
   std::unordered_map<std::string, float> featureValuesPost1Hot;
@@ -594,8 +609,8 @@ void MutantDependenceGraph::computeMutantFeatures(std::vector<std::vector<float>
                           getOutCtrlDependents(parent_id).end());
       pinCtrlDeps.insert(getInCtrlDependents(parent_id).begin(),
                          getInCtrlDependents(parent_id).end());
-     	pTieDeps.insert(getTieDependents(parent_id).begin(),
-                         getTieDependents(parent_id).end());
+      pTieDeps.insert(getTieDependents(parent_id).begin(),
+                      getTieDependents(parent_id).end());
     }
 
     featureValuesPost1Hot["AstParentsNumOutDataDeps"] = poutDataDeps.size();
@@ -647,7 +662,8 @@ void MutantDependenceGraph::computeMutantFeatures(std::vector<std::vector<float>
     }
 
     /// Append this mutant feature values to the mutant features table
-    //llvm::errs() << mutantFeatures.size()<< " " << featureValuesPost1Hot.size()<< "\n";
+    // llvm::errs() << mutantFeatures.size()<< " " <<
+    // featureValuesPost1Hot.size()<< "\n";
     assert(mutantFeatures.size() == featureValuesPost1Hot.size() &&
            "must have same size");
     for (auto &mfIt : featureValuesPost1Hot) {
@@ -657,19 +673,24 @@ void MutantDependenceGraph::computeMutantFeatures(std::vector<std::vector<float>
 
   /// Normalize each feature value between 0 and 1 to have a normalization
   /// accross programs
-  for (auto &feature_val : mutantFeatures) { 
-    auto mM = std::minmax_element(features_matrix.at(feature_val.second).begin(),
-                                  features_matrix.at(feature_val.second).end());
+  for (auto &feature_val : mutantFeatures) {
+    auto mM =
+        std::minmax_element(features_matrix.at(feature_val.second).begin(),
+                            features_matrix.at(feature_val.second).end());
     auto min = *(mM.first);
     auto max = *(mM.second);
     auto max_min = max - min;
 
     // normalize
     if (max > min)
-      for (auto It = features_matrix.at(feature_val.second).begin(), Ie = features_matrix.at(feature_val.second).end(); It != Ie; ++It)
+      for (auto It = features_matrix.at(feature_val.second).begin(),
+                Ie = features_matrix.at(feature_val.second).end();
+           It != Ie; ++It)
         *It = (*It - min) / max_min;
   }
-  assert (mutantFeatures.size() == features_matrix.size() && mutantFeatures.size() == features_names.size() && "@MutantSelection: Please report Bug!");
+  assert(mutantFeatures.size() == features_matrix.size() &&
+         mutantFeatures.size() == features_names.size() &&
+         "@MutantSelection: Please report Bug!");
 }
 
 ///
@@ -725,7 +746,6 @@ void MutantDependenceGraph::dump(std::string filename) {
   JsonBox::Value vout(outListJSON);
   vout.writeToFile(filename, false, false);
 }
-
 
 void MutantDependenceGraph::load(std::string filename,
                                  MutantInfoList const &mutInfos) {
@@ -840,14 +860,14 @@ void MutantDependenceGraph::load(std::string filename,
 }
 
 void MutantDependenceGraph::exportMutantFeaturesCSV(std::string filenameCSV) {
-	//each embedded vector represent a feature
-	std::vector<std::vector<float>> features_matrix; 
-	std::vector<std::string> features_names;
-	
-	computeMutantFeatures(features_matrix, features_names);
+  // each embedded vector represent a feature
+  std::vector<std::vector<float>> features_matrix;
+  std::vector<std::string> features_names;
 
-	auto nummuts = getMutantsNumber();	
-	
+  computeMutantFeatures(features_matrix, features_names);
+
+  auto nummuts = getMutantsNumber();
+
   /// Dump into CSV file
   std::ofstream csvout(filenameCSV);
   if (csvout.is_open()) {
@@ -861,7 +881,7 @@ void MutantDependenceGraph::exportMutantFeaturesCSV(std::string filenameCSV) {
       isFirst = 0;
     }
     csvout << "\n";
-    
+
     // mutants features
     for (MutantIDType mutant_id = 1; mutant_id <= nummuts; ++mutant_id) {
       isFirst = 1;
@@ -1038,18 +1058,19 @@ void MutantSelection::relaxMutant(MutantIDType mutant_id,
 /**
  *
  */
-void MutantSelection::getMachineLearningPrediction(std::vector<float> &couplingProbabilitiesOut, std::string modelFilename) {
+void MutantSelection::getMachineLearningPrediction(
+    std::vector<float> &couplingProbabilitiesOut, std::string modelFilename) {
   MutantIDType mutants_number = mutantInfos.getMutantsNumber();
   couplingProbabilitiesOut.reserve(mutants_number);
 
-	std::vector<std::vector<float>> features_matrix; 
-	std::vector<std::string> features_names;
-	
-	mutantDGraph.computeMutantFeatures(features_matrix, features_names);
-	
-	PredictionModule predmodule(modelFilename);
-	
-	predmodule.predict(features_matrix, couplingProbabilitiesOut);
+  std::vector<std::vector<float>> features_matrix;
+  std::vector<std::string> features_names;
+
+  mutantDGraph.computeMutantFeatures(features_matrix, features_names);
+
+  PredictionModule predmodule(modelFilename);
+
+  predmodule.predict(features_matrix, couplingProbabilitiesOut);
 }
 
 /**
@@ -1058,18 +1079,19 @@ void MutantSelection::getMachineLearningPrediction(std::vector<float> &couplingP
  */
 void MutantSelection::smartSelectMutants(
     std::vector<MutantIDType> &selectedMutants,
-    std::vector<float> &cachedPrediction, std::string trainedModelFilename, bool mlOnly) {
+    std::vector<float> &cachedPrediction, std::string trainedModelFilename,
+    bool mlOnly) {
 
   MutantIDType mutants_number = mutantInfos.getMutantsNumber();
 
   selectedMutants.reserve(mutants_number);
-  
+
   // Choose starting mutants (random for now: 1 mutant per dependency cluster)
   std::vector<double> mutant_scores(mutants_number + 1);
   std::unordered_set<MutantIDType> visited_mutants;
   std::unordered_set<MutantIDType> candidate_mutants;
-  
-  /// Get Machine Learning coupling prediction into a vector as probability 
+
+  /// Get Machine Learning coupling prediction into a vector as probability
   /// to be coupled, for each mutant
   std::vector<float> isCoupledProbability;
   if (cachedPrediction.empty()) {
@@ -1078,31 +1100,36 @@ void MutantSelection::smartSelectMutants(
   } else {
     isCoupledProbability = cachedPrediction;
   }
-  assert (isCoupledProbability.size() == mutants_number && "returned prediction list do not match with number of mutants");
-  
+  assert(isCoupledProbability.size() == mutants_number &&
+         "returned prediction list do not match with number of mutants");
+
   // hash the probabilities to 0 or 1
-  //for (auto it=isCoupledProbability.begin(), ie=isCoupledProbability.end(); it!=ie; ++it)
+  // for (auto it=isCoupledProbability.begin(), ie=isCoupledProbability.end();
+  // it!=ie; ++it)
   //  *it = (*it > 0.5);
-  
+
   if (mlOnly) {
     // XXX TODO: temporary
-    for (MutantIDType mid=1; mid <= mutants_number; ++mid)
-    	selectedMutants.push_back(mid);
-    std::sort(selectedMutants.begin(), selectedMutants.end(), [isCoupledProbability](MutantIDType a, MutantIDType b) {
-          return (isCoupledProbability[a-1] > isCoupledProbability[b-1]);   //<: lower to higher, >: higher to lower
-    });
+    for (MutantIDType mid = 1; mid <= mutants_number; ++mid)
+      selectedMutants.push_back(mid);
+    std::sort(selectedMutants.begin(), selectedMutants.end(),
+              [isCoupledProbability](MutantIDType a, MutantIDType b) {
+                return (isCoupledProbability[a - 1] >
+                        isCoupledProbability[b - 1]); //<: lower to higher, >:
+                                                      //higher to lower
+              });
     // randomize within same score
     auto ifirst = selectedMutants.begin();
     auto ilast = ifirst;
-    auto isize = ifirst + selectedMutants.size() -1;
+    auto isize = ifirst + selectedMutants.size() - 1;
     auto iend = selectedMutants.end();
     while (ilast != iend) {
       if (*ifirst != *isize) {
         while (*ifirst == *ilast)
           ++ilast;
-        //randomize 
+        // randomize
         std::srand(std::time(NULL) + clock()); //+ clock() because fast running
-        std::random_shuffle(ifirst, ilast-1);
+        std::random_shuffle(ifirst, ilast - 1);
         ifirst = ilast;
       } else {
         ilast = iend;
@@ -1110,8 +1137,9 @@ void MutantSelection::smartSelectMutants(
         std::random_shuffle(ifirst, ilast);
       }
     }
-    //for (auto i : selectedMutants) llvm::errs() << isCoupledProbability[i-1] << " ";
-    return;  // TODO TODO TODO
+    // for (auto i : selectedMutants) llvm::errs() << isCoupledProbability[i-1]
+    // << " ";
+    return; // TODO TODO TODO
   }
 
   // Initialize scores
@@ -1120,39 +1148,39 @@ void MutantSelection::smartSelectMutants(
     candidate_mutants.insert(mutant_id);
   }
 
-/*
-  // XXX trim initial score according the mutants features
-  unsigned maxInDataDep = 0;
-  unsigned minInDataDep = (unsigned)-1;
-  double kInDataDep = 0.03 / AMPLIFIER;
-  unsigned maxOutDataDep = 0;
-  unsigned minOutDataDep = (unsigned)-1;
-  double kOutDataDep = 0.0 / AMPLIFIER;
-  unsigned maxInCtrlDep = 0;
-  unsigned minInCtrlDep = (unsigned)-1;
-  double kInCtrlDep = 0.01 / AMPLIFIER;
-  unsigned maxOutCtrlDep = 0;
-  unsigned minOutCtrlDep = (unsigned)-1;
-  double kOutCtrlDep = 0.01 / AMPLIFIER;
-  unsigned maxTieDep = 0;
-  unsigned minTieDep = (unsigned)-1;
-  double kTieDep = 0.0 / AMPLIFIER;
-  unsigned maxComplexity = 0;
-  unsigned minComplexity = (unsigned)-1;
-  double kComplexity = 0.0 / AMPLIFIER;
-  unsigned maxCfgDepth = 0;
-  unsigned minCfgDepth = (unsigned)-1;
-  double kCfgDepth = 0.0 / AMPLIFIER;
-  unsigned maxCfgPredNum = 0;
-  unsigned minCfgPredNum = (unsigned)-1;
-  double kCfgPredNum = 0.0 / AMPLIFIER;
-  unsigned maxCfgSuccNum = 0;
-  unsigned minCfgSuccNum = (unsigned)-1;
-  double kCfgSuccNum = 0.0 / AMPLIFIER;
-  unsigned maxNumAstParent = 0;
-  unsigned minNumAstParent = (unsigned)-1;
-  double kNumAstParent = 0.0 / AMPLIFIER;
-*/
+  /*
+    // XXX trim initial score according the mutants features
+    unsigned maxInDataDep = 0;
+    unsigned minInDataDep = (unsigned)-1;
+    double kInDataDep = 0.03 / AMPLIFIER;
+    unsigned maxOutDataDep = 0;
+    unsigned minOutDataDep = (unsigned)-1;
+    double kOutDataDep = 0.0 / AMPLIFIER;
+    unsigned maxInCtrlDep = 0;
+    unsigned minInCtrlDep = (unsigned)-1;
+    double kInCtrlDep = 0.01 / AMPLIFIER;
+    unsigned maxOutCtrlDep = 0;
+    unsigned minOutCtrlDep = (unsigned)-1;
+    double kOutCtrlDep = 0.01 / AMPLIFIER;
+    unsigned maxTieDep = 0;
+    unsigned minTieDep = (unsigned)-1;
+    double kTieDep = 0.0 / AMPLIFIER;
+    unsigned maxComplexity = 0;
+    unsigned minComplexity = (unsigned)-1;
+    double kComplexity = 0.0 / AMPLIFIER;
+    unsigned maxCfgDepth = 0;
+    unsigned minCfgDepth = (unsigned)-1;
+    double kCfgDepth = 0.0 / AMPLIFIER;
+    unsigned maxCfgPredNum = 0;
+    unsigned minCfgPredNum = (unsigned)-1;
+    double kCfgPredNum = 0.0 / AMPLIFIER;
+    unsigned maxCfgSuccNum = 0;
+    unsigned minCfgSuccNum = (unsigned)-1;
+    double kCfgSuccNum = 0.0 / AMPLIFIER;
+    unsigned maxNumAstParent = 0;
+    unsigned minNumAstParent = (unsigned)-1;
+    double kNumAstParent = 0.0 / AMPLIFIER;
+  */
 
   // Re-initialise the weights from the JSON weight file when applicable
   /*if (!weightsJsonfilename.empty()) {
@@ -1193,106 +1221,110 @@ void MutantSelection::smartSelectMutants(
     kNumAstParent = std::stod(wo["wNumAstParent"].getString());
   }*/
 
-/*
-  // ... Initialize max, mins
-  for (MutantIDType mutant_id = 1; mutant_id <= mutants_number; ++mutant_id) {
-    if (mutantDGraph.getInDataDependents(mutant_id).size() > maxInDataDep)
-      maxInDataDep = mutantDGraph.getInDataDependents(mutant_id).size();
-    if (mutantDGraph.getInDataDependents(mutant_id).size() < minInDataDep)
-      minInDataDep = mutantDGraph.getInDataDependents(mutant_id).size();
-    if (mutantDGraph.getOutDataDependents(mutant_id).size() > maxOutDataDep)
-      maxOutDataDep = mutantDGraph.getOutDataDependents(mutant_id).size();
-    if (mutantDGraph.getOutDataDependents(mutant_id).size() < minOutDataDep)
-      minOutDataDep = mutantDGraph.getOutDataDependents(mutant_id).size();
+  /*
+    // ... Initialize max, mins
+    for (MutantIDType mutant_id = 1; mutant_id <= mutants_number; ++mutant_id) {
+      if (mutantDGraph.getInDataDependents(mutant_id).size() > maxInDataDep)
+        maxInDataDep = mutantDGraph.getInDataDependents(mutant_id).size();
+      if (mutantDGraph.getInDataDependents(mutant_id).size() < minInDataDep)
+        minInDataDep = mutantDGraph.getInDataDependents(mutant_id).size();
+      if (mutantDGraph.getOutDataDependents(mutant_id).size() > maxOutDataDep)
+        maxOutDataDep = mutantDGraph.getOutDataDependents(mutant_id).size();
+      if (mutantDGraph.getOutDataDependents(mutant_id).size() < minOutDataDep)
+        minOutDataDep = mutantDGraph.getOutDataDependents(mutant_id).size();
 
-    if (mutantDGraph.getInCtrlDependents(mutant_id).size() > maxInCtrlDep)
-      maxInCtrlDep = mutantDGraph.getInCtrlDependents(mutant_id).size();
-    if (mutantDGraph.getInCtrlDependents(mutant_id).size() < minInCtrlDep)
-      minInCtrlDep = mutantDGraph.getInCtrlDependents(mutant_id).size();
-    if (mutantDGraph.getOutCtrlDependents(mutant_id).size() > maxOutCtrlDep)
-      maxOutCtrlDep = mutantDGraph.getOutCtrlDependents(mutant_id).size();
-    if (mutantDGraph.getOutCtrlDependents(mutant_id).size() < minOutCtrlDep)
-      minOutCtrlDep = mutantDGraph.getOutCtrlDependents(mutant_id).size();
+      if (mutantDGraph.getInCtrlDependents(mutant_id).size() > maxInCtrlDep)
+        maxInCtrlDep = mutantDGraph.getInCtrlDependents(mutant_id).size();
+      if (mutantDGraph.getInCtrlDependents(mutant_id).size() < minInCtrlDep)
+        minInCtrlDep = mutantDGraph.getInCtrlDependents(mutant_id).size();
+      if (mutantDGraph.getOutCtrlDependents(mutant_id).size() > maxOutCtrlDep)
+        maxOutCtrlDep = mutantDGraph.getOutCtrlDependents(mutant_id).size();
+      if (mutantDGraph.getOutCtrlDependents(mutant_id).size() < minOutCtrlDep)
+        minOutCtrlDep = mutantDGraph.getOutCtrlDependents(mutant_id).size();
 
-    if (mutantDGraph.getTieDependents(mutant_id).size() > maxTieDep)
-      maxTieDep = mutantDGraph.getTieDependents(mutant_id).size();
-    if (mutantDGraph.getTieDependents(mutant_id).size() < minTieDep)
-      minTieDep = mutantDGraph.getTieDependents(mutant_id).size();
+      if (mutantDGraph.getTieDependents(mutant_id).size() > maxTieDep)
+        maxTieDep = mutantDGraph.getTieDependents(mutant_id).size();
+      if (mutantDGraph.getTieDependents(mutant_id).size() < minTieDep)
+        minTieDep = mutantDGraph.getTieDependents(mutant_id).size();
 
-    if (mutantDGraph.getComplexity(mutant_id) > maxComplexity)
-      maxComplexity = mutantDGraph.getComplexity(mutant_id);
-    if (mutantDGraph.getComplexity(mutant_id) < minComplexity)
-      minComplexity = mutantDGraph.getComplexity(mutant_id);
+      if (mutantDGraph.getComplexity(mutant_id) > maxComplexity)
+        maxComplexity = mutantDGraph.getComplexity(mutant_id);
+      if (mutantDGraph.getComplexity(mutant_id) < minComplexity)
+        minComplexity = mutantDGraph.getComplexity(mutant_id);
 
-    if (mutantDGraph.getCfgDepth(mutant_id) > maxCfgDepth)
-      maxCfgDepth = mutantDGraph.getCfgDepth(mutant_id);
-    if (mutantDGraph.getCfgDepth(mutant_id) < minCfgDepth)
-      minCfgDepth = mutantDGraph.getCfgDepth(mutant_id);
+      if (mutantDGraph.getCfgDepth(mutant_id) > maxCfgDepth)
+        maxCfgDepth = mutantDGraph.getCfgDepth(mutant_id);
+      if (mutantDGraph.getCfgDepth(mutant_id) < minCfgDepth)
+        minCfgDepth = mutantDGraph.getCfgDepth(mutant_id);
 
-    if (mutantDGraph.getCfgPredNum(mutant_id) > maxCfgPredNum)
-      maxCfgPredNum = mutantDGraph.getCfgPredNum(mutant_id);
-    if (mutantDGraph.getCfgPredNum(mutant_id) < minCfgPredNum)
-      minCfgPredNum = mutantDGraph.getCfgPredNum(mutant_id);
+      if (mutantDGraph.getCfgPredNum(mutant_id) > maxCfgPredNum)
+        maxCfgPredNum = mutantDGraph.getCfgPredNum(mutant_id);
+      if (mutantDGraph.getCfgPredNum(mutant_id) < minCfgPredNum)
+        minCfgPredNum = mutantDGraph.getCfgPredNum(mutant_id);
 
-    if (mutantDGraph.getCfgSuccNum(mutant_id) > maxCfgSuccNum)
-      maxCfgSuccNum = mutantDGraph.getCfgSuccNum(mutant_id);
-    if (mutantDGraph.getCfgSuccNum(mutant_id) < minCfgSuccNum)
-      minCfgSuccNum = mutantDGraph.getCfgSuccNum(mutant_id);
+      if (mutantDGraph.getCfgSuccNum(mutant_id) > maxCfgSuccNum)
+        maxCfgSuccNum = mutantDGraph.getCfgSuccNum(mutant_id);
+      if (mutantDGraph.getCfgSuccNum(mutant_id) < minCfgSuccNum)
+        minCfgSuccNum = mutantDGraph.getCfgSuccNum(mutant_id);
 
-    if (mutantDGraph.getAstParentsOpcodeNames(mutant_id).size() >
-        maxNumAstParent)
-      maxNumAstParent = mutantDGraph.getAstParentsOpcodeNames(mutant_id).size();
-    if (mutantDGraph.getAstParentsOpcodeNames(mutant_id).size() <
-        minNumAstParent)
-      minNumAstParent = mutantDGraph.getAstParentsOpcodeNames(mutant_id).size();
-  }
-  // ... Actual triming
-  for (MutantIDType mutant_id = 1; mutant_id <= mutants_number; ++mutant_id) {
-    if (maxInDataDep != minInDataDep)
-      mutant_scores[mutant_id] +=
-          (mutantDGraph.getInDataDependents(mutant_id).size() - minInDataDep) *
-          kInDataDep / (maxInDataDep - minInDataDep);
-    if (maxOutDataDep != minOutDataDep)
-      mutant_scores[mutant_id] +=
-          (mutantDGraph.getOutDataDependents(mutant_id).size() -
-           minOutDataDep) *
-          kOutDataDep / (maxOutDataDep - minOutDataDep);
-    if (maxInCtrlDep != minInCtrlDep)
-      mutant_scores[mutant_id] +=
-          (mutantDGraph.getInCtrlDependents(mutant_id).size() - minInCtrlDep) *
-          kInCtrlDep / (maxInCtrlDep - minInCtrlDep);
-    if (maxOutCtrlDep != minOutCtrlDep)
-      mutant_scores[mutant_id] +=
-          (mutantDGraph.getOutCtrlDependents(mutant_id).size() -
-           minOutCtrlDep) *
-          kOutCtrlDep / (maxOutCtrlDep - minOutCtrlDep);
-    if (maxTieDep != minTieDep)
-      mutant_scores[mutant_id] +=
-          (mutantDGraph.getTieDependents(mutant_id).size() - minTieDep) *
-          kTieDep / (maxTieDep - minTieDep);
-    if (maxComplexity != minComplexity)
-      mutant_scores[mutant_id] +=
-          (mutantDGraph.getComplexity(mutant_id) - minComplexity) *
-          kComplexity / (maxComplexity - minComplexity);
-    if (maxCfgDepth != minCfgDepth)
-      mutant_scores[mutant_id] +=
-          (mutantDGraph.getCfgDepth(mutant_id) - minCfgDepth) * kCfgDepth /
-          (maxCfgDepth - minCfgDepth);
-    if (maxCfgPredNum != minCfgPredNum)
-      mutant_scores[mutant_id] +=
-          (mutantDGraph.getCfgPredNum(mutant_id) - minCfgPredNum) *
-          kCfgPredNum / (maxCfgPredNum - minCfgPredNum);
-    if (maxCfgSuccNum != minCfgSuccNum)
-      mutant_scores[mutant_id] +=
-          (mutantDGraph.getCfgSuccNum(mutant_id) - minCfgSuccNum) *
-          kCfgSuccNum / (maxCfgSuccNum - minCfgSuccNum);
-    if (maxNumAstParent != minNumAstParent)
-      mutant_scores[mutant_id] +=
-          (mutantDGraph.getAstParentsOpcodeNames(mutant_id).size() -
-           minNumAstParent) *
-          kNumAstParent / (maxNumAstParent - minNumAstParent);
-  }
-*/
+      if (mutantDGraph.getAstParentsOpcodeNames(mutant_id).size() >
+          maxNumAstParent)
+        maxNumAstParent =
+    mutantDGraph.getAstParentsOpcodeNames(mutant_id).size();
+      if (mutantDGraph.getAstParentsOpcodeNames(mutant_id).size() <
+          minNumAstParent)
+        minNumAstParent =
+    mutantDGraph.getAstParentsOpcodeNames(mutant_id).size();
+    }
+    // ... Actual triming
+    for (MutantIDType mutant_id = 1; mutant_id <= mutants_number; ++mutant_id) {
+      if (maxInDataDep != minInDataDep)
+        mutant_scores[mutant_id] +=
+            (mutantDGraph.getInDataDependents(mutant_id).size() - minInDataDep)
+    *
+            kInDataDep / (maxInDataDep - minInDataDep);
+      if (maxOutDataDep != minOutDataDep)
+        mutant_scores[mutant_id] +=
+            (mutantDGraph.getOutDataDependents(mutant_id).size() -
+             minOutDataDep) *
+            kOutDataDep / (maxOutDataDep - minOutDataDep);
+      if (maxInCtrlDep != minInCtrlDep)
+        mutant_scores[mutant_id] +=
+            (mutantDGraph.getInCtrlDependents(mutant_id).size() - minInCtrlDep)
+    *
+            kInCtrlDep / (maxInCtrlDep - minInCtrlDep);
+      if (maxOutCtrlDep != minOutCtrlDep)
+        mutant_scores[mutant_id] +=
+            (mutantDGraph.getOutCtrlDependents(mutant_id).size() -
+             minOutCtrlDep) *
+            kOutCtrlDep / (maxOutCtrlDep - minOutCtrlDep);
+      if (maxTieDep != minTieDep)
+        mutant_scores[mutant_id] +=
+            (mutantDGraph.getTieDependents(mutant_id).size() - minTieDep) *
+            kTieDep / (maxTieDep - minTieDep);
+      if (maxComplexity != minComplexity)
+        mutant_scores[mutant_id] +=
+            (mutantDGraph.getComplexity(mutant_id) - minComplexity) *
+            kComplexity / (maxComplexity - minComplexity);
+      if (maxCfgDepth != minCfgDepth)
+        mutant_scores[mutant_id] +=
+            (mutantDGraph.getCfgDepth(mutant_id) - minCfgDepth) * kCfgDepth /
+            (maxCfgDepth - minCfgDepth);
+      if (maxCfgPredNum != minCfgPredNum)
+        mutant_scores[mutant_id] +=
+            (mutantDGraph.getCfgPredNum(mutant_id) - minCfgPredNum) *
+            kCfgPredNum / (maxCfgPredNum - minCfgPredNum);
+      if (maxCfgSuccNum != minCfgSuccNum)
+        mutant_scores[mutant_id] +=
+            (mutantDGraph.getCfgSuccNum(mutant_id) - minCfgSuccNum) *
+            kCfgSuccNum / (maxCfgSuccNum - minCfgSuccNum);
+      if (maxNumAstParent != minNumAstParent)
+        mutant_scores[mutant_id] +=
+            (mutantDGraph.getAstParentsOpcodeNames(mutant_id).size() -
+             minNumAstParent) *
+            kNumAstParent / (maxNumAstParent - minNumAstParent);
+    }
+  */
 
   // For now put all ties here and append to list at the end
   // std::unordered_set<MutantIDType> tiesTemporal;

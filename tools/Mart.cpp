@@ -80,9 +80,8 @@ bool dumpMutantsCallback(Mutation *mutEng,
     std::string tmpFunctionDir = outputDir + "/" + tmpFuncModuleFolder;
 
     llvm::Module *formutsModule = mods->at(0);
-    bool separateFunctionModule =
-        (formutsModule->size() >
-         1); // separate only if we have more than one function XXX
+    // separate only if we have more than one function XXX
+    bool separateFunctionModule = (formutsModule->size() > 1); 
     unsigned mid = 0;
 
     std::string infoFuncPathModPath;
@@ -102,6 +101,9 @@ bool dumpMutantsCallback(Mutation *mutEng,
     infoFuncPathModPath += mutantsFolder + "/0/" + outFile + ".bc\n";
 
     // mutants
+    // this map keep information about the global constants that use a function
+    // that should be replaced by mutant function during IR dumping
+    std::unordered_map<llvm::Module*, std::vector<std::pair<llvm::User*,llvm::Function*>>> functionsGlobalUsers;
     for (auto &m : *poss) {
       formutsModule = mods->at(m.first);
       if (mutFunctions != nullptr) {
@@ -128,41 +130,44 @@ bool dumpMutantsCallback(Mutation *mutEng,
             }
 
             // now 'formutsModule' contain only the function of interest, delete
-            // it so that we can insert the mutants later
-
-            if (!formutsModule->getFunction(funcName)
-                     ->use_empty()) // The function has recursive call. all the
-                                    // mutants point here. Make them point on
-                                    // themselves
-            {
+            // it so that we can insert the mutants later.
+            // If The function has recursive call. all the
+            // mutants point here. Make them point on themselves
+            if (!formutsModule->getFunction(funcName)->use_empty()) {
               auto *tmpFF = formutsModule->getFunction(funcName);
               while (!tmpFF->use_empty()) {
 #if (LLVM_VERSION_MAJOR <= 3) && (LLVM_VERSION_MINOR < 5)
-                if (llvm::Instruction *URInst =
-                        llvm::dyn_cast<llvm::Instruction>(tmpFF->use_back()))
+                auto *UVal = tmpFF->use_back();
 #else
-                if (llvm::Instruction *URInst =
-                        llvm::dyn_cast<llvm::Instruction>(tmpFF->user_back()))
+                auto *UVal = tmpFF->user_back();
 #endif
+                if (llvm::Instruction *URInst =
+                        llvm::dyn_cast<llvm::Instruction>(UVal))
                 {
                   llvm::Function *fofi = URInst->getParent()->getParent();
                   assert(!fofi->getParent() && "the only users should be the "
                                                "mutant functions here, and "
-                                               "thery have no parent.");
+                                               "they have no parent.");
                   URInst->replaceUsesOfWith(tmpFF, fofi);
                 } else {
-                  llvm::errs() << "\nError: Function '" << funcName
-                               << "' should have NO use here, since in its own "
-                                  "module. But still have "
-                               << tmpFF->getNumUses() << " uses\n";
-                  llvm::errs() << "> Please report the bug.\n";
-                  // llvm::errs() << UR << "\n";
-                  // if (auto *Uinst = llvm::dyn_cast<llvm::Instruction>(UR))
-                  ////Uinst->getParent()->getParent()->dump();
-                  //    llvm::errs() << Uinst->getParent()->getParent() << "" <<
-                  //    Uinst->getParent()->getParent()->getName() << " --- " <<
-                  //    Uinst->getParent()->getParent()->getParent() << "\n";
-                  assert(false);
+                  if (llvm::isa<llvm::GlobalVariable>(UVal)) {
+                    llvm::Function *dummyF = llvm::Function::Create (tmpFF->getFunctionType(), tmpFF->getLinkage()); //,"",formutsModule);
+                    functionsGlobalUsers[formutsModule].emplace_back(UVal, dummyF);
+                  } else {
+                    llvm::errs() << "\nError: Function '" << funcName
+                                 << "' should have NO use here, since in its own "
+                                    "module. But still have "
+                                 << tmpFF->getNumUses() << " uses\n";
+                    llvm::errs() << "> Please report the bug.\n";
+                    UVal->dump();
+                    // llvm::errs() << UR << "\n";
+                    // if (auto *Uinst = llvm::dyn_cast<llvm::Instruction>(UR))
+                    ////Uinst->getParent()->getParent()->dump();
+                    //    llvm::errs() << Uinst->getParent()->getParent() << "" <<
+                    //    Uinst->getParent()->getParent()->getName() << " --- " <<
+                    //    Uinst->getParent()->getParent()->getParent() << "\n";
+                    assert(false);
+                  }
                 }
               }
             }
@@ -186,12 +191,20 @@ bool dumpMutantsCallback(Mutation *mutEng,
           auto linkageBak = currFunc->getLinkage();
           formutsModule->getFunctionList().push_back(currFunc);
           currFunc->setLinkage(llvm::GlobalValue::ExternalLinkage);
+          //Handle Global constant use of function (array...)
+          if (functionsGlobalUsers.count(formutsModule) > 0)
+            for (auto &usedumpair: functionsGlobalUsers.at(formutsModule))
+              usedumpair.first->replaceUsesOfWith(usedumpair.second, currFunc);
           if (!ReadWriteIRObj::writeIR(formutsModule,
                                        mutDirPath + "/" + outFile + ".bc")) {
             llvm::errs() << "Mutant " << mid << "...\n";
             assert(false && "Failed to output post-TCE mutant IR file");
           }
           currFunc->setLinkage(linkageBak);
+          //Handle Global constant use of function (array...)
+          if (functionsGlobalUsers.count(formutsModule) > 0)
+            for (auto &usedumpair: functionsGlobalUsers.at(formutsModule))
+              usedumpair.first->replaceUsesOfWith(currFunc, usedumpair.second);
           currFunc->removeFromParent();
         } else {
           mutEng->setModFuncToFunction(formutsModule, currFunc);
@@ -240,7 +253,6 @@ bool dumpMutantsCallback(Mutation *mutEng,
           << (float)(clock() - curClockTime) / CLOCKS_PER_SEC << " Seconds.\n";
   return true;
 }
-
 
 int main(int argc, char **argv) {
 // Remove the option we don't want to display in help
@@ -459,8 +471,8 @@ int main(int argc, char **argv) {
 
   //@ Print post-TCE meta-mutant
   if (!disableDumpMetaIRbc) {
-    if (!ReadWriteIRObj::writeIR(moduleM,
-                                 outputDir + "/" + outFile + metaMuIRFileSuffix))
+    if (!ReadWriteIRObj::writeIR(moduleM, outputDir + "/" + outFile +
+                                              metaMuIRFileSuffix))
       assert(false && "Failed to output post-TCE meta-mutatant IR file");
   }
 
@@ -503,8 +515,9 @@ mutantsDir+"//"+std::to_string(mid)+"//"+outFile+".bc"))
     std::unique_ptr<llvm::Module> forObjModule = llvm::CloneModule(moduleM);
 #endif
     // TODO: insert mutant selection code into the cloned module
-    if (!ReadWriteIRObj::writeObj(forObjModule.get(),
-                                  outputDir + "/" + outFile + metaMuObjFileSuffix))
+    if (!ReadWriteIRObj::writeObj(forObjModule.get(), outputDir + "/" +
+                                                          outFile +
+                                                          metaMuObjFileSuffix))
       assert(false && "Failed to output meta-mutatant object file");
   }
 #endif //#ifdef MART_SEMU_GENMU_OBJECTFILE

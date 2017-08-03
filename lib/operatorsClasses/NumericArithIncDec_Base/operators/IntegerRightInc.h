@@ -97,8 +97,8 @@ public:
     assert(changedVal->getType()->getPrimitiveSizeInBits() &&
            "Must be primitive here");
     storeit = builder.CreateAlignedStore(
-        changedVal, storeit, changedVal->getType()->getPrimitiveSizeInBits() /
-                                 8); // the val here is primitive
+        changedVal, storeit,
+        MI.getDataLayout().getPrefTypeAlignment(changedVal->getType()));
     replacement.push_back(storeit);
 
     return rawVal;

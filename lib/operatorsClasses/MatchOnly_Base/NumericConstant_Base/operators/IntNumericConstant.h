@@ -32,9 +32,12 @@ protected:
    */
   inline bool constAndEquals(llvm::Value *c1, llvm::Value *c2) {
     assert(c1->getType() == c2->getType() && "Type Mismatch (Int)!");
-    if (llvm::dyn_cast<llvm::ConstantInt>(c1)->equalsInt(
-            llvm::dyn_cast<llvm::ConstantInt>(c2)->getZExtValue()))
-      return true;
+    auto *ic1 = llvm::dyn_cast<llvm::ConstantInt>(c1);
+    auto *ic2 = llvm::dyn_cast<llvm::ConstantInt>(c2);
+    if (ic1->getBitWidth() == ic2->getBitWidth()) {
+      if (ic1->getValue() == ic2->getValue())
+        return true;
+    }
     return false;
   }
 }; // class IntNumericConstant

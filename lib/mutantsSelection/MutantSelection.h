@@ -34,21 +34,30 @@ namespace selection {
 
 class PredictionModule {
   std::string modelFilename;
-  void fastBDTPredict (std::vector<std::vector<float>> const &X_matrix, std::vector<float> &prediction);
-  void fastBDTTrain (std::vector<std::vector<float>> const &X_matrix, std::vector<bool> const &isCoupled, unsigned treeNumber=5000);
-  void randomForestPredict (std::vector<std::vector<float>> const &X_matrix, std::vector<float> &prediction);
-  void randomForestTrain (std::vector<std::vector<float>> const &X_matrix, std::vector<bool> const &isCoupled, unsigned treeNumber=10);
+  void fastBDTPredict(std::vector<std::vector<float>> const &X_matrix,
+                      std::vector<float> &prediction);
+  void fastBDTTrain(std::vector<std::vector<float>> const &X_matrix,
+                    std::vector<bool> const &isCoupled,
+                    unsigned treeNumber = 5000, unsigned treeDepth = 5);
+  void randomForestPredict(std::vector<std::vector<float>> const &X_matrix,
+                           std::vector<float> &prediction);
+  void randomForestTrain(std::vector<std::vector<float>> const &X_matrix,
+                         std::vector<bool> const &isCoupled,
+                         unsigned treeNumber = 10);
+
 public:
-  PredictionModule (std::string modelfile): modelFilename(modelfile) {}
-  /// make prediction for data in @param X_matrix and put the results into prediction
+  PredictionModule(std::string modelfile) : modelFilename(modelfile) {}
+  /// make prediction for data in @param X_matrix and put the results into
+  /// prediction
   /// Each contained vector correspond to a feature
-  void predict (std::vector<std::vector<float>> const &X_matrix, std::vector<float> &prediction);
+  void predict(std::vector<std::vector<float>> const &X_matrix,
+               std::vector<float> &prediction);
 
   /// Train model and write model into predictionModelFilename
   /// Each contained vector correspond to a feature
-  void train (std::vector<std::vector<float>> const &X_matrix, std::vector<bool> const &isCoupled, unsigned treeNumber=1000);
+  void train(std::vector<std::vector<float>> const &X_matrix,
+             std::vector<bool> const &isCoupled, unsigned treeNumber = 1000, unsigned treeDepth=3);
 }; // PredictionModule
-
 
 class MutantDependenceGraph //: public DependenceGraph<MutantNode>
 {
@@ -169,12 +178,14 @@ private:
     mutantDGraphData[id].higherHopsInCtrlDependents.emplace_back();
     return mutantDGraphData[id].higherHopsInCtrlDependents.back();
   }
-  
+
   /// Make MCL expansions for a adjacency matrix
-  //void graphMCL (std::vector<std::vector<float>> &adjacencyMatrix);
-  
-  /// make a graph using DD, CD as edges (higher edge weight to DD). Each node on the graph correspond to tie dependent mutants 
-  //void computeMarkovCLusters (std::vector<std::vector<MutantIDType>> &clusters);
+  // void graphMCL (std::vector<std::vector<float>> &adjacencyMatrix);
+
+  /// make a graph using DD, CD as edges (higher edge weight to DD). Each node
+  /// on the graph correspond to tie dependent mutants
+  // void computeMarkovCLusters (std::vector<std::vector<MutantIDType>>
+  // &clusters);
 
 public:
   MutantDependenceGraph(MutantIDType nMuts) {
@@ -216,7 +227,8 @@ public:
   }
 
   // if @param featuresnames is not null put the ordered feature names in it
-  void computeMutantFeatures(std::vector<std::vector<float>> &featuresmatrix, std::vector<std::string> &featuresnames);
+  void computeMutantFeatures(std::vector<std::vector<float>> &featuresmatrix,
+                             std::vector<std::string> &featuresnames);
 
   bool build(llvm::Module const &mod, dg::LLVMDependenceGraph const *irDg,
              MutantInfoList const &mutInfos,
@@ -313,7 +325,9 @@ private:
   MutantIDType pickMutant(std::unordered_set<MutantIDType> const &candidates,
                           std::vector<double> const &scores);
   void relaxMutant(MutantIDType mutant_id, std::vector<double> &scores);
-  void getMachineLearningPrediction(std::vector<float> &couplingProbabilitiesOut, std::string modelFilename); 
+  void
+  getMachineLearningPrediction(std::vector<float> &couplingProbabilitiesOut,
+                               std::string modelFilename);
 
 public:
   MutantSelection(llvm::Module &inMod, MutantInfoList const &mInf,
@@ -327,7 +341,7 @@ public:
     mutantDGraph.exportMutantFeaturesCSV(csvFilename);
   }
   void smartSelectMutants(std::vector<MutantIDType> &selectedMutants,
-                          //std::vector<double> &selectedScores,
+                          // std::vector<double> &selectedScores,
                           std::vector<float> &cachedPrediction,
                           std::string trainedModelFilename, bool mlOnly);
   void randomMutants(std::vector<MutantIDType> &spreadSelectedMutants,

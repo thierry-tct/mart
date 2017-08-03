@@ -157,9 +157,7 @@ public:
            "The value to assign must be primitive here");
     llvm::Value *store = builder.CreateAlignedStore(
         oprd2_intValOprd, oprd1_addrOprd,
-        oprd2_intValOprd->getType()->getPrimitiveSizeInBits() /
-            8); // TODO: Maybe replace the alignement here with that from
-                // DataLayout
+        MI.getDataLayout().getPrefTypeAlignment(oprd2_intValOprd->getType()));
     replacement.push_back(store);
     return valRet;
   }

@@ -1,18 +1,18 @@
 
-#ifndef __MART_SEMU_GENMU_tools_tools-commondefs__
-#define __MART_SEMU_GENMU_tools_tools-commondefs__
+#ifndef __MART_SEMU_GENMU_tools_tools - commondefs__
+#define __MART_SEMU_GENMU_tools_tools -commondefs__
 
-#include <libgen.h>  //dirname
+#include <libgen.h> //dirname
 #include <string>
 
 static const std::string mutantsInfosFileName("mutantsInfos.json");
-static const char * wmOutIRFileSuffix = ".WM.bc";
-static const char * preTCEMetaIRFileSuffix = ".preTCE.MetaMu.bc";
-static const char * commonIRSuffix = ".bc";
-static const char * metaMuIRFileSuffix = ".MetaMu.bc";
-static const char * usefulFolderName = "useful";
+static const char *wmOutIRFileSuffix = ".WM.bc";
+static const char *preTCEMetaIRFileSuffix = ".preTCE.MetaMu.bc";
+static const char *commonIRSuffix = ".bc";
+static const char *metaMuIRFileSuffix = ".MetaMu.bc";
+static const char *usefulFolderName = "useful";
 #ifdef MART_SEMU_GENMU_OBJECTFILE
-static const char * metaMuObjFileSuffix = ".MetaMu.o";
+static const char *metaMuObjFileSuffix = ".MetaMu.o";
 #endif
 
 void printVersion() {
@@ -28,7 +28,7 @@ void printVersion() {
 
 std::string getUsefulAbsPath(char *argv0) {
   std::string useful_conf_dir;
-  
+
   char *tmpStr = nullptr;
   tmpStr = new char[1 + std::strlen(argv0)]; // Alocate tmpStr1
   std::strcpy(tmpStr, argv0);
@@ -37,7 +37,7 @@ std::string getUsefulAbsPath(char *argv0) {
   delete[] tmpStr;
   tmpStr = nullptr; // del tmpStr1
 
-  useful_conf_dir = useful_conf_dir + "/"+usefulFolderName+"/";
+  useful_conf_dir = useful_conf_dir + "/" + usefulFolderName + "/";
   return useful_conf_dir;
 }
 
