@@ -13,12 +13,13 @@ error_exit()
 
 TOPDIR=$(dirname $(readlink -f $0))
 
-[ $# = 4 ] || error_exit "Expected 4 parameters, $# passed: $0 <llvmBinaryDir> <directory (mart-out-0)> <tmpFuncModuleFolder> <remove mutants' \".bc\"? yes/no>"
+[ $# = 5 ] || error_exit "Expected 5 parameters, $# passed: $0 <llvmBinaryDir> <directory (mart-out-0)> <tmpFuncModuleFolder> <remove mutants' \".bc\"? yes/no> <extra linking flags>"
 
 llvm_bin_dir=$(readlink -f $1)
 Dir=$(readlink -f $2)
 tmpFuncModuleFolder=$3
 removeMutsBCs=$4
+extraLinkingFlags=$5
 fdupesData=$Dir/"fdupes_duplicates.txt"
 mutantsFolder="mutants.out"
 
@@ -38,6 +39,7 @@ cd $Dir
 
 #Compile the generated mutants
 CFLAGS="-lm"    #link with lm because gcc complain linking when fmod mutant is added
+CFLAGS+=" $extraLinkingFlags"
 for m in `find -maxdepth 1 -type f -name "*.bc"`
 do
     $llc -O0 -filetype=obj -o ${m%.bc}.o $m || error_exit "Failed to compile mutant $m to object"

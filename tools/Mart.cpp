@@ -284,6 +284,12 @@ int main(int argc, char **argv) {
           "(Optional) Specify the mutation scope: Functions, source files."),
       llvm::cl::value_desc("filename"), llvm::cl::init(""));
 
+llvm::cl::opt<std::string> extraLinkingFlags(
+      "linking-flags",
+      llvm::cl::desc(
+          "(Optional) Specify extra linking flags necessary to build executable from input BC file."),
+      llvm::cl::value_desc("backend linking flags"), llvm::cl::init(""));
+
   llvm::cl::opt<bool> dumpPreTCEMeta(
       "print-preTCE-Meta",
       llvm::cl::desc("Enable dumping Meta module before applying TCE"));
@@ -559,7 +565,7 @@ mutantsDir+"//"+std::to_string(mid)+"//"+outFile+".bc"))
     execl("/bin/bash", "bash",
           (compileMutsScript + "/useful/CompileAllMuts.sh").c_str(),
           LLVM_TOOLS_BINARY_DIR, outputDir.c_str(), tmpFuncModuleFolder.c_str(),
-          keepMutantsBCs ? "no" : "yes", (char *)NULL);
+          keepMutantsBCs ? "no" : "yes", extraLinkingFlags.c_str(), (char *)NULL);
     llvm::errs() << "\n:( ERRORS: Mutants Compile script failed (probably not "
                     "enough memory)!!!"
                  << "!\n\n";
