@@ -150,24 +150,24 @@ bool dumpMutantsCallback(Mutation *mutEng,
                                                "they have no parent.");
                   URInst->replaceUsesOfWith(tmpFF, fofi);
                 } else {
-                  if (llvm::isa<llvm::GlobalVariable>(UVal)) {
+                  /*if (llvm::isa<llvm::GlobalVariable>(UVal)) {*/
                     llvm::Function *dummyF = llvm::Function::Create (tmpFF->getFunctionType(), tmpFF->getLinkage()); //,"",formutsModule);
                     functionsGlobalUsers[formutsModule].emplace_back(UVal, dummyF);
-                  } else {
+                  /*} else {
                     llvm::errs() << "\nError: Function '" << funcName
                                  << "' should have NO use here, since in its own "
                                     "module. But still have "
                                  << tmpFF->getNumUses() << " uses\n";
                     llvm::errs() << "> Please report the bug.\n";
-                    UVal->dump();
+                    UVal->dump();*/
                     // llvm::errs() << UR << "\n";
                     // if (auto *Uinst = llvm::dyn_cast<llvm::Instruction>(UR))
                     ////Uinst->getParent()->getParent()->dump();
                     //    llvm::errs() << Uinst->getParent()->getParent() << "" <<
                     //    Uinst->getParent()->getParent()->getName() << " --- " <<
                     //    Uinst->getParent()->getParent()->getParent() << "\n";
-                    assert(false);
-                  }
+                  /*  assert(false);
+                  }*/
                 }
               }
             }
