@@ -374,10 +374,168 @@ bool MutantDependenceGraph::build(llvm::Module const &mod,
     load(mutant_depend_filename, mutInfos);
   }
 
+  // Matrix for relation. (i, j).first represents 'IN', second 'OUT'
+  std::vector<std::pair<std::unordered_map<MutantIDType,double>, std::unordered_map<MutantIDType,double>>> nonZeros_Cumuls(mutants_number+1);
+
+  // TODO TODO :: Use CSR to represent the matrix for memory efficiency(as it is sparse)
+  std::vector<std::vector<std::pair<double, double>>> matrixInOut(mutants_number+1);
+
+  for (MutantIDType mid = 1; mid <= mutants_number; ++mid) {
+    matrixInOut[mid].resize(mutants_number+1, std::pair<double, double>(0.0, 0.0));
+    double inproba, outproba;
+    inproba = 1.0 / (1 + getTieDependents(mid).size() + getInDataDependents(mid).size());
+    outproba = 1.0 / (1 + getTieDependents(mid).size() + getOutDataDependents(mid).size());
+    
+    for (auto did: getInDataDependents(mid)) {
+      matrixInOut[mid][did].first = inproba;
+      nonZeros_Cumuls[mid].first[did] = inproba;
+    }
+    
+    for (auto did: getOutDataDependents(mid)) {
+      matrixInOut[mid][did].second = outproba;
+      nonZeros_Cumuls[mid].second[did] = outproba;
+    }
+
+    //Tie dependent are added as self loop inchuling This mutant
+    // they are added both for In and Out
+    matrixInOut[mid][mid].first = inproba;
+    nonZeros_Cumuls[mid].first[mid] = inproba;
+    matrixInOut[mid][mid].second = outproba;
+    nonZeros_Cumuls[mid].second[mid] = outproba;
+    for (auto did: getTieDependents(mid)) {
+      matrixInOut[mid][did].first = inproba;
+      nonZeros_Cumuls[mid].first[did] = inproba;
+      matrixInOut[mid][did].second = outproba;
+      nonZeros_Cumuls[mid].second[did] = outproba;
+    }
+  }
+
+  std::vector<std::pair<std::unordered_map<MutantIDType,double>, std::unordered_map<MutantIDType,double>>> update(nonZeros_Cumuls);
+
+  unsigned curhop = 1;
+  double cur_relax_factor = RELAX_STEP / curhop;
+  while (cur_relax_factor >= RELAX_THRESHOLD) {
+    for (MutantIDType midSrc = 1; midSrc <= mutants_number; ++midSrc) {
+      // In relation
+      for (auto &Itp1: nonZeros_Cumuls[midSrc].first) {
+        MutantIDType midDest = Itp1.first;
+        for (auto &Itp2: nonZeros_Cumuls[midDest].first) {
+          MutantIDType midFar = Itp2.first;
+          //absent keys are inserted with value zero in maps
+          update[midSrc].first[midFar] += matrixInOut[midSrc][midDest].first * matrixInOut[midDest][midFar].first;
+        }
+      }
+
+      // Out Relation
+      for (auto &Itp1: nonZeros_Cumuls[midSrc].second) {
+        MutantIDType midDest = Itp1.first;
+        for (auto &Itp2: nonZeros_Cumuls[midDest].second) {
+          MutantIDType midFar = Itp2.first;
+          //absent keys are inserted with value zero in maps
+          update[midSrc].second[midFar] += matrixInOut[midSrc][midDest].second * matrixInOut[midDest][midFar].second;
+        }
+      }
+    }
+
+    // Update the whole matrix
+    for (MutantIDType mid = 1; mid <= mutants_number; ++mid) {
+      // Readjust the probabilities to 0 -- 1
+      // Then update the matrix
+      double sumIn = 0.0;
+      for (auto &vin: update[mid].first) { 
+        vin.second *= vin.second; //inflate
+        sumIn += vin.second;
+      }
+      if (sumIn > 0.0)
+        for (auto &vin: update[mid].first) 
+          vin.second /= sumIn;
+      for (auto &inIt: update[mid].first) {
+        //absent keys are inserted with value zero in maps
+        nonZeros_Cumuls[mid].first[inIt.first] += inIt.second;
+        matrixInOut[mid][inIt.first].first = inIt.second;
+      }
+
+      double sumOut = 0.0;
+      for (auto &vout: update[mid].second) {
+        vout.second *= vout.second;  //inflate
+        sumOut += vout.second;
+      }
+      if (sumOut > 0.0)
+        for (auto &vout: update[mid].second) 
+          vout.second /= sumOut;
+      for (auto &outIt: update[mid].second) {
+        //absent keys are inserted with value zero in maps
+        nonZeros_Cumuls[mid].second[outIt.first] += outIt.second;
+        matrixInOut[mid][outIt.first].second = outIt.second;
+      }
+    }
+llvm::errs() << curhop << "...\n";
+    // next hop
+    ++curhop;
+    cur_relax_factor = RELAX_STEP / curhop;
+  }
+  
+llvm::errs() << "stirong ...\n";
+  //Store the relations to each mutant node
+  for (MutantIDType m_id = 1; m_id <= mutants_number; ++m_id) {
+    for (MutantIDType dm_id = 1; dm_id <= mutants_number; ++dm_id) {
+      if (matrixInOut[m_id][dm_id].first > 0.0) {
+        addInDataRelationStrength(m_id, dm_id, matrixInOut[m_id][dm_id].first);
+        assert (matrixInOut[dm_id][m_id].second > 0.0);
+      }
+      if (matrixInOut[m_id][dm_id].second > 0.0) {
+        addOutDataRelationStrength(m_id, dm_id, matrixInOut[m_id][dm_id].second);
+        assert (matrixInOut[dm_id][m_id].first > 0.0);
+      }
+    }
+  }
+  
+  //create clusters
+  // FIXME: there can't be more cluster than mutant, so better use MutantIDType 
+  // instead of unsigned long
+  unsigned long initialval = (unsigned long)-1;  
+  std::unordered_set<MutantIDType> mutantsVisited;
+  std::vector<unsigned long> cluster_ids(mutants_number+1, initialval);
+  for (MutantIDType m_id = 1; m_id <= mutants_number; ++m_id) {
+    std::unordered_set<MutantIDType> *curDDCluster;
+    unsigned long c_id;
+    if (cluster_ids[m_id] == initialval) {
+      c_id = createNewDDCluster();
+      cluster_ids[m_id] = c_id;
+      curDDCluster = getDDClusterAt(c_id);
+      curDDCluster->insert(m_id);
+      mutantsVisited.insert(m_id);
+    } else {
+      c_id = cluster_ids[m_id];
+      curDDCluster = getDDClusterAt(c_id);
+      assert (curDDCluster->count(m_id) > 0 && "The mutant must be in the cluster here");
+      mutantsVisited.insert(m_id);
+    }
+    std::stack<MutantIDType> wStack;
+    wStack.push(m_id);
+    while(!wStack.empty()) {
+      auto m_elem = wStack.top();
+      wStack.pop();
+      for (MutantIDType rel_id = 1; rel_id <= mutants_number; ++rel_id) {
+        if (matrixInOut[m_elem][rel_id].first > 0.0 || matrixInOut[m_elem][rel_id].second > 0.0 ) {
+          if (mutantsVisited.count(rel_id) == 0) {
+            curDDCluster->insert(rel_id);
+            cluster_ids[rel_id] = c_id;
+            mutantsVisited.insert(rel_id);
+            wStack.push(rel_id);
+          } else {
+            assert (curDDCluster->count(rel_id) && cluster_ids[rel_id] == c_id && "absent but not seen here");
+          }
+        }
+      }
+    }
+  }
+
+/*
   // get Higher hops data deps (XXX This is not stored in the cache)
   // Skip hop 1
-  unsigned curhop = 2;
-  double cur_relax_factor = RELAX_STEP / curhop;
+  curhop = 2;
+  cur_relax_factor = RELAX_STEP / curhop;
 
   // compute hop 2 and above
   while (cur_relax_factor >= RELAX_THRESHOLD) {
@@ -409,6 +567,7 @@ bool MutantDependenceGraph::build(llvm::Module const &mod,
     ++curhop;
     cur_relax_factor = RELAX_STEP / curhop;
   }
+*/
 
   llvm::errs() << "\t... graph Builded/Loaded\n";
 }
@@ -964,7 +1123,9 @@ MutantSelection::pickMutant(std::unordered_set<MutantIDType> const &candidates,
 
   if (numTopMuts ==
       0) { // Normally should not happend. put this jsut in case ...
-    assert(false && "This function is called with candidate non empty");
+    for (auto v: candidates)
+      llvm::errs() << "(" << v << ", " << scores[v] << "), ";
+    assert(false && "This function is called only with candidate non empty");
     topScored.insert(topScored.end(), candidates.begin(), candidates.end());
   } else {
     topScored.reserve(numTopMuts);
@@ -1016,6 +1177,15 @@ void MutantSelection::relaxMutant(MutantIDType mutant_id,
   // const MutantIDType ORIGINAL_ID = 0; //no mutant have id 0, that's the
   // original's
 
+  for (auto inrel : mutantDGraph.getInMutantRelationStrength(mutant_id)) {
+    scores[inrel.first] -= scores[inrel.first] * (inrel.second + mutantDGraph.getOutRelationStrength(inrel.first, mutant_id));
+  }
+  for (auto outrel : mutantDGraph.getOutMutantRelationStrength(mutant_id)) {
+    scores[outrel.first] -= scores[outrel.first] * (outrel.second + mutantDGraph.getInRelationStrength(outrel.first, mutant_id));
+  }
+  
+
+  /*
   // at data dependency hop n (in and out), and the corresponding node having
   // score x, set its value to x'={x - x*RELAX_STEP/n}, if (RELAX_STEP/n) >=
   // RELAX_THRESHOLD
@@ -1040,19 +1210,20 @@ void MutantSelection::relaxMutant(MutantIDType mutant_id,
     }
 
     // XXX: For now we decrease score for those ctrl dependents. TODO TODO
-    /*for (auto inCtrlDepMut :
+    for (auto inCtrlDepMut :
          mutantDGraph.getHopsInCtrlDependents(mutant_id, curhop)) {
       scores[inCtrlDepMut] -= scores[inCtrlDepMut] * cur_relax_factor;
     }
     for (auto outCtrlDepMut :
          mutantDGraph.getHopsOutCtrlDependents(mutant_id, curhop)) {
       scores[outCtrlDepMut] -= scores[outCtrlDepMut] * cur_relax_factor;
-    }*/
+    }
 
     // next hop
     ++curhop;
     cur_relax_factor = RELAX_STEP / curhop;
   }
+  */
 }
 
 /**
@@ -1088,8 +1259,8 @@ void MutantSelection::smartSelectMutants(
 
   // Choose starting mutants (random for now: 1 mutant per dependency cluster)
   std::vector<double> mutant_scores(mutants_number + 1);
-  std::unordered_set<MutantIDType> visited_mutants;
-  std::unordered_set<MutantIDType> candidate_mutants;
+  //std::unordered_set<MutantIDType> visited_mutants;
+  std::vector<std::unordered_set<MutantIDType>> candidate_mutants_clusters(mutantDGraph.getDDClusters());
 
   /// Get Machine Learning coupling prediction into a vector as probability
   /// to be coupled, for each mutant
@@ -1145,7 +1316,7 @@ void MutantSelection::smartSelectMutants(
   // Initialize scores
   for (MutantIDType mutant_id = 1; mutant_id <= mutants_number; ++mutant_id) {
     mutant_scores[mutant_id] = MAX_SCORE + isCoupledProbability[mutant_id - 1];
-    candidate_mutants.insert(mutant_id);
+    //candidate_mutants.insert(mutant_id);
   }
 
   /*
@@ -1327,10 +1498,22 @@ void MutantSelection::smartSelectMutants(
   */
 
   // For now put all ties here and append to list at the end
-  // std::unordered_set<MutantIDType> tiesTemporal;
+  std::vector<unsigned long> clustershuffle;
+  clustershuffle.reserve(mutants_number);
+  for (unsigned long cluster_id=0; cluster_id < candidate_mutants_clusters.size(); ++cluster_id ) {
+    auto &cluster = candidate_mutants_clusters[cluster_id];
+    for (unsigned long occ=0; occ < cluster.size(); ++occ)
+      clustershuffle.push_back(cluster_id);
+  }
 
-  while (!candidate_mutants.empty()) {
-    auto mutant_id = pickMutant(candidate_mutants, mutant_scores);
+  //llvm::errs() << "\n#### " << candidate_mutants_clusters.size() << " clusters\n\n";
+
+  // randomize
+  std::srand(std::time(NULL) + clock()); //+ clock() because fast running
+  std::random_shuffle(clustershuffle.begin(), clustershuffle.end());
+
+  for (auto cid: clustershuffle) {
+    auto mutant_id = pickMutant(candidate_mutants_clusters[cid], mutant_scores);
     //-----llvm::errs()<<candidate_mutants.size()<<"
     //"<<mutant_scores[mutant_id]<<"\n";
     // Stop if the selected mutant has a score less than the threshold
@@ -1341,20 +1524,22 @@ void MutantSelection::smartSelectMutants(
     relaxMutant(mutant_id, mutant_scores);
 
     // insert the picked mutants and its tie-dependents into visited set
-    visited_mutants.insert(mutant_id);
-    visited_mutants.insert(mutantDGraph.getTieDependents(mutant_id).begin(),
-                           mutantDGraph.getTieDependents(mutant_id).end());
+    //visited_mutants.insert(mutant_id);
+    //visited_mutants.insert(mutantDGraph.getTieDependents(mutant_id).begin(),
+    //                       mutantDGraph.getTieDependents(mutant_id).end());
 
     // tiesTemporal.insert(mutantDGraph.getTieDependents(mutant_id).begin(),
     //                    mutantDGraph.getTieDependents(mutant_id).end());
     //// -- Remove Tie Dependents from candidates
     // for (auto tie_ids : mutantDGraph.getTieDependents(mutant_id))
     //  candidate_mutants.erase(tie_ids);
-    for (auto tieMId : mutantDGraph.getTieDependents(mutant_id))
-      mutant_scores[mutant_id] -= TIE_REDUCTION_DIFF;
+    
+    //for (auto tieMId : mutantDGraph.getTieDependents(mutant_id))
+    //  mutant_scores[mutant_id] -= TIE_REDUCTION_DIFF 
+    //                        * (1 - isCoupledProbability[mutant_id - 1]);
 
     // Remove picked mutants from candidates
-    candidate_mutants.erase(mutant_id);
+    candidate_mutants_clusters[cid].erase(mutant_id);
   }
 
   // append the ties temporal to selection

@@ -85,10 +85,17 @@ class MutantDependenceGraph //: public DependenceGraph<MutantNode>
     std::vector<std::unordered_set<MutantIDType>> higherHopsInDataDependents;
     std::vector<std::unordered_set<MutantIDType>> higherHopsOutCtrlDependents;
     std::vector<std::unordered_set<MutantIDType>> higherHopsInCtrlDependents;
+
+    // containg for out dependent reachable mutants, their ID and the strength
+    // of thier relationship (proba of reaching them from this mutant theough DD)
+    // this do not include mutants tie dependent to this
+    std::unordered_map<MutantIDType, double> relationOutgoing;
+    std::unordered_map<MutantIDType, double> relationIncoming;
   };
 
 private:
   std::vector<MutantDepends> mutantDGraphData; // Adjacent List
+  std::vector<std::unordered_set<MutantIDType>> DDClusters;
   std::unordered_map<MutantIDType, std::unordered_set<llvm::Value const *>>
       mutant2IRset;
   std::unordered_map<llvm::Value const *, std::unordered_set<MutantIDType>>
@@ -177,6 +184,31 @@ private:
   addHigherHopsInCtrlDependents(MutantIDType id) {
     mutantDGraphData[id].higherHopsInCtrlDependents.emplace_back();
     return mutantDGraphData[id].higherHopsInCtrlDependents.back();
+  }
+
+  void addInDataRelationStrength (MutantIDType midSrc, MutantIDType midTarget, double val) {
+    mutantDGraphData[midSrc].relationIncoming.emplace(midTarget, val);
+  }
+
+  void addOutDataRelationStrength (MutantIDType midSrc, MutantIDType midTarget, double val) {
+    mutantDGraphData[midSrc].relationOutgoing.emplace(midTarget, val);
+  }
+
+  void getInOutDataRelationStrengthMutantsOfInto (MutantIDType mid, std::unordered_set<MutantIDType> &copyTo) {
+    for (auto &inMPair :mutantDGraphData[mid].relationIncoming)
+      copyTo.insert(inMPair.first);
+    for (auto &outMPair :mutantDGraphData[mid].relationOutgoing)
+      copyTo.insert(outMPair.first);
+  }
+
+  // return the cluster id (position in vector)
+  unsigned long createNewDDCluster() {
+    DDClusters.emplace_back();
+    return DDClusters.size() - 1;
+  }
+
+  std::unordered_set<MutantIDType> *getDDClusterAt(unsigned long cid) {
+    return &(DDClusters.at(cid));
   }
 
   /// Make MCL expansions for a adjacency matrix
@@ -307,6 +339,26 @@ public:
     if (hop == 1)
       return getInCtrlDependents(mutant_id);
     return mutantDGraphData[mutant_id].higherHopsInCtrlDependents[hop - 2];
+  }
+
+  double getInRelationStrength(MutantIDType fromMid, MutantIDType toMid) {
+    return mutantDGraphData[fromMid].relationIncoming.at(toMid);
+  }
+
+  double getOutRelationStrength(MutantIDType fromMid, MutantIDType toMid) {
+    return mutantDGraphData[fromMid].relationOutgoing.at(toMid);
+  }
+
+  std::unordered_map<MutantIDType, double> &getInMutantRelationStrength(MutantIDType fromMid) {
+    return mutantDGraphData[fromMid].relationIncoming;
+  }
+
+  std::unordered_map<MutantIDType, double> &getOutMutantRelationStrength(MutantIDType fromMid) {
+    return mutantDGraphData[fromMid].relationOutgoing;
+  }
+
+  std::vector<std::unordered_set<MutantIDType>> &getDDClusters() {
+    return DDClusters;
   }
 }; // class MutantDependenceGraph
 
