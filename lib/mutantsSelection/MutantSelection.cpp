@@ -69,10 +69,10 @@ void PredictionModule::fastBDTPredict(
 
 void PredictionModule::fastBDTTrain(
     std::vector<std::vector<float>> const &X_matrix,
-    std::vector<bool> const &isCoupled, unsigned treeNumber, unsigned treeDepth) {
+    std::vector<bool> const &isCoupled, std::vector<float> const &weights, unsigned treeNumber, unsigned treeDepth) {
   assert(!X_matrix.empty() && !isCoupled.empty() &&
          "Error: calling train with empty data");
-  std::vector<float> weights(X_matrix.back().size(), 1.0);
+  //std::vector<float> weights(X_matrix.back().size(), 1.0);
   FastBDT::Classifier classifier;
   classifier.SetNTrees(treeNumber);
   classifier.SetDepth(treeDepth);
@@ -140,8 +140,9 @@ void PredictionModule::predict(std::vector<std::vector<float>> const &X_matrix,
 /// Each contained vector correspond to a feature
 void PredictionModule::train(std::vector<std::vector<float>> const &X_matrix,
                              std::vector<bool> const &isCoupled,
+                             std::vector<float> const  &weights,
                              unsigned treeNumber, unsigned treeDepth) {
-  fastBDTTrain(X_matrix, isCoupled, treeNumber, treeDepth);
+  fastBDTTrain(X_matrix, isCoupled, weights, treeNumber, treeDepth);
   // randomForestTrain(X_matrix, isCoupled. treeNumber);
 }
 
@@ -378,39 +379,40 @@ bool MutantDependenceGraph::build(llvm::Module const &mod,
   std::vector<std::pair<std::unordered_map<MutantIDType,double>, std::unordered_map<MutantIDType,double>>> nonZeros_Cumuls(mutants_number+1);
 
   // TODO TODO :: Use CSR to represent the matrix for memory efficiency(as it is sparse)
-  std::vector<std::vector<std::pair<double, double>>> matrixInOut(mutants_number+1);
+  //std::vector<std::vector<std::pair<double, double>>> matrixInOut(mutants_number+1);
 
   for (MutantIDType mid = 1; mid <= mutants_number; ++mid) {
-    matrixInOut[mid].resize(mutants_number+1, std::pair<double, double>(0.0, 0.0));
+    //matrixInOut[mid].resize(mutants_number+1, std::pair<double, double>(0.0, 0.0));
     double inproba, outproba;
     inproba = 1.0 / (1 + getTieDependents(mid).size() + getInDataDependents(mid).size());
     outproba = 1.0 / (1 + getTieDependents(mid).size() + getOutDataDependents(mid).size());
     
     for (auto did: getInDataDependents(mid)) {
-      matrixInOut[mid][did].first = inproba;
+      //matrixInOut[mid][did].first = inproba;
       nonZeros_Cumuls[mid].first[did] = inproba;
     }
     
     for (auto did: getOutDataDependents(mid)) {
-      matrixInOut[mid][did].second = outproba;
+      //matrixInOut[mid][did].second = outproba;
       nonZeros_Cumuls[mid].second[did] = outproba;
     }
 
     //Tie dependent are added as self loop inchuling This mutant
     // they are added both for In and Out
-    matrixInOut[mid][mid].first = inproba;
+    //matrixInOut[mid][mid].first = inproba;
     nonZeros_Cumuls[mid].first[mid] = inproba;
-    matrixInOut[mid][mid].second = outproba;
+    //matrixInOut[mid][mid].second = outproba;
     nonZeros_Cumuls[mid].second[mid] = outproba;
     for (auto did: getTieDependents(mid)) {
-      matrixInOut[mid][did].first = inproba;
+      //matrixInOut[mid][did].first = inproba;
       nonZeros_Cumuls[mid].first[did] = inproba;
-      matrixInOut[mid][did].second = outproba;
+      //matrixInOut[mid][did].second = outproba;
       nonZeros_Cumuls[mid].second[did] = outproba;
     }
   }
 
   std::vector<std::pair<std::unordered_map<MutantIDType,double>, std::unordered_map<MutantIDType,double>>> update(nonZeros_Cumuls);
+  std::vector<std::pair<std::unordered_map<MutantIDType,double>, std::unordered_map<MutantIDType,double>>> prevupdate(nonZeros_Cumuls);
 
   unsigned curhop = 1;
   double cur_relax_factor = RELAX_STEP / curhop;
@@ -422,7 +424,7 @@ bool MutantDependenceGraph::build(llvm::Module const &mod,
         for (auto &Itp2: nonZeros_Cumuls[midDest].first) {
           MutantIDType midFar = Itp2.first;
           //absent keys are inserted with value zero in maps
-          update[midSrc].first[midFar] += matrixInOut[midSrc][midDest].first * matrixInOut[midDest][midFar].first;
+          update[midSrc].first[midFar] += prevupdate[midSrc].first[midDest] * prevupdate[midDest].first[midFar];
         }
       }
 
@@ -432,15 +434,15 @@ bool MutantDependenceGraph::build(llvm::Module const &mod,
         for (auto &Itp2: nonZeros_Cumuls[midDest].second) {
           MutantIDType midFar = Itp2.first;
           //absent keys are inserted with value zero in maps
-          update[midSrc].second[midFar] += matrixInOut[midSrc][midDest].second * matrixInOut[midDest][midFar].second;
+          update[midSrc].second[midFar] += prevupdate[midSrc].second[midDest] * prevupdate[midDest].second[midFar];
         }
       }
     }
 
-    // Update the whole matrix
+    // Update the whole cumule
     for (MutantIDType mid = 1; mid <= mutants_number; ++mid) {
       // Readjust the probabilities to 0 -- 1
-      // Then update the matrix
+      // Then update the cumule
       double sumIn = 0.0;
       for (auto &vin: update[mid].first) { 
         vin.second *= vin.second; //inflate
@@ -452,7 +454,8 @@ bool MutantDependenceGraph::build(llvm::Module const &mod,
       for (auto &inIt: update[mid].first) {
         //absent keys are inserted with value zero in maps
         nonZeros_Cumuls[mid].first[inIt.first] += inIt.second;
-        matrixInOut[mid][inIt.first].first = inIt.second;
+        prevupdate[mid].first[inIt.first] = inIt.second;
+        //matrixInOut[mid][inIt.first].first = inIt.second;
       }
 
       double sumOut = 0.0;
@@ -466,26 +469,35 @@ bool MutantDependenceGraph::build(llvm::Module const &mod,
       for (auto &outIt: update[mid].second) {
         //absent keys are inserted with value zero in maps
         nonZeros_Cumuls[mid].second[outIt.first] += outIt.second;
-        matrixInOut[mid][outIt.first].second = outIt.second;
+        prevupdate[mid].second[outIt.first] = outIt.second;
+        //matrixInOut[mid][outIt.first].second = outIt.second;
       }
     }
-llvm::errs() << curhop << "...\n";
+
+    llvm::errs() << "hop " << curhop << "... "; //perf DBG
+
     // next hop
     ++curhop;
     cur_relax_factor = RELAX_STEP / curhop;
   }
   
-llvm::errs() << "stirong ...\n";
+  llvm::errs() << "\n";
+
+  // Clear unused
+  //matrixInOut.clear();
+  update.clear();
+  prevupdate.clear();
+
   //Store the relations to each mutant node
   for (MutantIDType m_id = 1; m_id <= mutants_number; ++m_id) {
     for (MutantIDType dm_id = 1; dm_id <= mutants_number; ++dm_id) {
-      if (matrixInOut[m_id][dm_id].first > 0.0) {
-        addInDataRelationStrength(m_id, dm_id, matrixInOut[m_id][dm_id].first);
-        assert (matrixInOut[dm_id][m_id].second > 0.0);
+      if (nonZeros_Cumuls[m_id].first[dm_id] > 0.0) {
+        addInDataRelationStrength(m_id, dm_id, nonZeros_Cumuls[m_id].first[dm_id]);
+        assert (nonZeros_Cumuls[dm_id].second[m_id] > 0.0);
       }
-      if (matrixInOut[m_id][dm_id].second > 0.0) {
-        addOutDataRelationStrength(m_id, dm_id, matrixInOut[m_id][dm_id].second);
-        assert (matrixInOut[dm_id][m_id].first > 0.0);
+      if (nonZeros_Cumuls[m_id].second[dm_id] > 0.0) {
+        addOutDataRelationStrength(m_id, dm_id, nonZeros_Cumuls[m_id].second[dm_id]);
+        assert (nonZeros_Cumuls[dm_id].first[m_id] > 0.0);
       }
     }
   }
@@ -517,7 +529,7 @@ llvm::errs() << "stirong ...\n";
       auto m_elem = wStack.top();
       wStack.pop();
       for (MutantIDType rel_id = 1; rel_id <= mutants_number; ++rel_id) {
-        if (matrixInOut[m_elem][rel_id].first > 0.0 || matrixInOut[m_elem][rel_id].second > 0.0 ) {
+        if (nonZeros_Cumuls[m_elem].first[rel_id] > 0.0 || nonZeros_Cumuls[m_elem].second[rel_id] > 0.0 ) {
           if (mutantsVisited.count(rel_id) == 0) {
             curDDCluster->insert(rel_id);
             cluster_ids[rel_id] = c_id;
@@ -580,9 +592,15 @@ void MutantDependenceGraph::computeMutantFeatures(
   // Features requiring One Hot Encodin (more like python pandas' get_dummies)
   std::unordered_set<std::string> allMutantTypenames; // all mutantTypeNames
   std::unordered_set<std::string> allStmtBBTypenames; // all stmtBBTypeNames
+  std::vector<std::string> mutTypenameTmp;
+  std::vector<std::string> stmtTypenameTmp;
   for (auto mutant_id = 1; mutant_id <= nummuts; ++mutant_id) {
-    allMutantTypenames.insert(getMutantTypename(mutant_id));
-    allStmtBBTypenames.insert(getStmtBBTypename(mutant_id));
+    mutTypenameTmp.clear();
+    getSplittedMutantTypename(mutant_id, mutTypenameTmp);
+    allMutantTypenames.insert(mutTypenameTmp.begin(), mutTypenameTmp.end());
+    stmtTypenameTmp.clear();
+    getSplittedStmtBBTypename(mutant_id, stmtTypenameTmp);
+    allStmtBBTypenames.insert(stmtTypenameTmp.begin(), stmtTypenameTmp.end());
   }
   const std::string nsuff_astparent("-astparent");
   const std::string nsuff_outdatadep("-outdatadep");
@@ -797,27 +815,64 @@ void MutantDependenceGraph::computeMutantFeatures(
       featureValuesPost1Hot[sbbtname + nsuff_inctrldep] = 0;
     }
 
-    featureValuesPost1Hot.at(getMutantTypename(mutant_id)) = 1;
-    featureValuesPost1Hot.at(getStmtBBTypename(mutant_id)) = 1;
+    mutTypenameTmp.clear();
+    getSplittedMutantTypename(mutant_id, mutTypenameTmp);
+    for (auto &str: mutTypenameTmp)
+      featureValuesPost1Hot.at(str) = 1;
+    stmtTypenameTmp.clear();
+    getSplittedStmtBBTypename(mutant_id, stmtTypenameTmp);
+    for (auto &str: stmtTypenameTmp)
+      featureValuesPost1Hot.at(str) = 1;
+
     for (auto pid : getAstParentsMutants(mutant_id)) {
-      featureValuesPost1Hot.at(getMutantTypename(pid) + nsuff_astparent) += 1;
-      featureValuesPost1Hot.at(getStmtBBTypename(pid) + nsuff_astparent) += 1;
+      mutTypenameTmp.clear();
+      getSplittedMutantTypename(pid, mutTypenameTmp);
+      for (auto &str: mutTypenameTmp) 
+        featureValuesPost1Hot.at(str + nsuff_astparent) += 1;
+      stmtTypenameTmp.clear();
+      getSplittedStmtBBTypename(pid, stmtTypenameTmp);
+      for (auto &str: mutTypenameTmp) 
+        featureValuesPost1Hot.at(str + nsuff_astparent) += 1;
     }
     for (auto odid : getOutDataDependents(mutant_id)) {
-      featureValuesPost1Hot.at(getMutantTypename(odid) + nsuff_outdatadep) += 1;
-      featureValuesPost1Hot.at(getStmtBBTypename(odid) + nsuff_outdatadep) += 1;
+      mutTypenameTmp.clear();
+      getSplittedMutantTypename(odid, mutTypenameTmp);
+      for (auto &str: mutTypenameTmp) 
+        featureValuesPost1Hot.at(str + nsuff_outdatadep) += 1;
+      stmtTypenameTmp.clear();
+      getSplittedStmtBBTypename(odid, stmtTypenameTmp);
+      for (auto &str: mutTypenameTmp) 
+        featureValuesPost1Hot.at(str + nsuff_outdatadep) += 1;
     }
     for (auto idid : getInDataDependents(mutant_id)) {
-      featureValuesPost1Hot.at(getMutantTypename(idid) + nsuff_indatadep) += 1;
-      featureValuesPost1Hot.at(getStmtBBTypename(idid) + nsuff_indatadep) += 1;
+      mutTypenameTmp.clear();
+      getSplittedMutantTypename(idid, mutTypenameTmp);
+      for (auto &str: mutTypenameTmp) 
+        featureValuesPost1Hot.at(str + nsuff_indatadep) += 1;
+      stmtTypenameTmp.clear();
+      getSplittedStmtBBTypename(idid, stmtTypenameTmp);
+      for (auto &str: mutTypenameTmp) 
+        featureValuesPost1Hot.at(str + nsuff_indatadep) += 1;
     }
     for (auto ocid : getOutCtrlDependents(mutant_id)) {
-      featureValuesPost1Hot.at(getMutantTypename(ocid) + nsuff_outctrldep) += 1;
-      featureValuesPost1Hot.at(getStmtBBTypename(ocid) + nsuff_outctrldep) += 1;
+      mutTypenameTmp.clear();
+      getSplittedMutantTypename(ocid, mutTypenameTmp);
+      for (auto &str: mutTypenameTmp) 
+        featureValuesPost1Hot.at(str + nsuff_outctrldep) += 1;
+      stmtTypenameTmp.clear();
+      getSplittedStmtBBTypename(ocid, stmtTypenameTmp);
+      for (auto &str: mutTypenameTmp) 
+        featureValuesPost1Hot.at(str + nsuff_outctrldep) += 1;
     }
     for (auto icid : getInCtrlDependents(mutant_id)) {
-      featureValuesPost1Hot.at(getMutantTypename(icid) + nsuff_inctrldep) += 1;
-      featureValuesPost1Hot.at(getStmtBBTypename(icid) + nsuff_inctrldep) += 1;
+      mutTypenameTmp.clear();
+      getSplittedMutantTypename(icid, mutTypenameTmp);
+      for (auto &str: mutTypenameTmp) 
+        featureValuesPost1Hot.at(str + nsuff_inctrldep) += 1;
+      stmtTypenameTmp.clear();
+      getSplittedStmtBBTypename(icid, stmtTypenameTmp);
+      for (auto &str: mutTypenameTmp) 
+        featureValuesPost1Hot.at(str + nsuff_inctrldep) += 1;
     }
 
     /// Append this mutant feature values to the mutant features table
@@ -849,7 +904,7 @@ void MutantDependenceGraph::computeMutantFeatures(
   }
   assert(mutantFeatures.size() == features_matrix.size() &&
          mutantFeatures.size() == features_names.size() &&
-         "@MutantSelection: Please report Bug!");
+         "@MutantSelection: Features size mismatch, Please report Bug!");
 }
 
 ///
@@ -1506,7 +1561,7 @@ void MutantSelection::smartSelectMutants(
       clustershuffle.push_back(cluster_id);
   }
 
-  //llvm::errs() << "\n#### " << candidate_mutants_clusters.size() << " clusters\n\n";
+  //llvm::errs() << "#### " << candidate_mutants_clusters.size() << " clusters\n";
 
   // randomize
   std::srand(std::time(NULL) + clock()); //+ clock() because fast running

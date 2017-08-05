@@ -37,7 +37,7 @@ class PredictionModule {
   void fastBDTPredict(std::vector<std::vector<float>> const &X_matrix,
                       std::vector<float> &prediction);
   void fastBDTTrain(std::vector<std::vector<float>> const &X_matrix,
-                    std::vector<bool> const &isCoupled,
+                    std::vector<bool> const &isCoupled, std::vector<float> const &weights,
                     unsigned treeNumber = 5000, unsigned treeDepth = 5);
   void randomForestPredict(std::vector<std::vector<float>> const &X_matrix,
                            std::vector<float> &prediction);
@@ -56,7 +56,7 @@ public:
   /// Train model and write model into predictionModelFilename
   /// Each contained vector correspond to a feature
   void train(std::vector<std::vector<float>> const &X_matrix,
-             std::vector<bool> const &isCoupled, unsigned treeNumber = 1000, unsigned treeDepth=3);
+             std::vector<bool> const &isCoupled, std::vector<float> const &weights, unsigned treeNumber = 1000, unsigned treeDepth=3);
 }; // PredictionModule
 
 class MutantDependenceGraph //: public DependenceGraph<MutantNode>
@@ -278,13 +278,32 @@ public:
   //                         std::vector<MutantIDType> &parentmutants);
   // void getMutantsOfASTChildrenOf (MutantIDType id,
   //                         std::vector<MutantIDType> &childrenmutants);
-  std::string const &getMutantTypename(MutantIDType id) const {
+  inline std::string const &getMutantTypename(MutantIDType id) const {
     assert(mutantDGraphData[id].mutantTypename.length() > 0 &&
            "Mutant Typename must not be empty");
     return mutantDGraphData[id].mutantTypename;
   }
-  std::string const &getStmtBBTypename(MutantIDType id) const {
+  inline std::string const &getStmtBBTypename(MutantIDType id) const {
     return mutantDGraphData[id].stmtBBTypename;
+  }
+
+  void getSplittedMutantTypename(MutantIDType id, std::vector<std::string> &mrNames) const {
+    assert(mutantDGraphData[id].mutantTypename.length() > 0 &&
+           "Mutant Typename must not be empty");
+    static const char sep = '!';
+    const std::string &mname = mutantDGraphData[id].mutantTypename;
+    auto sepPos = mname.find(sep);
+    assert (sepPos != std::string::npos && "Mutant Typename have noe separator");
+    mrNames.push_back(mname.substr(0, sepPos)+"-Matcher");
+    mrNames.push_back(mname.substr(sepPos+1)+"-Replacer");
+  }
+  void getSplittedStmtBBTypename(MutantIDType id, std::vector<std::string> &sbNames) const {
+    static const char  sep = '.';
+    const std::string &sbbname = mutantDGraphData[id].stmtBBTypename;
+    auto sepPos = sbbname.find(sep);
+    sbNames.push_back(sbbname.substr(0, sepPos));
+    if (sepPos != std::string::npos)
+      sbNames.push_back(sbbname.substr(sepPos+1));
   }
 
   std::unordered_set<MutantIDType> const &

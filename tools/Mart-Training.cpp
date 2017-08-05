@@ -46,16 +46,19 @@ void loadDescription(
 
 void readXY(std::string const &fileX, std::string const &fileY,
             std::unordered_map<std::string, std::vector<float>> &matrixX,
-            std::vector<bool> &vectorY) {
+            std::vector<bool> &vectorY, std::vector<float> &weights) {
   // read Y
   std::ifstream listin(fileY);
   std::string line;
   std::getline(listin, line); // read the header and discard
   int isCoupled;
-  while (std::getline(listin, line)) {
+  float weight;
+  while (std::getline(listin, line, ',')) {
     std::istringstream ssin(line);
     ssin >> isCoupled;
     vectorY.push_back(isCoupled != 0);
+    ssin >> weight;
+    weights.push_back(weight);
   }
 
   std::ifstream csvin(fileX);
@@ -88,9 +91,9 @@ void readXY(std::string const &fileX, std::string const &fileY,
 
 void merge2into1(
     std::unordered_map<std::string, std::vector<float>> &matrixX1,
-    std::vector<bool> &vectorY1,
+    std::vector<bool> &vectorY1, std::vector<float> &weights1,
     std::unordered_map<std::string, std::vector<float>> const &matrixX2,
-    std::vector<bool> const &vectorY2, std::string const &size) {
+    std::vector<bool> const &vectorY2, std::vector<float> &weights2, std::string const &size) {
   auto curTotNMuts = vectorY1.size();
   std::vector<MutantIDType> eventsIndices(vectorY2.size(), 0);
   for (MutantIDType v = 0, ve = vectorY2.size(); v < ve; ++v)
@@ -128,6 +131,7 @@ void merge2into1(
   // add Y's
   for (auto indx : eventsIndices) {
     vectorY1.push_back(vectorY2[indx]);
+    weights1.push_back(weights2[indx]);
   }
 }
 
@@ -243,10 +247,12 @@ int main(int argc, char **argv) {
 
   std::vector<std::vector<float>> Xmatrix;
   std::vector<bool> Yvector;
+  std::vector<float> Weightsvector;
 
   std::unordered_map<std::string, std::vector<float>> Xmapmatrix;
   std::unordered_map<std::string, std::vector<float>> tmpXmapmatrix;
   std::vector<bool> tmpYvector;
+  std::vector<float> tmpWeightsvector;
 
   llvm::outs() << "# Loading CSVs for " << selectedPrograms.size()
                << " programs ...\n";
@@ -256,8 +262,11 @@ int main(int argc, char **argv) {
     auto &pair = programTrainSets.at(posindex);
     tmpXmapmatrix.clear();
     tmpYvector.clear();
-    readXY(pair.first, pair.second, tmpXmapmatrix, tmpYvector); // time costly
-    merge2into1(Xmapmatrix, Yvector, tmpXmapmatrix, tmpYvector,
+    Weightsvector.clear();
+
+    // time costly
+    readXY(pair.first, pair.second, tmpXmapmatrix, tmpYvector, tmpWeightsvector);
+    merge2into1(Xmapmatrix, Yvector, Weightsvector, tmpXmapmatrix, tmpYvector, tmpWeightsvector,
                 trainingSetEventSize);
   }
 
@@ -269,7 +278,7 @@ int main(int argc, char **argv) {
   }
 
   // verify data
-  assert(!Yvector.empty() && !Xmatrix.empty() &&
+  assert(!Yvector.empty() && !Xmatrix.empty() && Weightsvector.size() == Yvector.size() &&
          "mart-training@error: training data cannot be empty");
   for (auto featVect : Xmatrix)
     assert(featVect.size() == Yvector.size() && "mart-training@error: all "
@@ -279,7 +288,7 @@ int main(int argc, char **argv) {
   llvm::outs() << "# X Matrix and Y Vector ready. Training ...\n";
 
   PredictionModule predmod(outputModelFilename);
-  predmod.train(Xmatrix, Yvector, treesNumber, treesDepth);
+  predmod.train(Xmatrix, Yvector, Weightsvector, treesNumber, treesDepth);
 
   // Check prediction score
   float sum = 0;
@@ -302,8 +311,29 @@ int main(int argc, char **argv) {
   }
   llvm::errs() << "SUM: " << sum
                << ", Acc: " << numcorrect * 100.0 / Yvector.size()
-               << ", Coupled Acc:" << 100.0 * couplecorrect / npredcoupl
-               << ", Coupled Found: " << 100.0 * couplecorrect / ntruecoupl
+               << ", Coupled Precision:" << 100.0 * couplecorrect / npredcoupl
+               << ", Coupled Recall: " << 100.0 * couplecorrect / ntruecoupl
+               << "\n";
+
+  // Accuracy of random
+  std::vector<size_t> yindex(Yvector.size());
+  for (size_t i=0; i< yindex.size(); ++i)
+    yindex[i] = i;
+  float rrecall=0.0, rprecision=0.0;
+  for (auto i=1; i <= 100; ++i) {
+    //randomly sample npredcoupl element and compute precision and recall
+    std::srand(std::time(NULL) + clock()); //+ clock() because fast running
+    std::random_shuffle(yindex.begin(), yindex.end());
+    size_t ncouple = 0;
+    for (auto j=1; j <= npredcoupl; ++j)
+      if(Yvector[yindex[j]])
+        ++ncouple;
+    rprecision += 100.0 * ncouple / npredcoupl;
+    rrecall += 100.0 * ncouple / ntruecoupl;
+  }
+  llvm::errs() << "\n--- RANDOM: \n" 
+               << ", Coupled Precision:" << rprecision / 100
+               << ", Coupled Recall: " << rrecall / 100
                << "\n";
 
   std::cout << "\n# Training completed, model written to file "
