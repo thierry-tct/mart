@@ -188,12 +188,15 @@ void MutantDependenceGraph::addDataCtrlFor(
           fromIRs.push_back(oprd);
 
       for (llvm::Value *cvFrom : fromIRs) {
-        for (auto &cinstTo :
-             *(llvm::dyn_cast<llvm::Instruction>(irCtrlTo)->getParent())) {
-          for (MutantIDType m_id_from : IR2mutantset[cvFrom])
-            for (MutantIDType m_id_ctrlto : IR2mutantset[&cinstTo])
-              if (m_id_from != m_id_ctrlto)
-                addCtrlDependency(m_id_from, m_id_ctrlto);
+        // if it donesn't have parent it wont be mutated anyway 
+        // (seems dg add ret void to the code and that have no parent...)
+        if (auto *ictBB = llvm::dyn_cast<llvm::Instruction>(irCtrlTo)->getParent()) {
+          for (auto &cinstTo : *ictBB) {
+            for (MutantIDType m_id_from : IR2mutantset[cvFrom])
+              for (MutantIDType m_id_ctrlto : IR2mutantset[&cinstTo])
+                if (m_id_from != m_id_ctrlto)
+                  addCtrlDependency(m_id_from, m_id_ctrlto);
+          }
         }
       }
     }
