@@ -264,7 +264,8 @@ public:
 
   bool build(llvm::Module const &mod, dg::LLVMDependenceGraph const *irDg,
              MutantInfoList const &mutInfos,
-             std::string mutant_depend_filename);
+             std::string mutant_depend_filename,
+             bool disable_selection);
 
   void dump(std::string filename);
 
@@ -392,7 +393,8 @@ private:
   ////
   void buildDependenceGraphs(std::string mutant_depend_filename, bool rerundg,
                              bool isFlowSensitive = false,
-                             bool isClassicCtrlDepAlgo = true);
+                             bool isClassicCtrlDepAlgo = true,
+                             bool disable_selection = false);
   MutantIDType pickMutant(std::unordered_set<MutantIDType> const &candidates,
                           std::vector<double> const &scores);
   void relaxMutant(MutantIDType mutant_id, std::vector<double> &scores);
@@ -403,10 +405,10 @@ private:
 public:
   MutantSelection(llvm::Module &inMod, MutantInfoList const &mInf,
                   std::string mutant_depend_filename, bool rerundg,
-                  bool isFlowSensitive)
+                  bool isFlowSensitive, bool disable_selection=false)
       : subjectModule(inMod), mutantInfos(mInf),
         mutantDGraph(mInf.getMutantsNumber()) {
-    buildDependenceGraphs(mutant_depend_filename, rerundg, isFlowSensitive);
+    buildDependenceGraphs(mutant_depend_filename, rerundg, isFlowSensitive, true, disable_selection);
   }
   void dumpMutantsFeaturesToCSV(std::string csvFilename) {
     mutantDGraph.exportMutantFeaturesCSV(csvFilename);

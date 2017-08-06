@@ -231,7 +231,7 @@ int main(int argc, char **argv) {
   llvm::outs() << "Computing mutant dependencies...\n";
   curClockTime = clock();
   MutantSelection selection(*moduleM, mutantInfo, mutDepCacheName, rundg,
-                            false /*is flow-sensitive?*/);
+                            false /*is flow-sensitive?*/, disable_selection);
   llvm::outs() << "Mart@Progress: dependencies construction took: "
                << (float)(clock() - curClockTime) / CLOCKS_PER_SEC
                << " Seconds.\n";

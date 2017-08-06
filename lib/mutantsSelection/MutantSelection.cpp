@@ -213,7 +213,8 @@ void MutantDependenceGraph::addDataCtrlFor(
 bool MutantDependenceGraph::build(llvm::Module const &mod,
                                   dg::LLVMDependenceGraph const *irDg,
                                   MutantInfoList const &mutInfos,
-                                  std::string mutant_depend_filename) {
+                                  std::string mutant_depend_filename,
+                                  bool disable_selection) {
   std::unordered_map<std::string,
                      std::unordered_map<unsigned, llvm::Value const *>>
       functionName_position2IR;
@@ -375,212 +376,215 @@ bool MutantDependenceGraph::build(llvm::Module const &mod,
     load(mutant_depend_filename, mutInfos);
   }
 
-  // Matrix for relation. (i, j).first represents 'IN', second 'OUT'
-  std::vector<std::pair<std::unordered_map<MutantIDType,double>, std::unordered_map<MutantIDType,double>>> nonZeros_Cumuls(mutants_number+1);
+  if (! disable_selection) {
+  
+    // Matrix for relation. (i, j).first represents 'IN', second 'OUT'
+    std::vector<std::pair<std::unordered_map<MutantIDType,double>, std::unordered_map<MutantIDType,double>>> nonZeros_Cumuls(mutants_number+1);
 
-  // TODO TODO :: Use CSR to represent the matrix for memory efficiency(as it is sparse)
-  //std::vector<std::vector<std::pair<double, double>>> matrixInOut(mutants_number+1);
+    //std::vector<std::vector<std::pair<double, double>>> matrixInOut(mutants_number+1);
 
-  for (MutantIDType mid = 1; mid <= mutants_number; ++mid) {
-    //matrixInOut[mid].resize(mutants_number+1, std::pair<double, double>(0.0, 0.0));
-    double inproba, outproba;
-    inproba = 1.0 / (1 + getTieDependents(mid).size() + getInDataDependents(mid).size());
-    outproba = 1.0 / (1 + getTieDependents(mid).size() + getOutDataDependents(mid).size());
-    
-    for (auto did: getInDataDependents(mid)) {
-      //matrixInOut[mid][did].first = inproba;
-      nonZeros_Cumuls[mid].first[did] = inproba;
-    }
-    
-    for (auto did: getOutDataDependents(mid)) {
-      //matrixInOut[mid][did].second = outproba;
-      nonZeros_Cumuls[mid].second[did] = outproba;
-    }
-
-    //Tie dependent are added as self loop inchuling This mutant
-    // they are added both for In and Out
-    //matrixInOut[mid][mid].first = inproba;
-    nonZeros_Cumuls[mid].first[mid] = inproba;
-    //matrixInOut[mid][mid].second = outproba;
-    nonZeros_Cumuls[mid].second[mid] = outproba;
-    for (auto did: getTieDependents(mid)) {
-      //matrixInOut[mid][did].first = inproba;
-      nonZeros_Cumuls[mid].first[did] = inproba;
-      //matrixInOut[mid][did].second = outproba;
-      nonZeros_Cumuls[mid].second[did] = outproba;
-    }
-  }
-
-  std::vector<std::pair<std::unordered_map<MutantIDType,double>, std::unordered_map<MutantIDType,double>>> update(nonZeros_Cumuls);
-  std::vector<std::pair<std::unordered_map<MutantIDType,double>, std::unordered_map<MutantIDType,double>>> prevupdate(nonZeros_Cumuls);
-
-  unsigned curhop = 1;
-  double cur_relax_factor = RELAX_STEP / curhop;
-  while (cur_relax_factor >= RELAX_THRESHOLD) {
-    for (MutantIDType midSrc = 1; midSrc <= mutants_number; ++midSrc) {
-      // In relation
-      for (auto &Itp1: nonZeros_Cumuls[midSrc].first) {
-        MutantIDType midDest = Itp1.first;
-        for (auto &Itp2: nonZeros_Cumuls[midDest].first) {
-          MutantIDType midFar = Itp2.first;
-          //absent keys are inserted with value zero in maps
-          update[midSrc].first[midFar] += prevupdate[midSrc].first[midDest] * prevupdate[midDest].first[midFar];
-        }
-      }
-
-      // Out Relation
-      for (auto &Itp1: nonZeros_Cumuls[midSrc].second) {
-        MutantIDType midDest = Itp1.first;
-        for (auto &Itp2: nonZeros_Cumuls[midDest].second) {
-          MutantIDType midFar = Itp2.first;
-          //absent keys are inserted with value zero in maps
-          update[midSrc].second[midFar] += prevupdate[midSrc].second[midDest] * prevupdate[midDest].second[midFar];
-        }
-      }
-    }
-
-    // Update the whole cumule
     for (MutantIDType mid = 1; mid <= mutants_number; ++mid) {
-      // Readjust the probabilities to 0 -- 1
-      // Then update the cumule
-      double sumIn = 0.0;
-      for (auto &vin: update[mid].first) { 
-        vin.second *= vin.second; //inflate
-        sumIn += vin.second;
+      //matrixInOut[mid].resize(mutants_number+1, std::pair<double, double>(0.0, 0.0));
+      double inproba, outproba;
+      inproba = 1.0 / (1 + getTieDependents(mid).size() + getInDataDependents(mid).size());
+      outproba = 1.0 / (1 + getTieDependents(mid).size() + getOutDataDependents(mid).size());
+      
+      for (auto did: getInDataDependents(mid)) {
+        //matrixInOut[mid][did].first = inproba;
+        nonZeros_Cumuls[mid].first[did] = inproba;
       }
-      if (sumIn > 0.0)
-        for (auto &vin: update[mid].first) 
-          vin.second /= sumIn;
-      for (auto &inIt: update[mid].first) {
-        //absent keys are inserted with value zero in maps
-        nonZeros_Cumuls[mid].first[inIt.first] += inIt.second;
-        prevupdate[mid].first[inIt.first] = inIt.second;
-        //matrixInOut[mid][inIt.first].first = inIt.second;
+      
+      for (auto did: getOutDataDependents(mid)) {
+        //matrixInOut[mid][did].second = outproba;
+        nonZeros_Cumuls[mid].second[did] = outproba;
       }
 
-      double sumOut = 0.0;
-      for (auto &vout: update[mid].second) {
-        vout.second *= vout.second;  //inflate
-        sumOut += vout.second;
-      }
-      if (sumOut > 0.0)
-        for (auto &vout: update[mid].second) 
-          vout.second /= sumOut;
-      for (auto &outIt: update[mid].second) {
-        //absent keys are inserted with value zero in maps
-        nonZeros_Cumuls[mid].second[outIt.first] += outIt.second;
-        prevupdate[mid].second[outIt.first] = outIt.second;
-        //matrixInOut[mid][outIt.first].second = outIt.second;
+      //Tie dependent are added as self loop inchuling This mutant
+      // they are added both for In and Out
+      //matrixInOut[mid][mid].first = inproba;
+      nonZeros_Cumuls[mid].first[mid] = inproba;
+      //matrixInOut[mid][mid].second = outproba;
+      nonZeros_Cumuls[mid].second[mid] = outproba;
+      for (auto did: getTieDependents(mid)) {
+        //matrixInOut[mid][did].first = inproba;
+        nonZeros_Cumuls[mid].first[did] = inproba;
+        //matrixInOut[mid][did].second = outproba;
+        nonZeros_Cumuls[mid].second[did] = outproba;
       }
     }
 
-    llvm::errs() << "hop " << curhop << "... "; //perf DBG
+    std::vector<std::pair<std::unordered_map<MutantIDType,double>, std::unordered_map<MutantIDType,double>>> update(nonZeros_Cumuls);
+    std::vector<std::pair<std::unordered_map<MutantIDType,double>, std::unordered_map<MutantIDType,double>>> prevupdate(nonZeros_Cumuls);
 
-    // next hop
-    ++curhop;
-    cur_relax_factor = RELAX_STEP / curhop;
-  }
-  
-  llvm::errs() << "\n";
+    unsigned curhop = 1;
+    double cur_relax_factor = RELAX_STEP / curhop;
+    while (cur_relax_factor >= RELAX_THRESHOLD) {
+      for (MutantIDType midSrc = 1; midSrc <= mutants_number; ++midSrc) {
+        // In relation
+        for (auto &Itp1: nonZeros_Cumuls[midSrc].first) {
+          MutantIDType midDest = Itp1.first;
+          for (auto &Itp2: nonZeros_Cumuls[midDest].first) {
+            MutantIDType midFar = Itp2.first;
+            //absent keys are inserted with value zero in maps
+            update[midSrc].first[midFar] += prevupdate[midSrc].first[midDest] * prevupdate[midDest].first[midFar];
+          }
+        }
 
-  // Clear unused
-  //matrixInOut.clear();
-  update.clear();
-  prevupdate.clear();
-
-  //Store the relations to each mutant node
-  for (MutantIDType m_id = 1; m_id <= mutants_number; ++m_id) {
-    for (MutantIDType dm_id = 1; dm_id <= mutants_number; ++dm_id) {
-      if (nonZeros_Cumuls[m_id].first[dm_id] > 0.0) {
-        addInDataRelationStrength(m_id, dm_id, nonZeros_Cumuls[m_id].first[dm_id]);
-        assert (nonZeros_Cumuls[dm_id].second[m_id] > 0.0);
+        // Out Relation
+        for (auto &Itp1: nonZeros_Cumuls[midSrc].second) {
+          MutantIDType midDest = Itp1.first;
+          for (auto &Itp2: nonZeros_Cumuls[midDest].second) {
+            MutantIDType midFar = Itp2.first;
+            //absent keys are inserted with value zero in maps
+            update[midSrc].second[midFar] += prevupdate[midSrc].second[midDest] * prevupdate[midDest].second[midFar];
+          }
+        }
       }
-      if (nonZeros_Cumuls[m_id].second[dm_id] > 0.0) {
-        addOutDataRelationStrength(m_id, dm_id, nonZeros_Cumuls[m_id].second[dm_id]);
-        assert (nonZeros_Cumuls[dm_id].first[m_id] > 0.0);
+
+      // Update the whole cumule
+      for (MutantIDType mid = 1; mid <= mutants_number; ++mid) {
+        // Readjust the probabilities to 0 -- 1
+        // Then update the cumule
+        double sumIn = 0.0;
+        for (auto &vin: update[mid].first) { 
+          vin.second *= vin.second; //inflate
+          sumIn += vin.second;
+        }
+        if (sumIn > 0.0)
+          for (auto &vin: update[mid].first) 
+            vin.second /= sumIn;
+        for (auto &inIt: update[mid].first) {
+          //absent keys are inserted with value zero in maps
+          nonZeros_Cumuls[mid].first[inIt.first] += inIt.second;
+          prevupdate[mid].first[inIt.first] = inIt.second;
+          //matrixInOut[mid][inIt.first].first = inIt.second;
+        }
+
+        double sumOut = 0.0;
+        for (auto &vout: update[mid].second) {
+          vout.second *= vout.second;  //inflate
+          sumOut += vout.second;
+        }
+        if (sumOut > 0.0)
+          for (auto &vout: update[mid].second) 
+            vout.second /= sumOut;
+        for (auto &outIt: update[mid].second) {
+          //absent keys are inserted with value zero in maps
+          nonZeros_Cumuls[mid].second[outIt.first] += outIt.second;
+          prevupdate[mid].second[outIt.first] = outIt.second;
+          //matrixInOut[mid][outIt.first].second = outIt.second;
+        }
+      }
+
+      llvm::errs() << "hop " << curhop << "... "; //perf DBG
+
+      // next hop
+      ++curhop;
+      cur_relax_factor = RELAX_STEP / curhop;
+    }
+    
+    llvm::errs() << "\n";
+
+    // Clear unused
+    //matrixInOut.clear();
+    update.clear();
+    prevupdate.clear();
+
+    //Store the relations to each mutant node
+    for (MutantIDType m_id = 1; m_id <= mutants_number; ++m_id) {
+      for (MutantIDType dm_id = 1; dm_id <= mutants_number; ++dm_id) {
+        if (nonZeros_Cumuls[m_id].first[dm_id] > 0.0) {
+          addInDataRelationStrength(m_id, dm_id, nonZeros_Cumuls[m_id].first[dm_id]);
+          assert (nonZeros_Cumuls[dm_id].second[m_id] > 0.0);
+        }
+        if (nonZeros_Cumuls[m_id].second[dm_id] > 0.0) {
+          addOutDataRelationStrength(m_id, dm_id, nonZeros_Cumuls[m_id].second[dm_id]);
+          assert (nonZeros_Cumuls[dm_id].first[m_id] > 0.0);
+        }
       }
     }
-  }
-  
-  //create clusters
-  // FIXME: there can't be more cluster than mutant, so better use MutantIDType 
-  // instead of unsigned long
-  unsigned long initialval = (unsigned long)-1;  
-  std::unordered_set<MutantIDType> mutantsVisited;
-  std::vector<unsigned long> cluster_ids(mutants_number+1, initialval);
-  for (MutantIDType m_id = 1; m_id <= mutants_number; ++m_id) {
-    std::unordered_set<MutantIDType> *curDDCluster;
-    unsigned long c_id;
-    if (cluster_ids[m_id] == initialval) {
-      c_id = createNewDDCluster();
-      cluster_ids[m_id] = c_id;
-      curDDCluster = getDDClusterAt(c_id);
-      curDDCluster->insert(m_id);
-      mutantsVisited.insert(m_id);
-    } else {
-      c_id = cluster_ids[m_id];
-      curDDCluster = getDDClusterAt(c_id);
-      assert (curDDCluster->count(m_id) > 0 && "The mutant must be in the cluster here");
-      mutantsVisited.insert(m_id);
-    }
-    std::stack<MutantIDType> wStack;
-    wStack.push(m_id);
-    while(!wStack.empty()) {
-      auto m_elem = wStack.top();
-      wStack.pop();
-      for (MutantIDType rel_id = 1; rel_id <= mutants_number; ++rel_id) {
-        if (nonZeros_Cumuls[m_elem].first[rel_id] > 0.0 || nonZeros_Cumuls[m_elem].second[rel_id] > 0.0 ) {
-          if (mutantsVisited.count(rel_id) == 0) {
-            curDDCluster->insert(rel_id);
-            cluster_ids[rel_id] = c_id;
-            mutantsVisited.insert(rel_id);
-            wStack.push(rel_id);
-          } else {
-            assert (curDDCluster->count(rel_id) && cluster_ids[rel_id] == c_id && "absent but not seen here");
+    
+    //create clusters
+    // FIXME: there can't be more cluster than mutant, so better use MutantIDType 
+    // instead of unsigned long
+    unsigned long initialval = (unsigned long)-1;  
+    std::unordered_set<MutantIDType> mutantsVisited;
+    std::vector<unsigned long> cluster_ids(mutants_number+1, initialval);
+    for (MutantIDType m_id = 1; m_id <= mutants_number; ++m_id) {
+      std::unordered_set<MutantIDType> *curDDCluster;
+      unsigned long c_id;
+      if (cluster_ids[m_id] == initialval) {
+        c_id = createNewDDCluster();
+        cluster_ids[m_id] = c_id;
+        curDDCluster = getDDClusterAt(c_id);
+        curDDCluster->insert(m_id);
+        mutantsVisited.insert(m_id);
+      } else {
+        c_id = cluster_ids[m_id];
+        curDDCluster = getDDClusterAt(c_id);
+        assert (curDDCluster->count(m_id) > 0 && "The mutant must be in the cluster here");
+        mutantsVisited.insert(m_id);
+      }
+      std::stack<MutantIDType> wStack;
+      wStack.push(m_id);
+      while(!wStack.empty()) {
+        auto m_elem = wStack.top();
+        wStack.pop();
+        for (MutantIDType rel_id = 1; rel_id <= mutants_number; ++rel_id) {
+          if (nonZeros_Cumuls[m_elem].first[rel_id] > 0.0 || nonZeros_Cumuls[m_elem].second[rel_id] > 0.0 ) {
+            if (mutantsVisited.count(rel_id) == 0) {
+              curDDCluster->insert(rel_id);
+              cluster_ids[rel_id] = c_id;
+              mutantsVisited.insert(rel_id);
+              wStack.push(rel_id);
+            } else {
+              assert (curDDCluster->count(rel_id) && cluster_ids[rel_id] == c_id && "absent but not seen here");
+            }
           }
         }
       }
     }
-  }
 
-/*
-  // get Higher hops data deps (XXX This is not stored in the cache)
-  // Skip hop 1
-  curhop = 2;
-  cur_relax_factor = RELAX_STEP / curhop;
-
-  // compute hop 2 and above
-  while (cur_relax_factor >= RELAX_THRESHOLD) {
-    for (MutantIDType m_id = 1; m_id <= mutants_number; ++m_id) {
-      std::unordered_set<MutantIDType> &hhodDep =
-          addHigherHopsOutDataDependents(m_id);
-      std::unordered_set<MutantIDType> &hhidDep =
-          addHigherHopsInDataDependents(m_id);
-      std::unordered_set<MutantIDType> &hhocDep =
-          addHigherHopsOutCtrlDependents(m_id);
-      std::unordered_set<MutantIDType> &hhicDep =
-          addHigherHopsInCtrlDependents(m_id);
-
-      for (auto oddM : getHopsOutDataDependents(m_id, curhop))
-        hhodDep.insert(getHopsOutDataDependents(oddM, curhop - 1).begin(),
-                       getHopsOutDataDependents(oddM, curhop - 1).end());
-      for (auto iddM : getHopsInDataDependents(m_id, curhop))
-        hhidDep.insert(getHopsInDataDependents(iddM, curhop - 1).begin(),
-                       getHopsInDataDependents(iddM, curhop - 1).end());
-      for (auto ocdM : getHopsOutCtrlDependents(m_id, curhop))
-        hhocDep.insert(getHopsOutCtrlDependents(ocdM, curhop - 1).begin(),
-                       getHopsOutCtrlDependents(ocdM, curhop - 1).end());
-      for (auto icdM : getHopsInCtrlDependents(m_id, curhop))
-        hhicDep.insert(getHopsInCtrlDependents(icdM, curhop - 1).begin(),
-                       getHopsInCtrlDependents(icdM, curhop - 1).end());
-    }
-
-    // next hop
-    ++curhop;
+  /*
+    // get Higher hops data deps (XXX This is not stored in the cache)
+    // Skip hop 1
+    curhop = 2;
     cur_relax_factor = RELAX_STEP / curhop;
-  }
-*/
 
+    // compute hop 2 and above
+    while (cur_relax_factor >= RELAX_THRESHOLD) {
+      for (MutantIDType m_id = 1; m_id <= mutants_number; ++m_id) {
+        std::unordered_set<MutantIDType> &hhodDep =
+            addHigherHopsOutDataDependents(m_id);
+        std::unordered_set<MutantIDType> &hhidDep =
+            addHigherHopsInDataDependents(m_id);
+        std::unordered_set<MutantIDType> &hhocDep =
+            addHigherHopsOutCtrlDependents(m_id);
+        std::unordered_set<MutantIDType> &hhicDep =
+            addHigherHopsInCtrlDependents(m_id);
+
+        for (auto oddM : getHopsOutDataDependents(m_id, curhop))
+          hhodDep.insert(getHopsOutDataDependents(oddM, curhop - 1).begin(),
+                         getHopsOutDataDependents(oddM, curhop - 1).end());
+        for (auto iddM : getHopsInDataDependents(m_id, curhop))
+          hhidDep.insert(getHopsInDataDependents(iddM, curhop - 1).begin(),
+                         getHopsInDataDependents(iddM, curhop - 1).end());
+        for (auto ocdM : getHopsOutCtrlDependents(m_id, curhop))
+          hhocDep.insert(getHopsOutCtrlDependents(ocdM, curhop - 1).begin(),
+                         getHopsOutCtrlDependents(ocdM, curhop - 1).end());
+        for (auto icdM : getHopsInCtrlDependents(m_id, curhop))
+          hhicDep.insert(getHopsInCtrlDependents(icdM, curhop - 1).begin(),
+                         getHopsInCtrlDependents(icdM, curhop - 1).end());
+      }
+
+      // next hop
+      ++curhop;
+      cur_relax_factor = RELAX_STEP / curhop;
+    }
+  */
+  
+  }  //if (! disable_selection)
+  
   llvm::errs() << "\t... graph Builded/Loaded\n";
 }
 
@@ -1118,7 +1122,8 @@ void MutantDependenceGraph::exportMutantFeaturesCSV(std::string filenameCSV) {
 
 void MutantSelection::buildDependenceGraphs(std::string mutant_depend_filename,
                                             bool rerundg, bool isFlowSensitive,
-                                            bool isClassicCtrlDepAlgo) {
+                                            bool isClassicCtrlDepAlgo,
+                                            bool disable_selection) {
   if (rerundg) {
     dg::CD_ALG cd_alg;
     if (isClassicCtrlDepAlgo)
@@ -1150,11 +1155,11 @@ void MutantSelection::buildDependenceGraphs(std::string mutant_depend_filename,
 
     // Build mutant DGraph
     mutantDGraph.build(subjectModule, &IRDGraph, mutantInfos,
-                       mutant_depend_filename);
+                       mutant_depend_filename, disable_selection);
   } else {
     // load from file
     mutantDGraph.build(subjectModule, nullptr, mutantInfos,
-                       mutant_depend_filename);
+                       mutant_depend_filename, disable_selection);
   }
 }
 
