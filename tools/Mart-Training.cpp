@@ -47,18 +47,19 @@ void loadDescription(
 void readXY(std::string const &fileX, std::string const &fileY,
             std::unordered_map<std::string, std::vector<float>> &matrixX,
             std::vector<bool> &vectorY, std::vector<float> &weights) {
-  // read Y
+  // read Y and weights
   std::ifstream listin(fileY);
   std::string line;
   std::getline(listin, line); // read the header and discard
   int isCoupled;
   float weight;
-  while (std::getline(listin, line, ',')) {
+  while (std::getline(listin, line)) {
+    std::string tmp;
     std::istringstream ssin(line);
-    ssin >> isCoupled;
-    vectorY.push_back(isCoupled != 0);
-    ssin >> weight;
-    weights.push_back(weight);
+    std::getline(ssin, tmp, ',');
+    vectorY.push_back(std::stoul(tmp) != 0);
+    std::getline(ssin, tmp, ',');
+    weights.push_back(std::stof(tmp));
   }
 
   std::ifstream csvin(fileX);
