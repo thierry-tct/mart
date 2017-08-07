@@ -53,8 +53,8 @@ const double TIE_REDUCTION_DIFF = 0.03 / AMPLIFIER;
 
 void PredictionModule::fastBDTPredict(
     std::vector<std::vector<float>> const &X_matrix,
+    std::fstream &in_stream,
     std::vector<float> &prediction) {
-  std::fstream in_stream(modelFilename, std::ios_base::in);
   FastBDT::Classifier classifier(in_stream);
   std::vector<float> event;
   event.reserve(X_matrix.size());
@@ -68,6 +68,7 @@ void PredictionModule::fastBDTPredict(
 }
 
 void PredictionModule::fastBDTTrain(
+    std::fstream &out_stream,
     std::vector<std::vector<float>> const &X_matrix,
     std::vector<bool> const &isCoupled, std::vector<float> const &weights, unsigned treeNumber, unsigned treeDepth) {
   assert(!X_matrix.empty() && !isCoupled.empty() &&
@@ -78,16 +79,13 @@ void PredictionModule::fastBDTTrain(
   classifier.SetDepth(treeDepth);
   classifier.fit(X_matrix, isCoupled, weights);
   // std::cout << "Score " << GetIrisScore(classifier) << std::endl;
-  std::fstream out_stream(modelFilename,
-                          std::ios_base::out | std::ios_base::trunc);
   out_stream << classifier << std::endl;
-  out_stream.close();
 }
 
 void PredictionModule::randomForestPredict(
     std::vector<std::vector<float>> const &X_matrix,
+    std::fstream &in_stream,
     std::vector<float> &prediction) {
-  std::fstream in_stream(modelFilename, std::ios_base::in);
   andres::ml::DecisionForest<double, unsigned char, double> decisionForest;
   decisionForest.deserialize(in_stream);
   auto nFeatures = X_matrix.size();
@@ -104,6 +102,7 @@ void PredictionModule::randomForestPredict(
 }
 
 void PredictionModule::randomForestTrain(
+    std::fstream &out_stream,
     std::vector<std::vector<float>> const &X_matrix,
     std::vector<bool> const &isCoupled, unsigned treeNumber) {
   assert(!X_matrix.empty() && !isCoupled.empty() &&
@@ -121,29 +120,67 @@ void PredictionModule::randomForestTrain(
     for (MutantIDType row = 0, lastr = nEvents; row < lastr; ++row)
       features(row, col) = X_matrix[col][row];
   decisionForest.learn(features, labels, numberOfDecisionTrees);
-  std::fstream out_stream(modelFilename,
-                          std::ios_base::out | std::ios_base::trunc);
   decisionForest.serialize(out_stream);
-  out_stream.close();
 }
 
 /// make prediction for data in @param X_matrix and put the results into
 /// prediction
 /// Each contained vector correspond to a feature
 void PredictionModule::predict(std::vector<std::vector<float>> const &X_matrix,
+                               std::vector<std::string> const &featuresnames,
                                std::vector<float> &prediction) {
-  fastBDTPredict(X_matrix, prediction);
-  // randomForestPredict(X_matrix, prediction);
+  std::vector<std::string> modelFeaturesnames;
+  std::string line;
+  std::fstream in_stream(modelFilename, std::ios_base::in);
+  //get list of feature in the model
+  std::getline(in_stream, line);
+  std::istringstream ss(line);
+  while (ss.good()) {
+    std::string fstr;
+    ss >> fstr;
+    modelFeaturesnames.push_back(fstr);
+  }
+  // rearrange the data to map model (warning about feature not in model)
+  std::vector<std::vector<float>> finalFeatures;
+  finalFeatures.reserve(modelFeaturesnames.size());
+  std::unordered_map<std::string, size_t> fname2pos;
+  for (size_t pos=0; pos<featuresnames.size(); ++pos)
+    fname2pos[featuresnames[pos]] = pos;
+  auto nEvents = X_matrix.back().size();
+  std::unordered_set<std::string> seeninmodel;
+  for (auto fname: modelFeaturesnames) {
+    if (fname2pos.count(fname)) {
+      finalFeatures.push_back(X_matrix[fname2pos[fname]]);
+      seeninmodel.insert(fname);
+    } else {
+      finalFeatures.push_back(std::vector<float>(nEvents, 0.0));
+    }
+  }
+  for (auto fname: featuresnames)
+    if (seeninmodel.count(fname) == 0)
+      llvm::errs() << "Warning: feature not in model: " << fname << "\n";
+
+  fastBDTPredict(finalFeatures, in_stream, prediction);
+  // randomForestPredict(finalFeatures, in_stream, prediction);
 }
 
 /// Train model and write model into predictionModelFilename
 /// Each contained vector correspond to a feature
 void PredictionModule::train(std::vector<std::vector<float>> const &X_matrix,
+                             std::vector<std::string> const &modelFeaturesnames,
                              std::vector<bool> const &isCoupled,
                              std::vector<float> const  &weights,
                              unsigned treeNumber, unsigned treeDepth) {
-  fastBDTTrain(X_matrix, isCoupled, weights, treeNumber, treeDepth);
-  // randomForestTrain(X_matrix, isCoupled. treeNumber);
+  std::fstream out_stream(modelFilename,
+                          std::ios_base::out | std::ios_base::trunc);
+  // dump feature list (to match feature during prediction)                        
+  for (auto &fstr: modelFeaturesnames)
+    out_stream << " " << fstr ;  //istringstrem will skip first space
+  out_stream << "\n";
+
+  fastBDTTrain(out_stream, X_matrix, isCoupled, weights, treeNumber, treeDepth);
+  // randomForestTrain(out_stream, X_matrix, isCoupled. treeNumber);
+  out_stream.close();
 }
 
 // class MutantDependenceGraph
@@ -1304,7 +1341,7 @@ void MutantSelection::getMachineLearningPrediction(
 
   PredictionModule predmodule(modelFilename);
 
-  predmodule.predict(features_matrix, couplingProbabilitiesOut);
+  predmodule.predict(features_matrix, features_names, couplingProbabilitiesOut);
 }
 
 /**

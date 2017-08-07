@@ -2227,6 +2227,7 @@ void Mutation::doTCE(std::unique_ptr<llvm::Module> &modWMLog, bool writeMuts,
 
         llvm::ValueToValueMapTy vmap;
 
+        //TODO TODO: Dump previously found function's mutants here to save memory
         unsigned maxIDOfFunc = id;
         while (dup_eq_processor.funcMutByMutID[maxIDOfFunc] ==
                    dup_eq_processor.funcMutByMutID[id] &&

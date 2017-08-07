@@ -35,13 +35,17 @@ namespace selection {
 class PredictionModule {
   std::string modelFilename;
   void fastBDTPredict(std::vector<std::vector<float>> const &X_matrix,
+                      std::fstream &in_stream,
                       std::vector<float> &prediction);
-  void fastBDTTrain(std::vector<std::vector<float>> const &X_matrix,
+  void fastBDTTrain(std::fstream &out_stream,
+                    std::vector<std::vector<float>> const &X_matrix,
                     std::vector<bool> const &isCoupled, std::vector<float> const &weights,
                     unsigned treeNumber = 5000, unsigned treeDepth = 5);
   void randomForestPredict(std::vector<std::vector<float>> const &X_matrix,
+                           std::fstream &in_stream,
                            std::vector<float> &prediction);
-  void randomForestTrain(std::vector<std::vector<float>> const &X_matrix,
+  void randomForestTrain(std::fstream &out_stream,
+                         std::vector<std::vector<float>> const &X_matrix,
                          std::vector<bool> const &isCoupled,
                          unsigned treeNumber = 10);
 
@@ -50,13 +54,11 @@ public:
   /// make prediction for data in @param X_matrix and put the results into
   /// prediction
   /// Each contained vector correspond to a feature
-  void predict(std::vector<std::vector<float>> const &X_matrix,
-               std::vector<float> &prediction);
+  void predict(std::vector<std::vector<float>> const &X_matrix, std::vector<std::string> const &featuresnames, std::vector<float> &prediction);
 
   /// Train model and write model into predictionModelFilename
   /// Each contained vector correspond to a feature
-  void train(std::vector<std::vector<float>> const &X_matrix,
-             std::vector<bool> const &isCoupled, std::vector<float> const &weights, unsigned treeNumber = 1000, unsigned treeDepth=3);
+  void train(std::vector<std::vector<float>> const &X_matrix, std::vector<std::string> const &modelFeaturesnames, std::vector<bool> const &isCoupled, std::vector<float> const &weights, unsigned treeNumber = 1000, unsigned treeDepth=3);
 }; // PredictionModule
 
 class MutantDependenceGraph //: public DependenceGraph<MutantNode>

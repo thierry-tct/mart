@@ -253,6 +253,7 @@ int main(int argc, char **argv) {
   std::unordered_map<std::string, std::vector<float>> tmpXmapmatrix;
   std::vector<bool> tmpYvector;
   std::vector<float> tmpWeightsvector;
+  std::vector<std::string> featuresnames;
 
   llvm::outs() << "# Loading CSVs for " << selectedPrograms.size()
                << " programs ...\n";
@@ -275,6 +276,7 @@ int main(int argc, char **argv) {
   // convert Xmapmatrix to Xmatrix
   for (auto &it : Xmapmatrix) {
     Xmatrix.push_back(it.second);
+    featuresnames.push_back(it.first);
   }
 
   // verify data
@@ -288,14 +290,14 @@ int main(int argc, char **argv) {
   llvm::outs() << "# X Matrix and Y Vector ready. Training ...\n";
 
   PredictionModule predmod(outputModelFilename);
-  predmod.train(Xmatrix, Yvector, Weightsvector, treesNumber, treesDepth);
+  predmod.train(Xmatrix, featuresnames, Yvector, Weightsvector, treesNumber, treesDepth);
 
   // Check prediction score
   float sum = 0;
   unsigned ntruecoupl, numcorrect, couplecorrect, npredcoupl;
   numcorrect = couplecorrect = npredcoupl = ntruecoupl = 0;
   std::vector<float> scores;
-  predmod.predict(Xmatrix, scores);
+  predmod.predict(Xmatrix, featuresnames, scores);
   for (unsigned int i = 0; i < scores.size(); ++i) {
     if (Yvector[i] - scores[i] < 0.5 && Yvector[i] - scores[i] > -0.5)
       numcorrect++;
