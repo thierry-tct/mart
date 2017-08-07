@@ -264,7 +264,7 @@ int main(int argc, char **argv) {
     auto &pair = programTrainSets.at(posindex);
     tmpXmapmatrix.clear();
     tmpYvector.clear();
-    Weightsvector.clear();
+    tmpWeightsvector.clear();
 
     // time costly
     readXY(pair.first, pair.second, tmpXmapmatrix, tmpYvector, tmpWeightsvector);
