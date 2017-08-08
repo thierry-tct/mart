@@ -556,7 +556,10 @@ mutantsDir+"//"+std::to_string(mid)+"//"+outFile+".bc"))
   // using fork - exec
   pid_t my_pid;
   int child_status;
-  if ((my_pid = fork()) < 0) {
+  // We use vfork here instead of pure fork to avoid error due to low memory
+  // as fork will copy memory to the child process, and mutation use much memory
+  // XXX Be careful about multithreading and vfork.
+  if ((my_pid = vfork()) < 0) {
     perror("fork failure");
     exit(1);
   }
