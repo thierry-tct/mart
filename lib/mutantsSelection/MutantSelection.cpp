@@ -47,7 +47,7 @@ using namespace mart::selection;
 namespace {
 const double MAX_SCORE = 1.0;
 const double RELAX_STEP = 0.05 / AMPLIFIER;
-const double RELAX_THRESHOLD = 0.01 / AMPLIFIER; // 5 hops
+const double RELAX_THRESHOLD = 0.05 / AMPLIFIER; // 2 hops
 const double TIE_REDUCTION_DIFF = 0.03 / AMPLIFIER;
 }
 
