@@ -47,7 +47,7 @@ using namespace mart::selection;
 namespace {
 const double MAX_SCORE = 1.0;
 const double RELAX_STEP = 0.05 / AMPLIFIER;
-const double RELAX_THRESHOLD = 0.05 / AMPLIFIER; // 2 hops
+const double RELAX_THRESHOLD = 0.025 / AMPLIFIER; // 2 hops
 const double TIE_REDUCTION_DIFF = 0.03 / AMPLIFIER;
 }
 
@@ -456,7 +456,7 @@ bool MutantDependenceGraph::build(llvm::Module const &mod,
     std::vector<std::pair<std::unordered_map<MutantIDType,double>, std::unordered_map<MutantIDType,double>>> update(nonZeros_Cumuls);
     std::vector<std::pair<std::unordered_map<MutantIDType,double>, std::unordered_map<MutantIDType,double>>> prevupdate(nonZeros_Cumuls);
 
-    unsigned curhop = 1;
+    unsigned curhop = 2;
     double cur_relax_factor = RELAX_STEP / curhop;
     while (cur_relax_factor >= RELAX_THRESHOLD) {
       for (MutantIDType midSrc = 1; midSrc <= mutants_number; ++midSrc) {

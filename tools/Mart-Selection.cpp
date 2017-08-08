@@ -319,7 +319,7 @@ int main(int argc, char **argv) {
       selection.smartSelectMutants(selectedMutants1[si], cachedPrediction,
                                    smartSelectionTrainedModel, false /*mlOff*/, true /*mclOn*/);
     }
-    mutantListAsJsON<MutantIDType>(selectedMutants1, mlOnlySelectionOutJson);
+    mutantListAsJsON<MutantIDType>(selectedMutants1, mclOnlySelectionOutJson);
     llvm::outs() << "Mart@Progress: MCL Only selection took: "
                  << (float)(clock() - curClockTime) / CLOCKS_PER_SEC
                  << " Seconds.\n";
