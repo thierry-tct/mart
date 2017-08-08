@@ -103,7 +103,7 @@ bool dumpMutantsCallback(Mutation *mutEng,
     // mutants
     // this map keep information about the global constants that use a function
     // that should be replaced by mutant function during IR dumping
-    std::unordered_map<llvm::Module*, std::vector<std::pair<llvm::User*,llvm::Function*>>> functionsGlobalUsers;
+    std::unordered_map<llvm::Module*, llvm::Function*> functionsGlobalUsers;
     for (auto &m : *poss) {
       formutsModule = mods->at(m.first);
       if (mutFunctions != nullptr) {
@@ -123,7 +123,7 @@ bool dumpMutantsCallback(Mutation *mutEng,
             std::unique_ptr<llvm::Module> tmpM =
                 FunctionToModule::martSplitFunctionsOutOfModule(formutsModule,
                                                                 funcName);
-            // wrtite the function's IR in tmpFunctionDir
+            // wrtite the function's Module IR in tmpFunctionDir
             if (!ReadWriteIRObj::writeIR(tmpM.get(), funcFile)) {
               llvm::errs() << "Function " << funcName << "...\n";
               assert(false && "Failed to output function's module IR file");
@@ -135,7 +135,10 @@ bool dumpMutantsCallback(Mutation *mutEng,
             // mutants point here. Make them point on themselves
             if (!formutsModule->getFunction(funcName)->use_empty()) {
               auto *tmpFF = formutsModule->getFunction(funcName);
-              while (!tmpFF->use_empty()) {
+              llvm::Function *dummyF = llvm::Function::Create (tmpFF->getFunctionType(), tmpFF->getLinkage()); //,"",formutsModule);
+              functionsGlobalUsers[formutsModule] = dummyF;
+              tmpFF->replaceAllUsesWith(dummyF);
+              /*while (!tmpFF->use_empty()) {
 #if (LLVM_VERSION_MAJOR <= 3) && (LLVM_VERSION_MINOR < 5)
                 auto *UVal = tmpFF->use_back();
 #else
@@ -150,7 +153,7 @@ bool dumpMutantsCallback(Mutation *mutEng,
                                                "they have no parent.");
                   URInst->replaceUsesOfWith(tmpFF, fofi);
                 } else {
-                  /*if (llvm::isa<llvm::GlobalVariable>(UVal)) {*/
+                  /*if (llvm::isa<llvm::GlobalVariable>(UVal)) {
                     llvm::Function *dummyF = llvm::Function::Create (tmpFF->getFunctionType(), tmpFF->getLinkage()); //,"",formutsModule);
                     functionsGlobalUsers[formutsModule].emplace_back(UVal, dummyF);
                     UVal->replaceUsesOfWith(tmpFF, dummyF);
@@ -168,9 +171,9 @@ bool dumpMutantsCallback(Mutation *mutEng,
                     //    Uinst->getParent()->getParent()->getName() << " --- " <<
                     //    Uinst->getParent()->getParent()->getParent() << "\n";
                   /*  assert(false);
-                  }*/
+                  }
                 }
-              }
+              }*/
             }
             formutsModule->getFunction(funcName)->eraseFromParent();
           } else {
@@ -194,8 +197,7 @@ bool dumpMutantsCallback(Mutation *mutEng,
           currFunc->setLinkage(llvm::GlobalValue::ExternalLinkage);
           //Handle Global constant use of function (array...)
           if (functionsGlobalUsers.count(formutsModule) > 0)
-            for (auto &usedumpair: functionsGlobalUsers.at(formutsModule))
-              usedumpair.first->replaceUsesOfWith(usedumpair.second, currFunc);
+            functionsGlobalUsers.at(formutsModule)->replaceAllUsesWith(currFunc);
           if (!ReadWriteIRObj::writeIR(formutsModule,
                                        mutDirPath + "/" + outFile + ".bc")) {
             llvm::errs() << "Mutant " << mid << "...\n";
@@ -204,8 +206,7 @@ bool dumpMutantsCallback(Mutation *mutEng,
           currFunc->setLinkage(linkageBak);
           //Handle Global constant use of function (array...)
           if (functionsGlobalUsers.count(formutsModule) > 0)
-            for (auto &usedumpair: functionsGlobalUsers.at(formutsModule))
-              usedumpair.first->replaceUsesOfWith(currFunc, usedumpair.second);
+            currFunc->replaceAllUsesWith(functionsGlobalUsers.at(formutsModule));
           currFunc->removeFromParent();
         } else {
           mutEng->setModFuncToFunction(formutsModule, currFunc);
