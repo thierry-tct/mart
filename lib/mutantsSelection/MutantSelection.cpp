@@ -1351,7 +1351,7 @@ void MutantSelection::getMachineLearningPrediction(
 void MutantSelection::smartSelectMutants(
     std::vector<MutantIDType> &selectedMutants,
     std::vector<float> &cachedPrediction, std::string trainedModelFilename,
-    bool mlOnly) {
+    bool mlOn, bool mclOn) {
 
   MutantIDType mutants_number = mutantInfos.getMutantsNumber();
 
@@ -1365,11 +1365,15 @@ void MutantSelection::smartSelectMutants(
   /// Get Machine Learning coupling prediction into a vector as probability
   /// to be coupled, for each mutant
   std::vector<float> isCoupledProbability;
-  if (cachedPrediction.empty()) {
-    getMachineLearningPrediction(isCoupledProbability, trainedModelFilename);
-    cachedPrediction = isCoupledProbability;
-  } else {
-    isCoupledProbability = cachedPrediction;
+  if (mlOn) {
+    if (cachedPrediction.empty()) {
+      getMachineLearningPrediction(isCoupledProbability, trainedModelFilename);
+      cachedPrediction = isCoupledProbability;
+    } else {
+      isCoupledProbability = cachedPrediction;
+    }
+  } else {    // MCL only
+    isCoupledProbability.resize(mutants_number, 0.0);
   }
   assert(isCoupledProbability.size() == mutants_number &&
          "returned prediction list do not match with number of mutants");
@@ -1379,15 +1383,13 @@ void MutantSelection::smartSelectMutants(
   // it!=ie; ++it)
   //  *it = (*it > 0.5);
 
-  if (mlOnly) {
-    // XXX TODO: temporary
+  if (mlOn && !mclOn) {    //ML only
     for (MutantIDType mid = 1; mid <= mutants_number; ++mid)
       selectedMutants.push_back(mid);
     std::sort(selectedMutants.begin(), selectedMutants.end(),
               [isCoupledProbability](MutantIDType a, MutantIDType b) {
-                return (isCoupledProbability[a - 1] >
-                        isCoupledProbability[b - 1]); //<: lower to higher, >:
-                                                      //higher to lower
+                //<: lower to higher, >: //higher to lower
+                return (isCoupledProbability[a - 1] > isCoupledProbability[b - 1]); 
               });
     // randomize within same score
     auto ifirst = selectedMutants.begin();
@@ -1410,7 +1412,7 @@ void MutantSelection::smartSelectMutants(
     }
     // for (auto i : selectedMutants) llvm::errs() << isCoupledProbability[i-1]
     // << " ";
-    return; // TODO TODO TODO
+    return; 
   }
 
   // Initialize scores

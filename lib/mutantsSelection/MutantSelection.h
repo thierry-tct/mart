@@ -418,7 +418,7 @@ public:
   void smartSelectMutants(std::vector<MutantIDType> &selectedMutants,
                           // std::vector<double> &selectedScores,
                           std::vector<float> &cachedPrediction,
-                          std::string trainedModelFilename, bool mlOnly);
+                          std::string trainedModelFilename, bool mlOn, bool mclOn);
   void randomMutants(std::vector<MutantIDType> &spreadSelectedMutants,
                      std::vector<MutantIDType> &dummySelectedMutants,
                      unsigned long number);

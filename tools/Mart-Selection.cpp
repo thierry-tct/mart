@@ -249,6 +249,7 @@ int main(int argc, char **argv) {
   } else {
     std::string smartSelectionOutJson = outDir + "/" + "smartSelection.json";
     std::string mlOnlySelectionOutJson = outDir + "/" + "mlOnlySelection.json";
+    std::string mclOnlySelectionOutJson = outDir + "/" + "mclOnlySelection.json";
     // std::string scoresForSmartSelectionOutJson =
     //    outDir + "/" + "scoresForSmartSelection.json";
     std::string randomSDLelectionOutJson =
@@ -272,7 +273,7 @@ int main(int argc, char **argv) {
     for (unsigned si = 0; si < numberOfRandomSelections; ++si) {
       selection.smartSelectMutants(selectedMutants1[si], cachedPrediction,
                                    smartSelectionTrainedModel,
-                                   false /*mlOnly*/);
+                                   true /*mlOn*/, true /*mclOn*/);
     }
     mutantListAsJsON<MutantIDType>(selectedMutants1, smartSelectionOutJson);
     // mutantListAsJsON<double>(std::vector<std::vector<double>>({selectedScores}),
@@ -297,13 +298,32 @@ int main(int argc, char **argv) {
     // measuring the algorithm time
     for (unsigned si = 0; si < numberOfRandomSelections; ++si) {
       selection.smartSelectMutants(selectedMutants1[si], cachedPrediction,
-                                   smartSelectionTrainedModel, true /*mlOnly*/);
+                                   smartSelectionTrainedModel, true /*mlOn*/, false /*mclOff*/);
     }
     mutantListAsJsON<MutantIDType>(selectedMutants1, mlOnlySelectionOutJson);
     llvm::outs() << "Mart@Progress: ML Only selection took: "
                  << (float)(clock() - curClockTime) / CLOCKS_PER_SEC
                  << " Seconds.\n";
     loginfo << "Mart@Progress: ML Only selection took: "
+            << (float)(clock() - curClockTime) / CLOCKS_PER_SEC
+            << " Seconds.\n";
+
+    llvm::outs() << "Doing MCL Only Selection...\n";
+    curClockTime = clock();
+    selectedMutants1.clear();
+    selectedMutants1.resize(numberOfRandomSelections);
+    // std::vector<double> selectedScores;
+    // to make experiment faster XXX: Note to take this in consideration when
+    // measuring the algorithm time
+    for (unsigned si = 0; si < numberOfRandomSelections; ++si) {
+      selection.smartSelectMutants(selectedMutants1[si], cachedPrediction,
+                                   smartSelectionTrainedModel, false /*mlOff*/, true /*mclOn*/);
+    }
+    mutantListAsJsON<MutantIDType>(selectedMutants1, mlOnlySelectionOutJson);
+    llvm::outs() << "Mart@Progress: MCL Only selection took: "
+                 << (float)(clock() - curClockTime) / CLOCKS_PER_SEC
+                 << " Seconds.\n";
+    loginfo << "Mart@Progress: MCL Only selection took: "
             << (float)(clock() - curClockTime) / CLOCKS_PER_SEC
             << " Seconds.\n";
 
