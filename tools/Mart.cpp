@@ -153,6 +153,7 @@ bool dumpMutantsCallback(Mutation *mutEng,
                   /*if (llvm::isa<llvm::GlobalVariable>(UVal)) {*/
                     llvm::Function *dummyF = llvm::Function::Create (tmpFF->getFunctionType(), tmpFF->getLinkage()); //,"",formutsModule);
                     functionsGlobalUsers[formutsModule].emplace_back(UVal, dummyF);
+                    UVal->replaceUsesOfWith(tmpFF, dummyF);
                   /*} else {
                     llvm::errs() << "\nError: Function '" << funcName
                                  << "' should have NO use here, since in its own "
