@@ -304,9 +304,9 @@ public:
     static const char  sep = '.';
     const std::string &sbbname = mutantDGraphData[id].stmtBBTypename;
     auto sepPos = sbbname.find(sep);
-    sbNames.push_back(sbbname.substr(0, sepPos));
+    sbNames.push_back(sbbname.substr(0, sepPos)+"-BBType");
     if (sepPos != std::string::npos)
-      sbNames.push_back(sbbname.substr(sepPos+1));
+      sbNames.push_back(sbbname.substr(sepPos+1)+"-BBType");
   }
 
   std::unordered_set<MutantIDType> const &

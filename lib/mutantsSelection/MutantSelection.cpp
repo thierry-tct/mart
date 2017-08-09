@@ -636,8 +636,16 @@ void MutantDependenceGraph::computeMutantFeatures(
   // Features requiring One Hot Encodin (more like python pandas' get_dummies)
   std::unordered_set<std::string> allMutantTypenames; // all mutantTypeNames
   std::unordered_set<std::string> allStmtBBTypenames; // all stmtBBTypeNames
+  std::unordered_set<std::string> allASTParentOpcodenames;
   std::vector<std::string> mutTypenameTmp;
   std::vector<std::string> stmtTypenameTmp;
+  const std::string nsuff_astparent("-astparent");
+  const std::string nsuff_outdatadep("-outdatadep");
+  const std::string nsuff_indatadep("-indatadep");
+  const std::string nsuff_outctrldep("-outctrldep");
+  const std::string nsuff_inctrldep("-inctrldep");
+  const std::string astParentTypeSig("-ASTp");
+  
   for (auto mutant_id = 1; mutant_id <= nummuts; ++mutant_id) {
     mutTypenameTmp.clear();
     getSplittedMutantTypename(mutant_id, mutTypenameTmp);
@@ -645,12 +653,9 @@ void MutantDependenceGraph::computeMutantFeatures(
     stmtTypenameTmp.clear();
     getSplittedStmtBBTypename(mutant_id, stmtTypenameTmp);
     allStmtBBTypenames.insert(stmtTypenameTmp.begin(), stmtTypenameTmp.end());
+    for (auto const &str: getAstParentsOpcodeNames(mutant_id))
+      allASTParentOpcodenames.insert(str+astParentTypeSig);
   }
-  const std::string nsuff_astparent("-astparent");
-  const std::string nsuff_outdatadep("-outdatadep");
-  const std::string nsuff_indatadep("-indatadep");
-  const std::string nsuff_outctrldep("-outctrldep");
-  const std::string nsuff_inctrldep("-inctrldep");
 
   std::unordered_map<std::string, unsigned long long> mutantFeatures;
   // insert features names
@@ -796,9 +801,17 @@ void MutantDependenceGraph::computeMutantFeatures(
     mutantFeatures[features_names.back()] = features_matrix.size() - 1;
   }
 
-  /// Creafeature values for all mutants
+  // AST parent type as one hot
+  for (auto &pasttype : allASTParentOpcodenames) {
+    features_matrix.emplace_back();
+    features_matrix.back().reserve(nummuts);
+    features_names.emplace_back(pasttype);
+    mutantFeatures[features_names.back()] = features_matrix.size() - 1;
+  }
+
+  /// Create feature values for all mutants
   std::unordered_map<std::string, float> featureValuesPost1Hot;
-  for (auto mutant_id = 1; mutant_id <= nummuts; ++mutant_id) {
+  for (MutantIDType mutant_id = 1; mutant_id <= nummuts; ++mutant_id) {
     featureValuesPost1Hot.clear();
     featureValuesPost1Hot["Complexity"] = (getComplexity(mutant_id));
     featureValuesPost1Hot["CfgDepth"] = (getCfgDepth(mutant_id));
@@ -858,6 +871,9 @@ void MutantDependenceGraph::computeMutantFeatures(
       featureValuesPost1Hot[sbbtname + nsuff_outctrldep] = 0;
       featureValuesPost1Hot[sbbtname + nsuff_inctrldep] = 0;
     }
+    for (auto &pasttype : allASTParentOpcodenames) {
+      featureValuesPost1Hot[pasttype] = 0;
+    }
 
     mutTypenameTmp.clear();
     getSplittedMutantTypename(mutant_id, mutTypenameTmp);
@@ -867,6 +883,8 @@ void MutantDependenceGraph::computeMutantFeatures(
     getSplittedStmtBBTypename(mutant_id, stmtTypenameTmp);
     for (auto &str: stmtTypenameTmp)
       featureValuesPost1Hot.at(str) = 1;
+    for (auto &str: getAstParentsOpcodeNames(mutant_id))
+      ++(featureValuesPost1Hot.at(str+astParentTypeSig));
 
     for (auto pid : getAstParentsMutants(mutant_id)) {
       mutTypenameTmp.clear();

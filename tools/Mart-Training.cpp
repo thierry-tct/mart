@@ -136,6 +136,52 @@ void merge2into1(
   }
 }
 
+void checkPredictionScore(std::vector<float> const &Yvector, std::vector<float> const &scores) {
+  float sum = 0;
+  unsigned ntruecoupl, numcorrect, couplecorrect, npredcoupl;
+  numcorrect = couplecorrect = npredcoupl = ntruecoupl = 0;
+  for (unsigned int i = 0; i < scores.size(); ++i) {
+    if (Yvector[i] - scores[i] < 0.5 && Yvector[i] - scores[i] > -0.5)
+      numcorrect++;
+    if (scores[i] > 0.5)
+      npredcoupl++;
+    if (Yvector[i]) {
+      ntruecoupl++;
+      if (Yvector[i] - scores[i] < 0.5 && Yvector[i] - scores[i] > -0.5)
+        couplecorrect++;
+    }
+    sum += (static_cast<int>(Yvector[i]) - scores[i]) *
+           (static_cast<int>(Yvector[i]) - scores[i]);
+  }
+  llvm::errs() << "SUM: " << sum
+               << ", Acc: " << numcorrect * 100.0 / Yvector.size()
+               << ", Coupled Precision:" << 100.0 * couplecorrect / npredcoupl
+               << ", Coupled Recall: " << 100.0 * couplecorrect / ntruecoupl
+               << "\n";
+
+  // Accuracy of random
+  std::vector<size_t> yindex(Yvector.size());
+  for (size_t i=0; i< yindex.size(); ++i)
+    yindex[i] = i;
+  float rrecall=0.0, rprecision=0.0;
+  for (auto i=1; i <= 100; ++i) {
+    //randomly sample npredcoupl element and compute precision and recall
+    std::srand(std::time(NULL) + clock()); //+ clock() because fast running
+    std::random_shuffle(yindex.begin(), yindex.end());
+    size_t ncouple = 0;
+    for (auto j=1; j <= npredcoupl; ++j)
+      if(Yvector[yindex[j]])
+        ++ncouple;
+    rprecision += 100.0 * ncouple / npredcoupl;
+    rrecall += 100.0 * ncouple / ntruecoupl;
+  }
+  llvm::errs() << "\n--- RANDOM: \n" 
+               << ", Coupled Precision:" << rprecision / 100
+               << ", Coupled Recall: " << rrecall / 100
+               << "\n";
+
+}
+
 int main(int argc, char **argv) {
 
 // Remove the option we don't want to display in help
@@ -193,6 +239,15 @@ int main(int argc, char **argv) {
           "(optional) Specify the depth of the trees in boosted tree based classifier "
           ".default is 3 trees"),
       llvm::cl::init(3));
+  llvm::cl::opt<bool> prioritiseHardToFindFault(
+      "hard-to-find-first",
+      llvm::cl::desc("(optional) enable prioritising hard to find fault for training"));
+  llvm::cl::opt<bool> onlyAstAndMutantType(
+      "only-astparent-and-mutanttype",
+      llvm::cl::desc("(optional) enable using only AST parent and Mutant type features"));
+  llvm::cl::opt<bool> forEquivalent(
+      "for-equivalent",
+      llvm::cl::desc("(optional) enable training to detec equivalent mutants"));
 
   llvm::cl::SetVersionPrinter(printVersion);
 
@@ -238,8 +293,10 @@ int main(int argc, char **argv) {
     /// For now we just randomly pick some projects and mutants
     for (unsigned pos = 0; pos < programTrainSets.size(); ++pos)
       selectedPrograms.push_back(pos);
-    std::srand(std::time(NULL) + clock()); //+ clock() because fast running
-    std::random_shuffle(selectedPrograms.begin(), selectedPrograms.end());
+    if (! prioritiseHardToFindFault) {
+      std::srand(std::time(NULL) + clock()); //+ clock() because fast running
+      std::random_shuffle(selectedPrograms.begin(), selectedPrograms.end());
+    }
     selectedPrograms.resize(num_programs);
   } else {
     for (unsigned pos = 0; pos < programTrainSets.size(); ++pos)
@@ -274,6 +331,19 @@ int main(int argc, char **argv) {
 
   llvm::outs() << "# CSVs Loaded. Preparing training data ...\n";
 
+  // apply feature selection if specified
+  if (onlyAstAndMutantType) {
+    // remove other features like: depth, complexity, data/ctrl dependency
+    std::vector<std::string> fToRemove;
+    for (auto &it : Xmapmatrix) {
+      llvm::StringRef tmp(it.first);
+      if (!tmp.endswith("-Matcher") && !tmp.endswith("-Replacer") && !tmp.endswith("-BBType") && !tmp.endswith("-ASTp")) 
+        fToRemove.push_back(it.first);
+    }
+    for (auto &str: fToRemove)
+      Xmapmatrix.erase(str);
+  }
+  
   // convert Xmapmatrix to Xmatrix
   for (auto &it : Xmapmatrix) {
     Xmatrix.push_back(it.second);
@@ -288,57 +358,29 @@ int main(int argc, char **argv) {
                                                 "feature vector in X must have "
                                                 "same size with Y");
 
+  // Handle unkilled mutants (weigh is -1)
+  if (forEquivalent) {
+    for (auto i=0; i < Yvector.size(); ++i) {
+      Yvector[i] = (Weightsvector[i] == -1.0);
+      Weightsvector[i] = 1.0;  //all have same weight for simplicity
+    }
+  } else {
+    for (auto i=0; i < Weightsvector.size(); ++i) {
+      //treat equivalent mutants as killed by no failing test
+      if (Weightsvector[i] == -1.0)
+        Weightsvector[i] = 0.0; 
+    }
+  }
+
   llvm::outs() << "# X Matrix and Y Vector ready. Training ...\n";
 
   PredictionModule predmod(outputModelFilename);
   predmod.train(Xmatrix, featuresnames, Yvector, Weightsvector, treesNumber, treesDepth);
 
   // Check prediction score
-  float sum = 0;
-  unsigned ntruecoupl, numcorrect, couplecorrect, npredcoupl;
-  numcorrect = couplecorrect = npredcoupl = ntruecoupl = 0;
   std::vector<float> scores;
   predmod.predict(Xmatrix, featuresnames, scores);
-  for (unsigned int i = 0; i < scores.size(); ++i) {
-    if (Yvector[i] - scores[i] < 0.5 && Yvector[i] - scores[i] > -0.5)
-      numcorrect++;
-    if (scores[i] > 0.5)
-      npredcoupl++;
-    if (Yvector[i]) {
-      ntruecoupl++;
-      if (Yvector[i] - scores[i] < 0.5 && Yvector[i] - scores[i] > -0.5)
-        couplecorrect++;
-    }
-    sum += (static_cast<int>(Yvector[i]) - scores[i]) *
-           (static_cast<int>(Yvector[i]) - scores[i]);
-  }
-  llvm::errs() << "SUM: " << sum
-               << ", Acc: " << numcorrect * 100.0 / Yvector.size()
-               << ", Coupled Precision:" << 100.0 * couplecorrect / npredcoupl
-               << ", Coupled Recall: " << 100.0 * couplecorrect / ntruecoupl
-               << "\n";
-
-  // Accuracy of random
-  std::vector<size_t> yindex(Yvector.size());
-  for (size_t i=0; i< yindex.size(); ++i)
-    yindex[i] = i;
-  float rrecall=0.0, rprecision=0.0;
-  for (auto i=1; i <= 100; ++i) {
-    //randomly sample npredcoupl element and compute precision and recall
-    std::srand(std::time(NULL) + clock()); //+ clock() because fast running
-    std::random_shuffle(yindex.begin(), yindex.end());
-    size_t ncouple = 0;
-    for (auto j=1; j <= npredcoupl; ++j)
-      if(Yvector[yindex[j]])
-        ++ncouple;
-    rprecision += 100.0 * ncouple / npredcoupl;
-    rrecall += 100.0 * ncouple / ntruecoupl;
-  }
-  llvm::errs() << "\n--- RANDOM: \n" 
-               << ", Coupled Precision:" << rprecision / 100
-               << ", Coupled Recall: " << rrecall / 100
-               << "\n";
-
+  
   std::cout << "\n# Training completed, model written to file "
             << outputModelFilename << "\n\n";
   return 0;
