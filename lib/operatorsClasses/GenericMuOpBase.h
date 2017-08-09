@@ -792,10 +792,21 @@ protected:
         return *(gep->idx_begin() + index);
       } else {
         // return the first index (idx = 1)
-        assert(gep->getNumIndices() > 1 &&
-               "gep should have more than 1 index here");
-        index = 1;
-        return *(gep->idx_begin() + index);
+        if (gep->getNumIndices() > 1) {
+          index = 1;
+          return *(gep->idx_begin() + index);
+        } else { 
+          assert(gep->getNumIndices() == 1 &&
+               "gep should have at least 1 index");
+          // Only alloca of an array of array can have this gep
+          // a
+          if (llvm::isa<llvm::AllocaInst>(ptrOprd)) {
+            index = 0;
+            return *(gep->idx_begin() + index);
+          } else {
+            assert (false && "Must be Alloca here (array of array)");
+          }
+        }
       }
     }
   }
