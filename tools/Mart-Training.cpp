@@ -30,7 +30,7 @@ using namespace mart::selection;
 
 void loadDescription(
     std::string inputDescriptionFile,
-    std::vector<std::pair<std::string, std::string>> &programTrainSets) {
+    std::vector<std::tuple<std::string, std::string, std::string>> &programTrainSets) {
   std::ifstream csvin(inputDescriptionFile);
   std::string line;
   std::getline(csvin, line); // read the header (projectID,X,Y)
@@ -40,7 +40,7 @@ void loadDescription(
     std::getline(ss, projectID, ',');
     std::getline(ss, Xfilename, ',');
     std::getline(ss, Yfilename, ',');
-    programTrainSets.emplace_back(Xfilename, Yfilename);
+    programTrainSets.emplace_back(projectID, Xfilename, Yfilename);
   }
 }
 
@@ -136,7 +136,33 @@ void merge2into1(
   }
 }
 
-void checkPredictionScore(std::vector<float> const &Yvector, std::vector<float> const &scores) {
+void writeModelInfos (std::vector<std::string> &selectedProjectIDs, std::map<unsigned int, double> const &featuresScores, std::vector<std::string> &featuresnames, std::string modelInfosFilename) {
+  assert (featuresScores.size() == featuresnames.size() && "Error: Bug in Machine learning training library (maybe failed: check its log above)");
+  std::fstream out_stream(modelInfosFilename, std::ios_base::out | std::ios_base::trunc);
+  out_stream << "{\n";
+  out_stream << "\"training-projects\": [";
+  bool notfirst = false;
+  for (auto &pID: selectedProjectIDs) {
+    if (notfirst)
+      out_stream << ",";
+    out_stream << "\"" << pID << "\"";
+    notfirst = true;
+  }
+  out_stream << "\t],\n";
+  out_stream << "\"features-scores\": {";
+  notfirst = false;
+  for (auto &fsIt: featuresScores) {
+    if (notfirst)
+      out_stream << ",";
+    out_stream << "\"" << featuresnames[fsIt.first] << "\": " << fsIt.second << "\n";
+    notfirst = true;
+  }
+  out_stream << "\t}\n";
+  out_stream << "}\n";
+  out_stream.close();
+}
+
+void checkPredictionScore(std::vector<bool> const &Yvector, std::vector<float> const &scores) {
   float sum = 0;
   unsigned ntruecoupl, numcorrect, couplecorrect, npredcoupl;
   numcorrect = couplecorrect = npredcoupl = ntruecoupl = 0;
@@ -254,7 +280,7 @@ int main(int argc, char **argv) {
   llvm::cl::ParseCommandLineOptions(argc, argv,
                                     "Mart Mutant Selection Training");
 
-  std::vector<std::pair<std::string, std::string>> programTrainSets;
+  std::vector<std::tuple<std::string, std::string, std::string>> programTrainSets;
 
   std::string Xfilename;
   std::string Yfilename;
@@ -266,7 +292,7 @@ int main(int argc, char **argv) {
     std::string Xfilename = inputDescriptionFile.substr(0, commapos);
     std::string Yfilename =
         inputDescriptionFile.substr(commapos + 1, std::string::npos);
-    programTrainSets.emplace_back(Xfilename, Yfilename);
+    programTrainSets.emplace_back(std::string(""), Xfilename, Yfilename);
   }
 
   llvm::outs() << "# Specified " << programTrainSets.size()
@@ -316,15 +342,17 @@ int main(int argc, char **argv) {
   llvm::outs() << "# Loading CSVs for " << selectedPrograms.size()
                << " programs ...\n";
 
+    std::vector<std::string> selectedProjectIDs;
   // for (auto &pair: programTrainSets) {
   for (auto posindex : selectedPrograms) {
-    auto &pair = programTrainSets.at(posindex);
+    auto &triple = programTrainSets.at(posindex);
     tmpXmapmatrix.clear();
     tmpYvector.clear();
     tmpWeightsvector.clear();
 
     // time costly
-    readXY(pair.first, pair.second, tmpXmapmatrix, tmpYvector, tmpWeightsvector);
+    selectedProjectIDs.push_back(std::get<0>(triple));
+    readXY(std::get<1>(triple), std::get<2>(triple), tmpXmapmatrix, tmpYvector, tmpWeightsvector);
     merge2into1(Xmapmatrix, Yvector, Weightsvector, tmpXmapmatrix, tmpYvector, tmpWeightsvector,
                 trainingSetEventSize);
   }
@@ -375,11 +403,17 @@ int main(int argc, char **argv) {
   llvm::outs() << "# X Matrix and Y Vector ready. Training ...\n";
 
   PredictionModule predmod(outputModelFilename);
-  predmod.train(Xmatrix, featuresnames, Yvector, Weightsvector, treesNumber, treesDepth);
+  std::map<unsigned int, double> const featuresScores = predmod.train(Xmatrix, featuresnames, Yvector, Weightsvector, treesNumber, treesDepth);
+
+  // Get features relevance weights
+  std::string modelInfosFilename(outputModelFilename+".infos.json");
+  writeModelInfos (selectedProjectIDs, featuresScores, featuresnames, modelInfosFilename);
+  
 
   // Check prediction score
   std::vector<float> scores;
   predmod.predict(Xmatrix, featuresnames, scores);
+  checkPredictionScore (Yvector, scores);
   
   std::cout << "\n# Training completed, model written to file "
             << outputModelFilename << "\n\n";

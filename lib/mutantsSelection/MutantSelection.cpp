@@ -67,7 +67,7 @@ void PredictionModule::fastBDTPredict(
   }
 }
 
-void PredictionModule::fastBDTTrain(
+std::map<unsigned int, double> const & PredictionModule::fastBDTTrain(
     std::fstream &out_stream,
     std::vector<std::vector<float>> const &X_matrix,
     std::vector<bool> const &isCoupled, std::vector<float> const &weights, unsigned treeNumber, unsigned treeDepth) {
@@ -80,6 +80,8 @@ void PredictionModule::fastBDTTrain(
   classifier.fit(X_matrix, isCoupled, weights);
   // std::cout << "Score " << GetIrisScore(classifier) << std::endl;
   out_stream << classifier << std::endl;
+  
+  return classifier.GetVariableRanking();
 }
 
 void PredictionModule::randomForestPredict(
@@ -166,7 +168,7 @@ void PredictionModule::predict(std::vector<std::vector<float>> const &X_matrix,
 
 /// Train model and write model into predictionModelFilename
 /// Each contained vector correspond to a feature
-void PredictionModule::train(std::vector<std::vector<float>> const &X_matrix,
+std::map<unsigned int, double> const & PredictionModule::train(std::vector<std::vector<float>> const &X_matrix,
                              std::vector<std::string> const &modelFeaturesnames,
                              std::vector<bool> const &isCoupled,
                              std::vector<float> const  &weights,
@@ -177,10 +179,11 @@ void PredictionModule::train(std::vector<std::vector<float>> const &X_matrix,
   for (auto &fstr: modelFeaturesnames)
     out_stream << " " << fstr ;  //istringstrem will skip first space
   out_stream << "\n";
-
-  fastBDTTrain(out_stream, X_matrix, isCoupled, weights, treeNumber, treeDepth);
+  
+  std::map<unsigned int, double> const &featuremap = fastBDTTrain(out_stream, X_matrix, isCoupled, weights, treeNumber, treeDepth);
   // randomForestTrain(out_stream, X_matrix, isCoupled. treeNumber);
   out_stream.close();
+  return featuremap;
 }
 
 // class MutantDependenceGraph
