@@ -323,7 +323,15 @@ int main(int argc, char **argv) {
     /// For now we just randomly pick some projects and mutants
     for (unsigned pos = 0; pos < programTrainSets.size(); ++pos)
       selectedPrograms.push_back(pos);
-    if (! prioritiseHardToFindFault) {
+    if (prioritiseHardToFindFault) {
+      std::srand(std::time(NULL) + clock()); //+ clock() because fast running
+      std::random_shuffle(selectedPrograms.begin(), selectedPrograms.begin()+num_programs);
+      std::random_shuffle(selectedPrograms.begin()+num_programs, selectedPrograms.end());
+      auto hardStopAt = (size_t)(num_programs * ((double)num_programs / programTrainSets.size()));
+      size_t nToPad = num_programs - hardStopAt;
+      for (auto i=1; i < nToPad; ++i)
+        selectedPrograms[i+hardStopAt] = selectedPrograms[num_programs+i-1];
+    } else {
       std::srand(std::time(NULL) + clock()); //+ clock() because fast running
       std::random_shuffle(selectedPrograms.begin(), selectedPrograms.end());
     }
