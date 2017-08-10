@@ -37,7 +37,7 @@ class PredictionModule {
   void fastBDTPredict(std::vector<std::vector<float>> const &X_matrix,
                       std::fstream &in_stream,
                       std::vector<float> &prediction);
-  std::map<unsigned int, double> const & fastBDTTrain(std::fstream &out_stream,
+  std::map<unsigned int, double> fastBDTTrain(std::fstream &out_stream,
                     std::vector<std::vector<float>> const &X_matrix,
                     std::vector<bool> const &isCoupled, std::vector<float> const &weights,
                     unsigned treeNumber = 5000, unsigned treeDepth = 5);
@@ -58,7 +58,7 @@ public:
 
   /// Train model and write model into predictionModelFilename
   /// Each contained vector correspond to a feature
-  std::map<unsigned int, double> const & train(std::vector<std::vector<float>> const &X_matrix, std::vector<std::string> const &modelFeaturesnames, std::vector<bool> const &isCoupled, std::vector<float> const &weights, unsigned treeNumber = 1000, unsigned treeDepth=3);
+  std::map<unsigned int, double> train(std::vector<std::vector<float>> const &X_matrix, std::vector<std::string> const &modelFeaturesnames, std::vector<bool> const &isCoupled, std::vector<float> const &weights, unsigned treeNumber = 1000, unsigned treeDepth=3);
   
 }; // PredictionModule
 

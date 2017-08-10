@@ -137,7 +137,7 @@ void merge2into1(
 }
 
 void writeModelInfos (std::vector<std::string> &selectedProjectIDs, std::map<unsigned int, double> const &featuresScores, std::vector<std::string> &featuresnames, std::string modelInfosFilename) {
-  assert (featuresScores.size() == featuresnames.size() && "Error: Bug in Machine learning training library (maybe failed: check its log above)");
+  assert (featuresScores.size() > 0 && "Error: Problem in ML computation (maybe failed: check its log above)");
   std::fstream out_stream(modelInfosFilename, std::ios_base::out | std::ios_base::trunc);
   out_stream << "{\n";
   out_stream << "\"training-projects\": [";
@@ -151,10 +151,14 @@ void writeModelInfos (std::vector<std::string> &selectedProjectIDs, std::map<uns
   out_stream << "\t],\n";
   out_stream << "\"features-scores\": {";
   notfirst = false;
-  for (auto &fsIt: featuresScores) {
+  for (unsigned int fpos = 0; fpos < featuresnames.size() ; ++fpos) {
     if (notfirst)
       out_stream << ",";
-    out_stream << "\"" << featuresnames[fsIt.first] << "\": " << fsIt.second << "\n";
+    out_stream << "\"" << featuresnames[fpos] << "\": ";
+    if (featuresScores.count(fpos) > 0) 
+      out_stream << featuresScores.at(fpos) << "\n";
+    else
+      out_stream << -1.0 << "\n";  //Not present in training set
     notfirst = true;
   }
   out_stream << "\t}\n";
@@ -403,7 +407,7 @@ int main(int argc, char **argv) {
   llvm::outs() << "# X Matrix and Y Vector ready. Training ...\n";
 
   PredictionModule predmod(outputModelFilename);
-  std::map<unsigned int, double> const featuresScores = predmod.train(Xmatrix, featuresnames, Yvector, Weightsvector, treesNumber, treesDepth);
+  std::map<unsigned int, double> featuresScores = predmod.train(Xmatrix, featuresnames, Yvector, Weightsvector, treesNumber, treesDepth);
 
   // Get features relevance weights
   std::string modelInfosFilename(outputModelFilename+".infos.json");

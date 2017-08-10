@@ -67,7 +67,7 @@ void PredictionModule::fastBDTPredict(
   }
 }
 
-std::map<unsigned int, double> const & PredictionModule::fastBDTTrain(
+std::map<unsigned int, double> PredictionModule::fastBDTTrain(
     std::fstream &out_stream,
     std::vector<std::vector<float>> const &X_matrix,
     std::vector<bool> const &isCoupled, std::vector<float> const &weights, unsigned treeNumber, unsigned treeDepth) {
@@ -168,7 +168,7 @@ void PredictionModule::predict(std::vector<std::vector<float>> const &X_matrix,
 
 /// Train model and write model into predictionModelFilename
 /// Each contained vector correspond to a feature
-std::map<unsigned int, double> const & PredictionModule::train(std::vector<std::vector<float>> const &X_matrix,
+std::map<unsigned int, double> PredictionModule::train(std::vector<std::vector<float>> const &X_matrix,
                              std::vector<std::string> const &modelFeaturesnames,
                              std::vector<bool> const &isCoupled,
                              std::vector<float> const  &weights,
@@ -180,7 +180,7 @@ std::map<unsigned int, double> const & PredictionModule::train(std::vector<std::
     out_stream << " " << fstr ;  //istringstrem will skip first space
   out_stream << "\n";
   
-  std::map<unsigned int, double> const &featuremap = fastBDTTrain(out_stream, X_matrix, isCoupled, weights, treeNumber, treeDepth);
+  std::map<unsigned int, double> featuremap = fastBDTTrain(out_stream, X_matrix, isCoupled, weights, treeNumber, treeDepth);
   // randomForestTrain(out_stream, X_matrix, isCoupled. treeNumber);
   out_stream.close();
   return featuremap;
