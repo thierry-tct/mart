@@ -278,6 +278,9 @@ int main(int argc, char **argv) {
   llvm::cl::opt<bool> forEquivalent(
       "for-equivalent",
       llvm::cl::desc("(optional) enable training to detec equivalent mutants"));
+  llvm::cl::opt<bool> noRandom(
+      "no-random",
+      llvm::cl::desc("(optional) Do not randomize the specified project, use from the top downward"));
 
   llvm::cl::SetVersionPrinter(printVersion);
 
@@ -324,16 +327,20 @@ int main(int argc, char **argv) {
     for (unsigned pos = 0; pos < programTrainSets.size(); ++pos)
       selectedPrograms.push_back(pos);
     if (prioritiseHardToFindFault) {
-      std::srand(std::time(NULL) + clock()); //+ clock() because fast running
-      std::random_shuffle(selectedPrograms.begin(), selectedPrograms.begin()+num_programs);
-      std::random_shuffle(selectedPrograms.begin()+num_programs, selectedPrograms.end());
+      if (!noRandom) {
+        std::srand(std::time(NULL) + clock()); //+ clock() because fast running
+        std::random_shuffle(selectedPrograms.begin(), selectedPrograms.begin()+num_programs);
+        std::random_shuffle(selectedPrograms.begin()+num_programs, selectedPrograms.end());
+      }
       auto hardStopAt = (size_t)(num_programs * ((double)num_programs / programTrainSets.size()));
       size_t nToPad = num_programs - hardStopAt;
       for (auto i=1; i < nToPad; ++i)
         selectedPrograms[i+hardStopAt] = selectedPrograms[num_programs+i-1];
     } else {
-      std::srand(std::time(NULL) + clock()); //+ clock() because fast running
-      std::random_shuffle(selectedPrograms.begin(), selectedPrograms.end());
+      if (!noRandom) {
+        std::srand(std::time(NULL) + clock()); //+ clock() because fast running
+        std::random_shuffle(selectedPrograms.begin(), selectedPrograms.end());
+      }
     }
     selectedPrograms.resize(num_programs);
   } else {
