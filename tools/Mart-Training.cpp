@@ -390,7 +390,7 @@ int main(int argc, char **argv) {
                                                 "feature vector in X must have "
                                                 "same size with Y");
 
-  // Handle unkilled mutants (weigh is -1)
+  // XXX Handle unkilled mutants (weigh is -1) and tune weights
   if (forEquivalent) {
     for (auto i=0; i < Yvector.size(); ++i) {
       Yvector[i] = (Weightsvector[i] == -1.0);
@@ -399,8 +399,14 @@ int main(int argc, char **argv) {
   } else {
     for (auto i=0; i < Weightsvector.size(); ++i) {
       //treat equivalent mutants as killed by no failing test
-      if (Weightsvector[i] == -1.0)
-        Weightsvector[i] = 0.0; 
+      if (Weightsvector[i] < 0.0)    //== -1
+        Weightsvector[i] = 1.0; 
+      else if (Weightsvector[i] == 0.0)
+        Weightsvector[i] = 0.99; //a bit better than equivalent (since killed) 
+      else
+      // Consider mutant at least killed once by failing test as a bit good...
+      // but with small weight
+        Yvector[i] = true;   //the weight stay the same
     }
   }
 
