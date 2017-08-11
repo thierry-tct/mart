@@ -25,9 +25,9 @@ if (MART_SEMU_GENMU)
 		RUNTIME DESTINATION bin)
 		
 	# WM Log Driver
-	add_custom_command ( OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/useful/wmlog-driver.bc ${CMAKE_CURRENT_BINARY_DIR}/useful/CompileAllMuts.sh  ${CMAKE_CURRENT_BINARY_DIR}/useful/create_mconf.py ${CMAKE_CURRENT_BINARY_DIR}/useful/mconf-scope/default_allmax.mconf ${CMAKE_CURRENT_BINARY_DIR}/useful/trained-models/default-trained.model
+	add_custom_command ( OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/useful/wmlog-driver.bc ${CMAKE_CURRENT_BINARY_DIR}/useful/CompileAllMuts.sh  ${CMAKE_CURRENT_BINARY_DIR}/useful/create_mconf.py ${CMAKE_CURRENT_BINARY_DIR}/useful/mconf-scope/default_allmax.mconf ${CMAKE_CURRENT_BINARY_DIR}/useful/trained-models/default-trained.model ${CMAKE_CURRENT_BINARY_DIR}/useful/trained-models/default-trained.model.infos.json ${CMAKE_CURRENT_BINARY_DIR}/useful/trained-models/issta2017.model {CMAKE_CURRENT_BINARY_DIR}/useful/trained-models/issta2017.model.infos.json
                  POST_BUILD 
-                 DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/useful/wmlog-driver.c ${CMAKE_CURRENT_SOURCE_DIR}/useful/CompileAllMuts.sh ${CMAKE_CURRENT_SOURCE_DIR}/useful/create_mconf.py ${CMAKE_CURRENT_SOURCE_DIR}/useful/trained-models/default-trained.model
+                 DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/useful/wmlog-driver.c ${CMAKE_CURRENT_SOURCE_DIR}/useful/CompileAllMuts.sh ${CMAKE_CURRENT_SOURCE_DIR}/useful/create_mconf.py ${CMAKE_CURRENT_SOURCE_DIR}/useful/trained-models/default-trained.model ${CMAKE_CURRENT_SOURCE_DIR}/useful/trained-models/default-trained.model.infos.json ${CMAKE_CURRENT_SOURCE_DIR}/useful/trained-models/issta2017.model ${CMAKE_CURRENT_SOURCE_DIR}/useful/trained-models/issta2017.model.infos.json
                  COMMAND mkdir -p ${CMAKE_CURRENT_BINARY_DIR}/useful/mconf-scope
                  COMMAND ${LLVM_BUILD_PATH}/bin/clang -c -emit-llvm ${CMAKE_CURRENT_SOURCE_DIR}/useful/wmlog-driver.c -o  ${CMAKE_CURRENT_BINARY_DIR}/useful/wmlog-driver.bc
                  COMMAND cp -f ${CMAKE_CURRENT_SOURCE_DIR}/useful/CompileAllMuts.sh ${CMAKE_CURRENT_BINARY_DIR}/useful/CompileAllMuts.sh
@@ -38,12 +38,15 @@ if (MART_SEMU_GENMU)
                  # prediction model
                  COMMAND mkdir -p ${CMAKE_CURRENT_BINARY_DIR}/useful/trained-models
                  COMMAND cp -f ${CMAKE_CURRENT_SOURCE_DIR}/useful/trained-models/default-trained.model ${CMAKE_CURRENT_BINARY_DIR}/useful/trained-models/default-trained.model
+                 COMMAND cp -f ${CMAKE_CURRENT_SOURCE_DIR}/useful/trained-models/default-trained.model ${CMAKE_CURRENT_BINARY_DIR}/useful/trained-models/default-trained.model.infos.json
+                 COMMAND cp -f ${CMAKE_CURRENT_SOURCE_DIR}/useful/trained-models/default-trained.model ${CMAKE_CURRENT_BINARY_DIR}/useful/trained-models/issta2017.model
+                 COMMAND cp -f ${CMAKE_CURRENT_SOURCE_DIR}/useful/trained-models/default-trained.model ${CMAKE_CURRENT_BINARY_DIR}/useful/trained-models/issta2017.model.infos.json
                  
                  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/)
     
     add_custom_target(
                  Compilewmlogdriver ALL
-                 DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/useful/wmlog-driver.bc ${CMAKE_CURRENT_BINARY_DIR}/useful/CompileAllMuts.sh ${CMAKE_CURRENT_BINARY_DIR}/useful/create_mconf.py ${CMAKE_CURRENT_BINARY_DIR}/useful/mconf-scope/default_allmax.mconf ${CMAKE_CURRENT_BINARY_DIR}/useful/trained-models/default-trained.model
+                 DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/useful/wmlog-driver.bc ${CMAKE_CURRENT_BINARY_DIR}/useful/CompileAllMuts.sh ${CMAKE_CURRENT_BINARY_DIR}/useful/create_mconf.py ${CMAKE_CURRENT_BINARY_DIR}/useful/mconf-scope/default_allmax.mconf ${CMAKE_CURRENT_BINARY_DIR}/useful/trained-models/default-trained.model ${CMAKE_CURRENT_BINARY_DIR}/useful/trained-models/default-trained.model.infos.json ${CMAKE_CURRENT_BINARY_DIR}/useful/trained-models/issta2017.model ${CMAKE_CURRENT_BINARY_DIR}/useful/trained-models/issta2017.model.infos.json
                 )
             
 endif (MART_SEMU_GENMU)
