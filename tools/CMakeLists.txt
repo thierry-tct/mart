@@ -38,9 +38,9 @@ if (MART_SEMU_GENMU)
                  # prediction model
                  COMMAND mkdir -p ${CMAKE_CURRENT_BINARY_DIR}/useful/trained-models
                  COMMAND cp -f ${CMAKE_CURRENT_SOURCE_DIR}/useful/trained-models/default-trained.model ${CMAKE_CURRENT_BINARY_DIR}/useful/trained-models/default-trained.model
-                 COMMAND cp -f ${CMAKE_CURRENT_SOURCE_DIR}/useful/trained-models/default-trained.model ${CMAKE_CURRENT_BINARY_DIR}/useful/trained-models/default-trained.model.infos.json
-                 COMMAND cp -f ${CMAKE_CURRENT_SOURCE_DIR}/useful/trained-models/default-trained.model ${CMAKE_CURRENT_BINARY_DIR}/useful/trained-models/issta2017.model
-                 COMMAND cp -f ${CMAKE_CURRENT_SOURCE_DIR}/useful/trained-models/default-trained.model ${CMAKE_CURRENT_BINARY_DIR}/useful/trained-models/issta2017.model.infos.json
+                 COMMAND cp -f ${CMAKE_CURRENT_SOURCE_DIR}/useful/trained-models/default-trained.model.infos.json ${CMAKE_CURRENT_BINARY_DIR}/useful/trained-models/default-trained.model.infos.json
+                 COMMAND cp -f ${CMAKE_CURRENT_SOURCE_DIR}/useful/trained-models/issta2017.model ${CMAKE_CURRENT_BINARY_DIR}/useful/trained-models/issta2017.model
+                 COMMAND cp -f ${CMAKE_CURRENT_SOURCE_DIR}/useful/trained-models/issta2017.model.infos.json ${CMAKE_CURRENT_BINARY_DIR}/useful/trained-models/issta2017.model.infos.json
                  
                  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/)
     

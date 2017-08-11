@@ -202,7 +202,7 @@ int main(int argc, char **argv) {
                                       defaultTrainedModel);
   }
 
-  std::string issta2017TrainedModel(getUsefulAbsPath(argv[0]) + "/" + issta2017TrainedModel);
+  std::string issta2017TrainedModelFilepath = getUsefulAbsPath(argv[0]) + "/" + issta2017TrainedModel;
   
   MutantInfoList mutantInfo;
   mutantInfo.loadFromJsonFile(mutantInfoJsonfile);
@@ -344,7 +344,7 @@ int main(int argc, char **argv) {
     cachedPrediction.clear();
     for (unsigned si = 0; si < numberOfRandomSelections; ++si) {
       selection.smartSelectMutants(selectedMutants1[si], cachedPrediction,
-                                   issta2017TrainedModel, true /*mlOff*/, false /*mclOn*/);
+                                   issta2017TrainedModelFilepath, true /*mlOff*/, false /*mclOn*/);
     }
     mutantListAsJsON<MutantIDType>(selectedMutants1, issta2017SelectionOutJson);
     llvm::outs() << "Mart@Progress: ISSTA2017 selection took: "
