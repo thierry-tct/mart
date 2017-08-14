@@ -419,9 +419,11 @@ int main(int argc, char **argv) {
       else if (Weightsvector[i] == 0.0)
         Weightsvector[i] = 0.99; //a bit better than equivalent (since killed) 
       else
+        if (! Yvector[i])
+          Weightsvector[i] = 1 - Weightsvector[i];
       // Consider mutant at least killed once by failing test as a bit good...
       // but with small weight
-        Yvector[i] = true;   //the weight stay the same
+       //Yvector[i] = true;   //the weight stay the same
     }
   }
 

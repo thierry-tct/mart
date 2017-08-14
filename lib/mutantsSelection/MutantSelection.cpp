@@ -47,7 +47,7 @@ using namespace mart::selection;
 namespace {
 const double MAX_SCORE = 1.0;
 const double RELAX_STEP = 0.05 / AMPLIFIER;
-const double RELAX_THRESHOLD = 0.025 / AMPLIFIER; // 2 hops
+const double RELAX_THRESHOLD = 0.01 / AMPLIFIER; // 2 hops
 const double TIE_REDUCTION_DIFF = 0.03 / AMPLIFIER;
 }
 
@@ -1393,6 +1393,13 @@ void MutantSelection::smartSelectMutants(
     } else {
       isCoupledProbability = cachedPrediction;
     }
+    std::vector<bool> eqprob;
+    eqprob.resize(isCoupledProbability.size()*80/100.0, false);
+    eqprob.resize(isCoupledProbability.size(), true);
+    std::srand(std::time(NULL) + clock()); //+ clock() because fast running
+    std::random_shuffle(eqprob.begin(), eqprob.end());
+    for (MutantIDType i=0; i<isCoupledProbability.size(); ++i)
+      isCoupledProbability[i] *= (!eqprob[i]);
   } else {    // MCL only
     isCoupledProbability.resize(mutants_number, 0.0);
   }
@@ -1412,6 +1419,7 @@ void MutantSelection::smartSelectMutants(
                 //<: lower to higher, >: //higher to lower
                 return (isCoupledProbability[a - 1] > isCoupledProbability[b - 1]); 
               });
+    
     // randomize within same score
     auto ifirst = selectedMutants.begin();
     auto ilast = ifirst;
