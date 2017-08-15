@@ -47,7 +47,7 @@ using namespace mart::selection;
 namespace {
 const double MAX_SCORE = 1.0;
 const double RELAX_STEP = 0.05 / AMPLIFIER;
-const double RELAX_THRESHOLD = 0.01 / AMPLIFIER; // 2 hops
+const double RELAX_THRESHOLD = 0.005 / AMPLIFIER; // 2 hops
 const double TIE_REDUCTION_DIFF = 0.03 / AMPLIFIER;
 }
 
@@ -532,6 +532,29 @@ bool MutantDependenceGraph::build(llvm::Module const &mod,
     //matrixInOut.clear();
     update.clear();
     prevupdate.clear();
+
+    // project to 0 -- 1
+    for (MutantIDType mid = 1; mid <= mutants_number; ++mid) {
+      // Readjust the probabilities to 0 -- 1
+      // Then update the cumule
+      double sumIn = 0.0;
+      for (auto &vin: nonZeros_Cumuls[mid].first) { 
+        //vin.second *= vin.second; //inflate
+        sumIn += vin.second;
+      }
+      if (sumIn > 0.0)
+        for (auto &vin: nonZeros_Cumuls[mid].first) 
+          vin.second /= sumIn;
+
+      double sumOut = 0.0;
+      for (auto &vout: nonZeros_Cumuls[mid].second) {
+        //vout.second *= vout.second;  //inflate
+        sumOut += vout.second;
+      }
+      if (sumOut > 0.0)
+        for (auto &vout: nonZeros_Cumuls[mid].second) 
+          vout.second /= sumOut;
+    }
 
     //Store the relations to each mutant node
     for (MutantIDType m_id = 1; m_id <= mutants_number; ++m_id) {
@@ -1243,7 +1266,7 @@ MutantSelection::pickMutant(std::unordered_set<MutantIDType> const &candidates,
   }
 
   if (numTopMuts ==
-      0) { // Normally should not happend. put this jsut in case ...
+      0) { // Normally should not happend. put this just in case ...
     for (auto v: candidates)
       llvm::errs() << "(" << v << ", " << scores[v] << "), ";
     assert(false && "This function is called only with candidate non empty");
