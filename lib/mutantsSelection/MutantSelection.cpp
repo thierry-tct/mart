@@ -621,7 +621,7 @@ bool MutantDependenceGraph::build(llvm::Module const &mod,
         curDDCluster = getDDClusterAt(c_id);
         assert (curDDCluster->count(m_id) > 0 && "The mutant must be in the cluster here");
         mutantsVisited.insert(m_id);
-      }
+    }
       std::stack<MutantIDType> wStack;
       wStack.push(m_id);
       while(!wStack.empty()) {
