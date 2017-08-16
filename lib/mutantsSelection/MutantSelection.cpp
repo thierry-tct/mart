@@ -513,37 +513,37 @@ bool MutantDependenceGraph::build(llvm::Module const &mod,
         // Readjust the probabilities to 0 -- 1
         // Then update the cumule
         if(mid == *(vstmtTies[mid]->begin())) {
-        double sumIn = 0.0;
-        for (auto &vin: update[mid].first) { 
-          vin.second *= vin.second; //inflate
-          sumIn += vin.second;
-        }
-        if (sumIn > 0.0)
-          for (auto &vin: update[mid].first) 
-            vin.second /= sumIn;
-        for (auto &inIt: update[mid].first) {
-          //absent keys are inserted with value zero in maps
-        for (auto mid_i: *(vstmtTies[mid]))
-          nonZeros_Cumuls[mid_i].first[inIt.first] += inIt.second;
-          prevupdate[mid].first[inIt.first] = inIt.second;
-          //matrixInOut[mid][inIt.first].first = inIt.second;
-        }
+          double sumIn = 0.0;
+          for (auto &vin: update[mid].first) { 
+            vin.second *= vin.second; //inflate
+            sumIn += vin.second;
+          }
+          if (sumIn > 0.0)
+            for (auto &vin: update[mid].first) 
+              vin.second /= sumIn;
+          for (auto &inIt: update[mid].first) {
+            //absent keys are inserted with value zero in maps
+            for (auto mid_i: *(vstmtTies[mid]))
+              nonZeros_Cumuls[mid_i].first[inIt.first] += inIt.second;
+            prevupdate[mid].first[inIt.first] = inIt.second;
+            //matrixInOut[mid][inIt.first].first = inIt.second;
+          }
 
-        double sumOut = 0.0;
-        for (auto &vout: update[mid].second) {
-          vout.second *= vout.second;  //inflate
-          sumOut += vout.second;
-        }
-        if (sumOut > 0.0)
-          for (auto &vout: update[mid].second) 
-            vout.second /= sumOut;
-        for (auto &outIt: update[mid].second) {
-          //absent keys are inserted with value zero in maps
-        for (mid_i: *(vstmtTies[mid]))
-          nonZeros_Cumuls[mid_i].second[outIt.first] += outIt.second;
-          prevupdate[mid].second[outIt.first] = outIt.second;
-          //matrixInOut[mid][outIt.first].second = outIt.second;
-        }
+          double sumOut = 0.0;
+          for (auto &vout: update[mid].second) {
+            vout.second *= vout.second;  //inflate
+            sumOut += vout.second;
+          }
+          if (sumOut > 0.0)
+            for (auto &vout: update[mid].second) 
+              vout.second /= sumOut;
+          for (auto &outIt: update[mid].second) {
+            //absent keys are inserted with value zero in maps
+            for (auto mid_i: *(vstmtTies[mid]))
+              nonZeros_Cumuls[mid_i].second[outIt.first] += outIt.second;
+            prevupdate[mid].second[outIt.first] = outIt.second;
+            //matrixInOut[mid][outIt.first].second = outIt.second;
+          }
         }
       }
 
