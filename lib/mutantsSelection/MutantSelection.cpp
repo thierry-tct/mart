@@ -47,7 +47,7 @@ using namespace mart::selection;
 namespace {
 const double MAX_SCORE = 1.0;
 const double RELAX_STEP = 0.05 / AMPLIFIER;
-const double RELAX_THRESHOLD = 0.005 / AMPLIFIER; // 10 hops
+const double RELAX_THRESHOLD = 0.01 / AMPLIFIER; // 5 hops
 const double TIE_REDUCTION_DIFF = 0.03 / AMPLIFIER;
 }
 
@@ -466,7 +466,7 @@ bool MutantDependenceGraph::build(llvm::Module const &mod,
         vstmtTies[mid] = new std::unordered_set<MutantIDType>;
         vstmtTies[mid]->insert(mid);
         for (auto mtid: getTieDependents(mid))
-          if(getTieDependents(mid).size() == getTieDependents(mtid).size()){
+          if(getTieDependents(mid).size() == getTieDependents(mtid).size() && getInDataDependents(mid).size() == getInDataDependents(mtid).size() && getOutDataDependents(mid).size() == getOutDataDependents(mtid).size()){
             vstmtTies[mid]->insert(mtid);
             vstmtTies[mtid] = vstmtTies[mid];
           }
@@ -479,6 +479,7 @@ bool MutantDependenceGraph::build(llvm::Module const &mod,
     while (cur_relax_factor >= RELAX_THRESHOLD) {
       for (auto *stTie: stmtTies) {
         MutantIDType midSrc = *(stTie->begin());
+
         // In relation
         for (auto *stTie2: stmtTies) {
           MutantIDType midDest = *(stTie2->begin());

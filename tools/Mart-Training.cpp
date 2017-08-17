@@ -87,7 +87,10 @@ void readXY(std::string const &fileX, std::string const &fileY,
     }
   }
 
-  assert(vectorY.size() == matrixX.begin()->second.size());
+  if (vectorY.size() != matrixX.begin()->second.size()) {
+    llvm::errs() << "\n" << fileX << " " << fileY << "\n";
+    assert(vectorY.size() == matrixX.begin()->second.size());
+  }
 }
 
 void merge2into1(

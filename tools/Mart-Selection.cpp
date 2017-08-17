@@ -116,6 +116,11 @@ int main(int argc, char **argv) {
       llvm::cl::desc(
           "(optional) Specify the alternative to use for prediction for smart"),
       llvm::cl::init(""));
+  llvm::cl::opt<std::string> issta2017SelectionTrainedModel(
+      "issta2017-trained-model",
+      llvm::cl::desc(
+          "(optional) Specify the alternative to use for prediction for issta2017"),
+      llvm::cl::init(""));
   llvm::cl::opt<bool> dumpMutantsFeaturesToCSV(
       "dump-features",
       llvm::cl::desc("(optional) enable dumping features to CSV file"));
@@ -202,8 +207,10 @@ int main(int argc, char **argv) {
                                       defaultTrainedModel);
   }
 
-  std::string issta2017TrainedModelFilepath = getUsefulAbsPath(argv[0]) + "/" + issta2017TrainedModel;
-  
+  if (issta2017SelectionTrainedModel.empty()) {
+    issta2017SelectionTrainedModel.assign(getUsefulAbsPath(argv[0]) + "/" + issta2017TrainedModel);
+  }
+
   MutantInfoList mutantInfo;
   mutantInfo.loadFromJsonFile(mutantInfoJsonfile);
 
@@ -344,7 +351,7 @@ int main(int argc, char **argv) {
     cachedPrediction.clear();
     for (unsigned si = 0; si < numberOfRandomSelections; ++si) {
       selection.smartSelectMutants(selectedMutants1[si], cachedPrediction,
-                                   issta2017TrainedModelFilepath, true /*mlOff*/, false /*mclOn*/);
+                                   issta2017SelectionTrainedModel, true /*mlOff*/, false /*mclOn*/);
     }
     mutantListAsJsON<MutantIDType>(selectedMutants1, issta2017SelectionOutJson);
     llvm::outs() << "Mart@Progress: ISSTA2017 selection took: "
