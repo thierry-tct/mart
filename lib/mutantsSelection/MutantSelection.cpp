@@ -67,7 +67,7 @@ void PredictionModule::fastBDTPredict(
   }
 }
 
-std::map<unsigned int, double> PredictionModule::fastBDTTrain(
+std::map<unsigned long, double> PredictionModule::fastBDTTrain(
     std::fstream &out_stream,
     std::vector<std::vector<float>> const &X_matrix,
     std::vector<bool> const &isCoupled, std::vector<float> const &weights, unsigned treeNumber, unsigned treeDepth) {
@@ -168,7 +168,7 @@ void PredictionModule::predict(std::vector<std::vector<float>> const &X_matrix,
 
 /// Train model and write model into predictionModelFilename
 /// Each contained vector correspond to a feature
-std::map<unsigned int, double> PredictionModule::train(std::vector<std::vector<float>> const &X_matrix,
+std::map<unsigned long, double> PredictionModule::train(std::vector<std::vector<float>> const &X_matrix,
                              std::vector<std::string> const &modelFeaturesnames,
                              std::vector<bool> const &isCoupled,
                              std::vector<float> const  &weights,
@@ -180,7 +180,7 @@ std::map<unsigned int, double> PredictionModule::train(std::vector<std::vector<f
     out_stream << " " << fstr ;  //istringstrem will skip first space
   out_stream << "\n";
   
-  std::map<unsigned int, double> featuremap = fastBDTTrain(out_stream, X_matrix, isCoupled, weights, treeNumber, treeDepth);
+  std::map<unsigned long, double> featuremap = fastBDTTrain(out_stream, X_matrix, isCoupled, weights, treeNumber, treeDepth);
   // randomForestTrain(out_stream, X_matrix, isCoupled. treeNumber);
   out_stream.close();
   return featuremap;
@@ -456,23 +456,52 @@ bool MutantDependenceGraph::build(llvm::Module const &mod,
       }
     }
 
-    std::vector<std::pair<std::unordered_map<MutantIDType,double>, std::unordered_map<MutantIDType,double>>> update(nonZeros_Cumuls);
-    std::vector<std::pair<std::unordered_map<MutantIDType,double>, std::unordered_map<MutantIDType,double>>> prevupdate(nonZeros_Cumuls);
-
     std::vector<std::unordered_set<MutantIDType> *> vstmtTies(mutants_number + 1, nullptr);
 
     for (MutantIDType mid = 1; mid <= mutants_number; ++mid) {
       if (vstmtTies[mid] == nullptr) {
         vstmtTies[mid] = new std::unordered_set<MutantIDType>;
         vstmtTies[mid]->insert(mid);
-        for (auto mtid: getTieDependents(mid))
-          if(getTieDependents(mid).size() == getTieDependents(mtid).size() && getInDataDependents(mid).size() == getInDataDependents(mtid).size() && getOutDataDependents(mid).size() == getOutDataDependents(mtid).size()){
-            vstmtTies[mid]->insert(mtid);
-            vstmtTies[mtid] = vstmtTies[mid];
+        //If they have exactely the same IRs
+        for (auto mtid: getTieDependents(mid)) { 
+          if(mutant2IRset[mid].size() == mutant2IRset[mtid].size()){
+            bool same = true;
+            for (auto *ir: mutant2IRset[mid]) {
+              if (mutant2IRset[mtid].count(ir) == 0) {
+                same = false;
+                break;
+              }
+            }
+            if (same) {
+              vstmtTies[mid]->insert(mtid);
+              vstmtTies[mtid] = vstmtTies[mid];
+            }
           }
+        }
       }
     }
+
     std::unordered_set<std::unordered_set<MutantIDType> *> stmtTies(vstmtTies.begin()+1, vstmtTies.end());
+    std::vector<std::pair<std::unordered_map<MutantIDType,double>, std::unordered_map<MutantIDType,double>>> update(nonZeros_Cumuls.size());
+    std::vector<std::pair<std::unordered_map<MutantIDType,double>, std::unordered_map<MutantIDType,double>>> prevupdate(nonZeros_Cumuls.size());
+
+    // update and prevupdate take only first elem of each Tieset
+    for (MutantIDType mutant_id = 1; mutant_id <= mutants_number; ++mutant_id) {
+      if (mutant_id == *(vstmtTies[mutant_id]->begin())) {
+        for (auto &vp: nonZeros_Cumuls[mutant_id].first) {
+          if (vp.first == *(vstmtTies[vp.first]->begin())) {
+            update[mutant_id].first[vp.first] = vp.second;
+            prevupdate[mutant_id].first[vp.first] = vp.second;
+          }
+        }
+        for (auto &vp: nonZeros_Cumuls[mutant_id].second) {
+          if (vp.first == *(vstmtTies[vp.first]->begin())) {
+            update[mutant_id].second[vp.first] = vp.second;
+            prevupdate[mutant_id].second[vp.first] = vp.second;
+          }
+        }
+      }
+    }
 
     unsigned curhop = 2;
     double cur_relax_factor = RELAX_STEP / curhop;
@@ -481,30 +510,20 @@ bool MutantDependenceGraph::build(llvm::Module const &mod,
         MutantIDType midSrc = *(stTie->begin());
 
         // In relation
-        for (auto *stTie2: stmtTies) {
-          MutantIDType midDest = *(stTie2->begin());
-          if (nonZeros_Cumuls[midSrc].first.count(midDest)) {
-            for (auto *stTie3: stmtTies) {
-              MutantIDType midFar = *(stTie3->begin());
-              if (nonZeros_Cumuls[midDest].first.count(midFar)) {
-                for (auto midFar_i: *stTie3)
-                  update[midSrc].first[midFar_i] += (stTie2->size() * stTie3->size()) * prevupdate[midSrc].first[midDest] * prevupdate[midDest].first[midFar_i];
-              }
-            }
+        for (auto &vd: prevupdate[midSrc].first) {
+          MutantIDType midDest = vd.first;
+          for (auto &vt: prevupdate[midDest].first) {
+            MutantIDType midFar = vt.first;
+            update[midSrc].first[midFar] += (vstmtTies[midDest]->size() * vstmtTies[midFar]->size()) * prevupdate[midSrc].first[midDest] * prevupdate[midDest].first[midFar];
           }
         }
 
         // Out Relation
-        for (auto *stTie2: stmtTies) {
-          MutantIDType midDest = *(stTie2->begin());
-          if (nonZeros_Cumuls[midSrc].second.count(midDest)) {
-            for (auto *stTie3: stmtTies) {
-              MutantIDType midFar = *(stTie3->begin());
-              if (nonZeros_Cumuls[midDest].second.count(midFar)) {
-                for (auto midFar_i: *stTie3)
-                  update[midSrc].second[midFar_i] += (stTie2->size() * stTie3->size()) * prevupdate[midSrc].second[midDest] * prevupdate[midDest].second[midFar_i];
-              }
-            }
+        for (auto &vd: prevupdate[midSrc].second) {
+          MutantIDType midDest = vd.first;
+          for (auto &vt: prevupdate[midDest].second) {
+            MutantIDType midFar = vt.first;
+            update[midSrc].second[midFar] += (vstmtTies[midDest]->size() * vstmtTies[midFar]->size()) * prevupdate[midSrc].second[midDest] * prevupdate[midDest].second[midFar];
           }
         }
       }
@@ -517,7 +536,7 @@ bool MutantDependenceGraph::build(llvm::Module const &mod,
           double sumIn = 0.0;
           for (auto &vin: update[mid].first) { 
             vin.second *= vin.second; //inflate
-            sumIn += vin.second;
+            sumIn += vin.second * vstmtTies[mid]->size();
           }
           if (sumIn > 0.0)
             for (auto &vin: update[mid].first) 
@@ -525,7 +544,8 @@ bool MutantDependenceGraph::build(llvm::Module const &mod,
           for (auto &inIt: update[mid].first) {
             //absent keys are inserted with value zero in maps
             for (auto mid_i: *(vstmtTies[mid]))
-              nonZeros_Cumuls[mid_i].first[inIt.first] += inIt.second;
+              for (auto mid_j: *(vstmtTies[inIt.first]))
+                nonZeros_Cumuls[mid_i].first[mid_j] += inIt.second;
             prevupdate[mid].first[inIt.first] = inIt.second;
             //matrixInOut[mid][inIt.first].first = inIt.second;
           }
@@ -533,7 +553,7 @@ bool MutantDependenceGraph::build(llvm::Module const &mod,
           double sumOut = 0.0;
           for (auto &vout: update[mid].second) {
             vout.second *= vout.second;  //inflate
-            sumOut += vout.second;
+            sumOut += vout.second * vstmtTies[mid]->size();
           }
           if (sumOut > 0.0)
             for (auto &vout: update[mid].second) 
@@ -541,7 +561,8 @@ bool MutantDependenceGraph::build(llvm::Module const &mod,
           for (auto &outIt: update[mid].second) {
             //absent keys are inserted with value zero in maps
             for (auto mid_i: *(vstmtTies[mid]))
-              nonZeros_Cumuls[mid_i].second[outIt.first] += outIt.second;
+              for (auto mid_j: *(vstmtTies[outIt.first]))
+                nonZeros_Cumuls[mid_i].second[mid_j] += outIt.second;
             prevupdate[mid].second[outIt.first] = outIt.second;
             //matrixInOut[mid][outIt.first].second = outIt.second;
           }

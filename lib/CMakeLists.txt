@@ -3,6 +3,7 @@ if (MART_SEMU_GENMU)
     include_directories( ${CMAKE_CURRENT_SOURCE_DIR}/operatorsClasses )
     #include_directories(${CMAKE_CURRENT_BINARY_DIR}/third-parties/FastBDT/include)
     #include_directories( ${CMAKE_CURRENT_SOURCE_DIR}/third-parties )
+    include_directories( ${CMAKE_CURRENT_SOURCE_DIR}/third-parties/dg/src )
     #include_directories( ${CMAKE_CURRENT_SOURCE_DIR}/third-parties/random-forest/include)
     
     add_custom_command ( OUTPUT ${CMAKE_CURRENT_SOURCE_DIR}/AUTOGEN_mutation_op_headers.h.inc

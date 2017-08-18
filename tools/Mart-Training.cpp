@@ -139,7 +139,7 @@ void merge2into1(
   }
 }
 
-void writeModelInfos (std::vector<std::string> &selectedProjectIDs, std::map<unsigned int, double> const &featuresScores, std::vector<std::string> &featuresnames, std::string modelInfosFilename) {
+void writeModelInfos (std::vector<std::string> &selectedProjectIDs, std::map<unsigned long, double> const &featuresScores, std::vector<std::string> &featuresnames, std::string modelInfosFilename) {
   assert (featuresScores.size() > 0 && "Error: Problem in ML computation (maybe failed: check its log above)");
   std::fstream out_stream(modelInfosFilename, std::ios_base::out | std::ios_base::trunc);
   out_stream << "{\n";
@@ -154,7 +154,7 @@ void writeModelInfos (std::vector<std::string> &selectedProjectIDs, std::map<uns
   out_stream << "\t],\n";
   out_stream << "\"features-scores\": {";
   notfirst = false;
-  for (unsigned int fpos = 0; fpos < featuresnames.size() ; ++fpos) {
+  for (unsigned long fpos = 0; fpos < featuresnames.size() ; ++fpos) {
     if (notfirst)
       out_stream << ",";
     out_stream << "\"" << featuresnames[fpos] << "\": ";
@@ -173,7 +173,7 @@ void checkPredictionScore(std::vector<bool> const &Yvector, std::vector<float> c
   float sum = 0;
   unsigned ntruecoupl, numcorrect, couplecorrect, npredcoupl;
   numcorrect = couplecorrect = npredcoupl = ntruecoupl = 0;
-  for (unsigned int i = 0; i < scores.size(); ++i) {
+  for (unsigned long i = 0; i < scores.size(); ++i) {
     if (Yvector[i] - scores[i] < 0.5 && Yvector[i] - scores[i] > -0.5)
       numcorrect++;
     if (scores[i] > 0.5)
@@ -403,7 +403,7 @@ int main(int argc, char **argv) {
   // verify data
   assert(!Yvector.empty() && !Xmatrix.empty() && Weightsvector.size() == Yvector.size() &&
          "mart-training@error: training data cannot be empty");
-  for (auto featVect : Xmatrix)
+  for (auto &featVect : Xmatrix)
     assert(featVect.size() == Yvector.size() && "mart-training@error: all "
                                                 "feature vector in X must have "
                                                 "same size with Y");
@@ -433,7 +433,7 @@ int main(int argc, char **argv) {
   llvm::outs() << "# X Matrix and Y Vector ready. Training ...\n";
 
   PredictionModule predmod(outputModelFilename);
-  std::map<unsigned int, double> featuresScores = predmod.train(Xmatrix, featuresnames, Yvector, Weightsvector, treesNumber, treesDepth);
+  std::map<unsigned long, double> featuresScores = predmod.train(Xmatrix, featuresnames, Yvector, Weightsvector, treesNumber, treesDepth);
 
   // Get features relevance weights
   std::string modelInfosFilename(outputModelFilename+".infos.json");
