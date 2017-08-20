@@ -1706,8 +1706,14 @@ void MutantSelection::smartSelectMutants(
 
   // For now put all ties here and append to list at the end
   std::vector<unsigned long> clustershuffle;
+  std::vector<unsigned long> clusters__;
   clustershuffle.reserve(mutants_number);
-  for (unsigned long cluster_id=0; cluster_id < candidate_mutants_clusters.size(); ++cluster_id ) {
+  for (unsigned long cluster_id=0; cluster_id < candidate_mutants_clusters.size(); ++cluster_id) {
+    clusters__.push_back(cluster_id);
+  }
+  std::srand(std::time(NULL) + clock()); //+ clock() because fast running
+  std::random_shuffle(clusters__.begin(), clusters__.end());
+  for(cluster_id: clusters__) {
     auto &cluster = candidate_mutants_clusters[cluster_id];
     for (unsigned long occ=0; occ < cluster.size(); ++occ)
       clustershuffle.push_back(cluster_id);
@@ -1716,8 +1722,8 @@ void MutantSelection::smartSelectMutants(
   //llvm::errs() << "#### " << candidate_mutants_clusters.size() << " clusters\n";
 
   // randomize
-  std::srand(std::time(NULL) + clock()); //+ clock() because fast running
-  std::random_shuffle(clustershuffle.begin(), clustershuffle.end());
+  //std::srand(std::time(NULL) + clock()); //+ clock() because fast running
+  //std::random_shuffle(clustershuffle.begin(), clustershuffle.end());
 
   for (auto cid: clustershuffle) {
     auto mutant_id = pickMutant(candidate_mutants_clusters[cid], mutant_scores);
