@@ -1713,7 +1713,7 @@ void MutantSelection::smartSelectMutants(
   }
   std::srand(std::time(NULL) + clock()); //+ clock() because fast running
   std::random_shuffle(clusters__.begin(), clusters__.end());
-  for(cluster_id: clusters__) {
+  for(auto cluster_id: clusters__) {
     auto &cluster = candidate_mutants_clusters[cluster_id];
     for (unsigned long occ=0; occ < cluster.size(); ++occ)
       clustershuffle.push_back(cluster_id);
