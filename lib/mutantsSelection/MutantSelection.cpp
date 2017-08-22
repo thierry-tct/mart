@@ -514,7 +514,7 @@ bool MutantDependenceGraph::build(llvm::Module const &mod,
           MutantIDType midDest = vd.first;
           for (auto &vt: prevupdate[midDest].first) {
             MutantIDType midFar = vt.first;
-            update[midSrc].first[midFar] += (vstmtTies[midDest]->size() * vstmtTies[midFar]->size()) * prevupdate[midSrc].first[midDest] * prevupdate[midDest].first[midFar];
+            update[midSrc].first[midFar] +=   prevupdate[midSrc].first[midDest] * prevupdate[midDest].first[midFar];
           }
         }
 
@@ -523,7 +523,7 @@ bool MutantDependenceGraph::build(llvm::Module const &mod,
           MutantIDType midDest = vd.first;
           for (auto &vt: prevupdate[midDest].second) {
             MutantIDType midFar = vt.first;
-            update[midSrc].second[midFar] += (vstmtTies[midDest]->size() * vstmtTies[midFar]->size()) * prevupdate[midSrc].second[midDest] * prevupdate[midDest].second[midFar];
+            update[midSrc].second[midFar] +=  prevupdate[midSrc].second[midDest] * prevupdate[midDest].second[midFar];
           }
         }
       }
@@ -1375,10 +1375,10 @@ void MutantSelection::relaxMutant(MutantIDType mutant_id,
   // original's
 
   for (auto inrel : mutantDGraph.getInMutantRelationStrength(mutant_id)) {
-    scores[inrel.first] -= scores[inrel.first] * (inrel.second + mutantDGraph.getOutRelationStrength(inrel.first, mutant_id));
+    scores[inrel.first] -= /*scores[inrel.first] * */(inrel.second + mutantDGraph.getOutRelationStrength(inrel.first, mutant_id));
   }
   for (auto outrel : mutantDGraph.getOutMutantRelationStrength(mutant_id)) {
-    scores[outrel.first] -= scores[outrel.first] * (outrel.second + mutantDGraph.getInRelationStrength(outrel.first, mutant_id));
+    scores[outrel.first] -= /*scores[outrel.first] * */(outrel.second + mutantDGraph.getInRelationStrength(outrel.first, mutant_id));
   }
   
 
