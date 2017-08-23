@@ -445,9 +445,6 @@ bool MutantDependenceGraph::build(llvm::Module const &mod,
 
   if (! disable_selection) {
   
-    // Matrix for relation. (i, j).first represents 'IN', second 'OUT'
-    std::vector<std::pair<std::unordered_map<MutantIDType,double>, std::unordered_map<MutantIDType,double>>> nonZeros_Cumuls(mutants_number+1);
-
     //std::vector<std::vector<std::pair<double, double>>> matrixInOut(mutants_number+1);
 
     for (MutantIDType mid = 1; mid <= mutants_number; ++mid) {
@@ -458,25 +455,25 @@ bool MutantDependenceGraph::build(llvm::Module const &mod,
       
       for (auto did: getInDataDependents(mid)) {
         //matrixInOut[mid][did].first = inproba;
-        nonZeros_Cumuls[mid].first[did] = inproba;
+        getRelationIncomingRef(mid)[did] = inproba;
       }
       
       for (auto did: getOutDataDependents(mid)) {
         //matrixInOut[mid][did].second = outproba;
-        nonZeros_Cumuls[mid].second[did] = outproba;
+        getRelationOutgoingRef(mid)[did] = outproba;
       }
 
       //Tie dependent are added as self loop inchuling This mutant
       // they are added both for In and Out
       //matrixInOut[mid][mid].first = inproba;
-      nonZeros_Cumuls[mid].first[mid] = inproba;
+      getRelationIncomingRef(mid)[mid] = inproba;
       //matrixInOut[mid][mid].second = outproba;
-      nonZeros_Cumuls[mid].second[mid] = outproba;
+      getRelationOutgoingRef(mid)[mid] = outproba;
       for (auto did: getTieDependents(mid)) {
         //matrixInOut[mid][did].first = inproba;
-        nonZeros_Cumuls[mid].first[did] = inproba;
+        getRelationIncomingRef(mid)[did] = inproba;
         //matrixInOut[mid][did].second = outproba;
-        nonZeros_Cumuls[mid].second[did] = outproba;
+        getRelationOutgoingRef(mid)[did] = outproba;
       }
     }
 
@@ -506,19 +503,19 @@ bool MutantDependenceGraph::build(llvm::Module const &mod,
     }
 
     std::unordered_set<std::unordered_set<MutantIDType> *> stmtTies(vstmtTies.begin()+1, vstmtTies.end());
-    std::vector<std::pair<std::unordered_map<MutantIDType,double>, std::unordered_map<MutantIDType,double>>> update(nonZeros_Cumuls.size());
-    std::vector<std::pair<std::unordered_map<MutantIDType,double>, std::unordered_map<MutantIDType,double>>> prevupdate(nonZeros_Cumuls.size());
+    std::vector<std::pair<std::unordered_map<MutantIDType,double>, std::unordered_map<MutantIDType,double>>> update(mutants_number+1);
+    std::vector<std::pair<std::unordered_map<MutantIDType,double>, std::unordered_map<MutantIDType,double>>> prevupdate(mutants_number+1);
 
     // update and prevupdate take only first elem of each Tieset
     for (MutantIDType mutant_id = 1; mutant_id <= mutants_number; ++mutant_id) {
       if (mutant_id == *(vstmtTies[mutant_id]->begin())) {
-        for (auto &vp: nonZeros_Cumuls[mutant_id].first) {
+        for (auto &vp: getRelationIncomingConstRef(mutant_id)) {
           if (vp.first == *(vstmtTies[vp.first]->begin())) {
             update[mutant_id].first[vp.first] = vp.second;
             prevupdate[mutant_id].first[vp.first] = vp.second;
           }
         }
-        for (auto &vp: nonZeros_Cumuls[mutant_id].second) {
+        for (auto &vp: getRelationOutgoingConstRef(mutant_id)) {
           if (vp.first == *(vstmtTies[vp.first]->begin())) {
             update[mutant_id].second[vp.first] = vp.second;
             prevupdate[mutant_id].second[vp.first] = vp.second;
@@ -567,9 +564,11 @@ bool MutantDependenceGraph::build(llvm::Module const &mod,
               vin.second /= sumIn;
           for (auto &inIt: update[mid].first) {
             //absent keys are inserted with value zero in maps
-            for (auto mid_i: *(vstmtTies[mid]))
-              for (auto mid_j: *(vstmtTies[inIt.first]))
-                nonZeros_Cumuls[mid_i].first[mid_j] += inIt.second;
+            if (inIt.second > 0.0)
+              for (auto mid_i: *(vstmtTies[mid]))
+                for (auto mid_j: *(vstmtTies[inIt.first]))
+                  //can insert
+                  getRelationIncomingRef(mid_i)[mid_j] += inIt.second;
             prevupdate[mid].first[inIt.first] = inIt.second;
             //matrixInOut[mid][inIt.first].first = inIt.second;
           }
@@ -584,9 +583,11 @@ bool MutantDependenceGraph::build(llvm::Module const &mod,
               vout.second /= sumOut;
           for (auto &outIt: update[mid].second) {
             //absent keys are inserted with value zero in maps
-            for (auto mid_i: *(vstmtTies[mid]))
-              for (auto mid_j: *(vstmtTies[outIt.first]))
-                nonZeros_Cumuls[mid_i].second[mid_j] += outIt.second;
+            if (outIt.second > 0.0)
+              for (auto mid_i: *(vstmtTies[mid]))
+                for (auto mid_j: *(vstmtTies[outIt.first]))
+                  //can insert
+                  getRelationOutgoingRef(mid_i)[mid_j] += outIt.second;
             prevupdate[mid].second[outIt.first] = outIt.second;
             //matrixInOut[mid][outIt.first].second = outIt.second;
           }
@@ -615,34 +616,32 @@ bool MutantDependenceGraph::build(llvm::Module const &mod,
       // Readjust the probabilities to 0 -- 1
       // Then update the cumule
       double sumIn = 0.0;
-      for (auto &vin: nonZeros_Cumuls[mid].first) { 
+      for (auto &vin: getRelationIncomingRef(mid)) { 
         //vin.second *= vin.second; //inflate
         sumIn += vin.second;
       }
       if (sumIn > 0.0)
-        for (auto &vin: nonZeros_Cumuls[mid].first) 
+        for (auto &vin: getRelationIncomingRef(mid)) 
           vin.second /= sumIn;
 
       double sumOut = 0.0;
-      for (auto &vout: nonZeros_Cumuls[mid].second) {
+      for (auto &vout: getRelationOutgoingRef(mid)) {
         //vout.second *= vout.second;  //inflate
         sumOut += vout.second;
       }
       if (sumOut > 0.0)
-        for (auto &vout: nonZeros_Cumuls[mid].second) 
+        for (auto &vout: getRelationOutgoingRef(mid)) 
           vout.second /= sumOut;
     }
 
-    //Store the relations to each mutant node
+    // Verify
     for (MutantIDType m_id = 1; m_id <= mutants_number; ++m_id) {
       for (MutantIDType dm_id = 1; dm_id <= mutants_number; ++dm_id) {
-        if (nonZeros_Cumuls[m_id].first[dm_id] > 0.0) {
-          addInDataRelationStrength(m_id, dm_id, nonZeros_Cumuls[m_id].first[dm_id]);
-          assert (nonZeros_Cumuls[dm_id].second[m_id] > 0.0);
+        if (getRelationIncomingRef(m_id).count(dm_id)) { //[dm_id] > 0.0) {
+          assert (getRelationOutgoingConstRef(dm_id).count(m_id)); //[m_id] > 0.0);
         }
-        if (nonZeros_Cumuls[m_id].second[dm_id] > 0.0) {
-          addOutDataRelationStrength(m_id, dm_id, nonZeros_Cumuls[m_id].second[dm_id]);
-          assert (nonZeros_Cumuls[dm_id].first[m_id] > 0.0);
+        if (getRelationOutgoingRef(m_id).count(dm_id)) { //[dm_id] > 0.0) {
+          assert (getRelationIncomingConstRef(dm_id).count(m_id)); //[m_id] > 0.0);
         }
       }
     }
@@ -674,7 +673,7 @@ bool MutantDependenceGraph::build(llvm::Module const &mod,
         auto m_elem = wStack.top();
         wStack.pop();
         for (MutantIDType rel_id = 1; rel_id <= mutants_number; ++rel_id) {
-          if (nonZeros_Cumuls[m_elem].first[rel_id] > 0.0 || nonZeros_Cumuls[m_elem].second[rel_id] > 0.0 ) {
+          if (getRelationIncomingConstRef(m_elem).count(rel_id) || getRelationOutgoingConstRef(m_elem).count(rel_id)) {
             if (mutantsVisited.count(rel_id) == 0) {
               curDDCluster->insert(rel_id);
               cluster_ids[rel_id] = c_id;

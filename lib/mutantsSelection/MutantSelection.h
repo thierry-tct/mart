@@ -212,12 +212,28 @@ private:
     return mutantDGraphData[id].higherHopsInCtrlDependents.back();
   }
 
-  void addInDataRelationStrength (MutantIDType midSrc, MutantIDType midTarget, double val) {
+  /*void addInDataRelationStrength (MutantIDType midSrc, MutantIDType midTarget, double val) {
     mutantDGraphData[midSrc].relationIncoming.emplace(midTarget, val);
   }
 
   void addOutDataRelationStrength (MutantIDType midSrc, MutantIDType midTarget, double val) {
     mutantDGraphData[midSrc].relationOutgoing.emplace(midTarget, val);
+  }*/
+
+  inline std::unordered_map<MutantIDType, double> &getRelationIncomingRef (MutantIDType mutant_id) {
+    return mutantDGraphData[mutant_id].relationIncoming;
+  }
+
+  inline std::unordered_map<MutantIDType, double> &getRelationOutgoingRef (MutantIDType mutant_id) {
+    return mutantDGraphData[mutant_id].relationOutgoing;
+  }
+
+  inline std::unordered_map<MutantIDType, double> const &getRelationIncomingConstRef (MutantIDType mutant_id) const {
+    return mutantDGraphData[mutant_id].relationIncoming;
+  }
+
+  inline std::unordered_map<MutantIDType, double> const &getRelationOutgoingConstRef (MutantIDType mutant_id) const  {
+    return mutantDGraphData[mutant_id].relationOutgoing;
   }
 
   void getInOutDataRelationStrengthMutantsOfInto (MutantIDType mid, std::unordered_set<MutantIDType> &copyTo) {

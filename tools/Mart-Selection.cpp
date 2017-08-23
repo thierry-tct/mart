@@ -206,10 +206,12 @@ int main(int argc, char **argv) {
     smartSelectionTrainedModel.assign(getUsefulAbsPath(argv[0]) + "/" +
                                       defaultTrainedModel);
   }
+  assert(llvm::sys::fs::is_regular_file(smartSelectionTrainedModel) && "Selection model file is not found");
 
   if (issta2017SelectionTrainedModel.empty()) {
     issta2017SelectionTrainedModel.assign(getUsefulAbsPath(argv[0]) + "/" + issta2017TrainedModel);
   }
+  assert(llvm::sys::fs::is_regular_file(issta2017SelectionTrainedModel) && "Issta2017 selection model file is not found");
 
   MutantInfoList mutantInfo;
   mutantInfo.loadFromJsonFile(mutantInfoJsonfile);
