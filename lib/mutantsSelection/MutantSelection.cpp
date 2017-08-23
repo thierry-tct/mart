@@ -397,11 +397,35 @@ bool MutantDependenceGraph::build(llvm::Module const &mod,
             setComplexity(mutant_id, mutantsofstmt.size());
             setCFGDepthPredSuccNum(mutant_id, depth, nPreds, nSuccs);
             auto &mutInsts = mutant2IRset.at(mutant_id);
+            std::vector<std::string> &dataTypeContext = getOperandDataTypeContextRef(mutant_id);
             for (auto *minst : mutInsts) {
               for (auto *par : minst->users())
                 if (mutInsts.count(par) == 0)
-                  if (auto astPar = llvm::dyn_cast<llvm::Instruction>(par))
+                  if (auto *astPar = llvm::dyn_cast<llvm::Instruction>(par)) {
                     addAstParents(mutant_id, astPar);
+                    if (dataTypeContext.size() == 0)
+                      setReturnDataTypeContext(mutant_id, std::to_string(astPar->getType()->getTypeID()));
+                  }
+
+              unsigned nLiteral = 0, nIdentifier = 0, nOperator = 0;
+              if (auto *minstU = llvm::dyn_cast<llvm::User>(minst)) {
+                for (auto &childUse : minstU->operands()) {
+                  auto *child = childUse.get();
+                  if (mutInsts.count(child) == 0) {
+                    nLiteral += (unsigned)llvm::isa<llvm::Constant>(child); 
+                    if (auto *isLoad = llvm::dyn_cast<llvm::LoadInst>(child)) {
+                      if (llvm::isa<llvm::AllocaInst>(isLoad->getPointerOperand()) || llvm::isa<llvm::GlobalVariable>(isLoad->getPointerOperand()) || llvm::isa<llvm::Argument>(isLoad->getPointerOperand()))
+                        ++nIdentifier;
+                    }
+                    else if (llvm::isa<llvm::AllocaInst>(child) || llvm::isa<llvm::GlobalVariable>(child) || llvm::isa<llvm::Argument>(child))
+                      ++nIdentifier;
+                    else if (llvm::isa<llvm::Instruction>(child))
+                      ++nOperator; 
+                    dataTypeContext.push_back(std::to_string(child->getType()->getTypeID()));
+                  }
+                }
+              }
+              setChildContext(mutant_id, nLiteral, nIdentifier, nOperator);
             }
           }
         }
@@ -716,6 +740,7 @@ void MutantDependenceGraph::computeMutantFeatures(
   std::unordered_set<std::string> allMutantTypenames; // all mutantTypeNames
   std::unordered_set<std::string> allStmtBBTypenames; // all stmtBBTypeNames
   std::unordered_set<std::string> allASTParentOpcodenames;
+  std::unordered_set<std::string> allDataTypes;
   std::vector<std::string> mutTypenameTmp;
   std::vector<std::string> stmtTypenameTmp;
   const std::string nsuff_astparent("-astparent");
@@ -724,6 +749,9 @@ void MutantDependenceGraph::computeMutantFeatures(
   const std::string nsuff_outctrldep("-outctrldep");
   const std::string nsuff_inctrldep("-inctrldep");
   const std::string astParentTypeSig("-ASTp");
+  const std::string childContextSig("-ChildContext");
+  const std::string dataTypeContextOperandSig("-Operand-DataTypeContext");
+  const std::string dataTypeContextReturnSig("-Return-DataTypeContext");
   
   for (auto mutant_id = 1; mutant_id <= nummuts; ++mutant_id) {
     mutTypenameTmp.clear();
@@ -734,6 +762,10 @@ void MutantDependenceGraph::computeMutantFeatures(
     allStmtBBTypenames.insert(stmtTypenameTmp.begin(), stmtTypenameTmp.end());
     for (auto const &str: getAstParentsOpcodeNames(mutant_id))
       allASTParentOpcodenames.insert(str+astParentTypeSig);
+    if (!getReturnDataTypeContext(mutant_id).empty())
+      allDataTypes.insert(getReturnDataTypeContext(mutant_id));
+    for (auto const &str: getOperandDataTypeContext(mutant_id))
+      allDataTypes.insert(str);
   }
 
   std::unordered_map<std::string, unsigned long long> mutantFeatures;
@@ -761,6 +793,21 @@ void MutantDependenceGraph::computeMutantFeatures(
   features_matrix.emplace_back();
   features_matrix.back().reserve(nummuts);
   features_names.emplace_back("AstNumParents");
+  mutantFeatures[features_names.back()] = features_matrix.size() - 1;
+
+  features_matrix.emplace_back();
+  features_matrix.back().reserve(nummuts);
+  features_names.emplace_back("HasLiteralChild"+childContextSig);
+  mutantFeatures[features_names.back()] = features_matrix.size() - 1;
+
+  features_matrix.emplace_back();
+  features_matrix.back().reserve(nummuts);
+  features_names.emplace_back("HasIdentifierChild"+childContextSig);
+  mutantFeatures[features_names.back()] = features_matrix.size() - 1;
+
+  features_matrix.emplace_back();
+  features_matrix.back().reserve(nummuts);
+  features_names.emplace_back("HasOperatorChild"+childContextSig);
   mutantFeatures[features_names.back()] = features_matrix.size() - 1;
 
   features_matrix.emplace_back();
@@ -888,6 +935,19 @@ void MutantDependenceGraph::computeMutantFeatures(
     mutantFeatures[features_names.back()] = features_matrix.size() - 1;
   }
 
+  // Data type as one hot
+  for (auto &dattype : allDataTypes) {
+    features_matrix.emplace_back();
+    features_matrix.back().reserve(nummuts);
+    features_names.emplace_back(dattype+dataTypeContextOperandSig);
+    mutantFeatures[features_names.back()] = features_matrix.size() - 1;
+
+    features_matrix.emplace_back();
+    features_matrix.back().reserve(nummuts);
+    features_names.emplace_back(dattype+dataTypeContextReturnSig);
+    mutantFeatures[features_names.back()] = features_matrix.size() - 1;
+  }
+
   /// Create feature values for all mutants
   std::unordered_map<std::string, float> featureValuesPost1Hot;
   for (MutantIDType mutant_id = 1; mutant_id <= nummuts; ++mutant_id) {
@@ -898,6 +958,12 @@ void MutantDependenceGraph::computeMutantFeatures(
     featureValuesPost1Hot["CfgSuccNum"] = (getCfgSuccNum(mutant_id));
     featureValuesPost1Hot["AstNumParents"] =
         (getAstParentsOpcodeNames(mutant_id).size());
+    featureValuesPost1Hot["HasLiteralChild"+childContextSig] =
+        getHasLiteralChild(mutant_id) > 0;
+    featureValuesPost1Hot["HasIdentifierChild"+childContextSig] =
+        getHasIdentifierChild(mutant_id) > 0;
+    featureValuesPost1Hot["HasOperatorChild"+childContextSig] =
+        getHasOperatorChild(mutant_id) > 0;
     featureValuesPost1Hot["NumOutDataDeps"] =
         (getOutDataDependents(mutant_id).size());
     featureValuesPost1Hot["NumInDataDeps"] =
@@ -954,6 +1020,11 @@ void MutantDependenceGraph::computeMutantFeatures(
       featureValuesPost1Hot[pasttype] = 0;
     }
 
+    for (auto &dattype : allDataTypes) {
+      featureValuesPost1Hot[dattype+dataTypeContextOperandSig] = 0;
+      featureValuesPost1Hot[dattype+dataTypeContextReturnSig] = 0;
+    }
+
     mutTypenameTmp.clear();
     getSplittedMutantTypename(mutant_id, mutTypenameTmp);
     for (auto &str: mutTypenameTmp)
@@ -964,6 +1035,11 @@ void MutantDependenceGraph::computeMutantFeatures(
       featureValuesPost1Hot.at(str) = 1;
     for (auto &str: getAstParentsOpcodeNames(mutant_id))
       ++(featureValuesPost1Hot.at(str+astParentTypeSig));
+
+    if (!getReturnDataTypeContext(mutant_id).empty()) 
+      ++(featureValuesPost1Hot.at(getReturnDataTypeContext(mutant_id)+dataTypeContextReturnSig));
+    for (auto strt: getOperandDataTypeContext(mutant_id))
+      ++(featureValuesPost1Hot.at(strt+dataTypeContextOperandSig));
 
     for (auto pid : getAstParentsMutants(mutant_id)) {
       mutTypenameTmp.clear();
@@ -1096,6 +1172,16 @@ void MutantDependenceGraph::dump(std::string filename) {
     tmpobj["complexity"] =
         JsonBox::Value(std::to_string(getComplexity(mutant_id)));
 
+    tmpobj["hasLiteralChild"] = JsonBox::Value(std::to_string(getHasLiteralChild(mutant_id)));
+    tmpobj["hasIdentifierChild"] = JsonBox::Value(std::to_string(getHasIdentifierChild(mutant_id)));
+    tmpobj["hasOperatorChild"] = JsonBox::Value(std::to_string(getHasOperatorChild(mutant_id)));
+
+    tmpobj["dataTypeContextReturn"] = JsonBox::Value(getReturnDataTypeContext(mutant_id));
+    tmparr.clear();
+    for (auto str : getOperandDataTypeContext(mutant_id))
+      tmparr.push_back(JsonBox::Value(str));
+    tmpobj["dataTypeContextOperand"] = tmparr;
+
     outListJSON.push_back(JsonBox::Value(tmpobj));
   }
   JsonBox::Value vout(outListJSON);
@@ -1211,6 +1297,22 @@ void MutantDependenceGraph::load(std::string filename,
     // assert (tmpobj["complexity"].isString() && "complexity must be int");
     setComplexity(mutant_id,
                   std::stoul(tmpobj["complexity"].getToString(), nullptr, 0));
+
+    setChildContext(
+        mutant_id, std::stoul(tmpobj["hasLiteralChild"].getToString(), nullptr, 0),
+        std::stoul(tmpobj["hasIdentifierChild"].getToString(), nullptr, 0),
+        std::stoul(tmpobj["hasOperatorChild"].getToString(), nullptr, 0));
+
+    setReturnDataTypeContext(mutant_id, tmpobj["dataTypeContextReturn"].getToString());
+    assert(tmpobj["dataTypeContextOperand"].isArray() &&
+           "'dataTypeContextOperand' must be an Array");
+    tmparr = tmpobj["dataTypeContextOperand"].getArray();
+    std::vector<std::string> &xxx = getOperandDataTypeContextRef(mutant_id);
+    for (JsonBox::Value str : tmparr) {
+      assert(str.isString() && "the info of datatype context should be "
+                               "represented as strings");
+      xxx.push_back(str.getString());
+    }
   }
 }
 

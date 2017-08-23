@@ -78,6 +78,15 @@ class MutantDependenceGraph //: public DependenceGraph<MutantNode>
     unsigned cfgSuccNum = 0; // number of successors BBs
     unsigned complexity = 0; // number of IRs in its expression
 
+    // Children Context
+    unsigned ccHasLiteralChild = 0;
+    unsigned ccHasIdentifierChild = 0;
+    unsigned ccHasOperatorChild = 0;
+    
+    // Data type context: vector is operands
+    std::vector <std::string> dtcOperands;
+    std::string dtcReturn;
+
     std::string stmtBBTypename;
     std::string mutantTypename;
     std::unordered_set<std::string> astParentsOpcodeNames;
@@ -163,6 +172,20 @@ private:
     if (IR2mutantset.count(astparent) > 0)
       mutantDGraphData[id].astParentsMutants.insert(
           IR2mutantset.at(astparent).begin(), IR2mutantset.at(astparent).end());
+  }
+
+  std::vector<std::string> &getOperandDataTypeContextRef(MutantIDType mutant_id) {
+    return mutantDGraphData[mutant_id].dtcOperands;
+  }
+
+  void setReturnDataTypeContext(MutantIDType mutant_id, std::string str) {
+    mutantDGraphData[mutant_id].dtcReturn.assign(str);
+  }
+
+  void setChildContext(MutantIDType id, unsigned nLiteral, unsigned nIdentifier, unsigned nOperator) {
+    mutantDGraphData[id].ccHasLiteralChild = nLiteral;
+    mutantDGraphData[id].ccHasIdentifierChild = nIdentifier;
+    mutantDGraphData[id].ccHasOperatorChild = nOperator;
   }
 
   std::unordered_set<MutantIDType> &
@@ -318,6 +341,26 @@ public:
   std::unordered_set<std::string> const &
   getAstParentsOpcodeNames(MutantIDType id) const {
     return mutantDGraphData[id].astParentsOpcodeNames;
+  }
+
+  std::vector<std::string> const & getOperandDataTypeContext(MutantIDType mutant_id) {
+    return mutantDGraphData[mutant_id].dtcOperands;
+  }
+
+  std::string const getReturnDataTypeContext(MutantIDType mutant_id) {
+    return mutantDGraphData[mutant_id].dtcReturn;
+  }
+
+  unsigned getHasLiteralChild(MutantIDType id) const {
+    return mutantDGraphData[id].ccHasLiteralChild;
+  }
+
+  unsigned getHasIdentifierChild(MutantIDType id) const {
+    return mutantDGraphData[id].ccHasIdentifierChild;
+  }
+
+  unsigned getHasOperatorChild(MutantIDType id) const {
+    return mutantDGraphData[id].ccHasOperatorChild;
   }
 
   unsigned getComplexity(MutantIDType id) const {

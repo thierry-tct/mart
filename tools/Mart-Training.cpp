@@ -387,7 +387,7 @@ int main(int argc, char **argv) {
     std::vector<std::string> fToRemove;
     for (auto &it : Xmapmatrix) {
       llvm::StringRef tmp(it.first);
-      if (!tmp.endswith("-Matcher") && !tmp.endswith("-Replacer") && !tmp.endswith("-BBType") && !tmp.endswith("-ASTp")) 
+      if (!tmp.endswith("-Matcher") && !tmp.endswith("-Replacer") && !tmp.endswith("-BBType") && !tmp.endswith("-ASTp") && !tmp.endswith("-ChildContext") && !tmp.endswith("-DataTypeContext")) 
         fToRemove.push_back(it.first);
     }
     for (auto &str: fToRemove)
