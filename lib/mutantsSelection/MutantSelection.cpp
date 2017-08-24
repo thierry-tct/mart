@@ -1824,7 +1824,7 @@ void MutantSelection::smartSelectMutants(
 
   // randomize with probability change the value less than to change the proba
   std::srand(std::time(NULL) + clock()); //+ clock() because fast running
-  if (rand() % 100 < 20) {
+  if (rand() % 100 < 0) {
     std::srand(std::time(NULL) + clock()); //+ clock() because fast running
     std::random_shuffle(clustershuffle.begin(), clustershuffle.end());
   }
