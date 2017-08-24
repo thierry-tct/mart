@@ -1822,9 +1822,12 @@ void MutantSelection::smartSelectMutants(
 
   //llvm::errs() << "#### " << candidate_mutants_clusters.size() << " clusters\n";
 
-  // randomize
-  //std::srand(std::time(NULL) + clock()); //+ clock() because fast running
-  //std::random_shuffle(clustershuffle.begin(), clustershuffle.end());
+  // randomize with probability change the value less than to change the proba
+  std::srand(std::time(NULL) + clock()); //+ clock() because fast running
+  if (rand() % 100 < 20) {
+    std::srand(std::time(NULL) + clock()); //+ clock() because fast running
+    std::random_shuffle(clustershuffle.begin(), clustershuffle.end());
+  }
 
   for (auto cid: clustershuffle) {
     auto mutant_id = pickMutant(candidate_mutants_clusters[cid], mutant_scores);
