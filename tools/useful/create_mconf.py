@@ -86,7 +86,78 @@ class GlobalDefs:
       #####
         derefs = self.DEREFAOR + self.AORDEREF + self.DEREFINCDEC + self.INCDECDEREF
         self.commutativeBinop = {"ADD", "MUL", "BITAND", "BITOR", "BITXOR", "EQ", "NEQ", "PEQ", "PNEQ"} | set(self.LOR) | set(self.P_AOR) | set(derefs) #pointer AOR has one integer oprd one ptr oprd. LOR (TODO)
-                                    
+        
+        # Class of each operation, Useful to get operators in form AOR, ROR, ...
+        self.CLASSES = {}
+        for op in self.arith_VAL + self.pointer_VAL:
+            assert op not in self.CLASSES, "Already in CLASSES: "+op
+            self.CLASSES[op] = os.path.join("EXPR-ADDR-VAR-PTR", "EXPR-ADDR-VAR-PTR", "EXPR-ADDR-VAR-PTR")
+            
+        for op in self.MATCH_ONLY_DEL:
+            assert op not in self.CLASSES, "Already in CLASSES: "+op
+            self.CLASSES[op] = os.path.join("STATEMENT-MUTATION", "WHOLE-STMT", "STMT")
+        for op in self.CALL + self.SWITCH:
+            assert op not in self.CLASSES, "Already in CLASSES: "+op
+            self.CLASSES[op] = os.path.join("STATEMENT-MUTATION", "PARTIAL-STMT", op)
+
+        for op in self.DELSTMT + self.TRAPSTMT:
+            assert op not in self.CLASSES, "Already in CLASSES: "+op
+            self.CLASSES[op] = os.path.join("STATEMENT-MUTATION", "WHOLE-STMT", op)
+        for op in self.NEWCALLEE + self.SHUFFLE_ARGS + self.SHUFFLE_CASESDESTS + self.REMOVE_CASES:
+            assert op not in self.CLASSES, "Already in CLASSES: "+op
+            self.CLASSES[op] = os.path.join("STATEMENT-MUTATION", "PARTIAL-STMT", op)
+
+        for op in self.KEEPOPERAND:
+            assert op not in self.CLASSES, "Already in CLASSES: "+op
+            self.CLASSES[op] = os.path.join("OPERATOR-MUTATION", "KEEP-OPRD", "KEEP-OPRD")
+        for op in self.CONSTVAL:
+            assert op not in self.CLASSES, "Already in CLASSES: "+op
+            self.CLASSES[op] = os.path.join("OPERATOR-MUTATION", "CONSTVAL", "CONSTVAL")
+
+        for op in self.AOR:
+            assert op not in self.CLASSES, "Already in CLASSES: "+op
+            self.CLASSES[op] = os.path.join("OPERATOR-MUTATION", "BINARY", "AO")
+        for op in self.BIT:
+            assert op not in self.CLASSES, "Already in CLASSES: "+op
+            self.CLASSES[op] = os.path.join("OPERATOR-MUTATION", "BINARY", "BO")
+        for op in self.ROR:
+            assert op not in self.CLASSES, "Already in CLASSES: "+op
+            self.CLASSES[op] = os.path.join("OPERATOR-MUTATION", "BINARY", "RO")
+        for op in self.ASSIGN:
+            assert op not in self.CLASSES, "Already in CLASSES: "+op
+            self.CLASSES[op] = os.path.join("OPERATOR-MUTATION", "BINARY", "EA")
+        for op in self.LOR:
+            assert op not in self.CLASSES, "Already in CLASSES: "+op
+            self.CLASSES[op] = os.path.join("OPERATOR-MUTATION", "BINARY", "LO")
+        for op in self.UNARY:
+            assert op not in self.CLASSES, "Already in CLASSES: "+op
+            self.CLASSES[op] = os.path.join("OPERATOR-MUTATION", "UNARY", "NG")
+        for op in self.ABS_UNARY:
+            assert op not in self.CLASSES, "Already in CLASSES: "+op
+            self.CLASSES[op] = os.path.join("OPERATOR-MUTATION", "UNARY", "ABS")
+        for op in self.INCDEC:
+            assert op not in self.CLASSES, "Already in CLASSES: "+op
+            self.CLASSES[op] = os.path.join("OPERATOR-MUTATION", "UNARY", "ID")
+
+        for op in self.P_AOR:
+            assert op not in self.CLASSES, "Already in CLASSES: "+op
+            self.CLASSES[op] = os.path.join("POINTER-MUTATION", "BINARY", "PAO")
+        for op in self.P_ROR:
+            assert op not in self.CLASSES, "Already in CLASSES: "+op
+            self.CLASSES[op] = os.path.join("POINTER-MUTATION", "BINARY", "PRO")
+        for op in self.P_INCDEC:
+            assert op not in self.CLASSES, "Already in CLASSES: "+op
+            self.CLASSES[op] = os.path.join("POINTER-MUTATION", "UNARY", "PID")
+
+        for op in self.DEREFAOR + self.AORDEREF:
+            assert op not in self.CLASSES, "Already in CLASSES: "+op
+            self.CLASSES[op] = os.path.join("DEREFERENCE-MUTATION", "BINARY", "DAO")
+        for op in self.DEREFINCDEC + self.INCDECDEREF:
+            assert op not in self.CLASSES, "Already in CLASSES: "+op
+            self.CLASSES[op] = os.path.join("DEREFERENCE-MUTATION", "UNARY", "DID")
+
+
+
         
         # What kind of operand does one have
         # Key: operation, Value: list of operators 'types'
@@ -145,6 +216,38 @@ class GlobalDefs:
                 assert tmpR not in matchOnlys, "matchOnlys considered as replacor in RULES"
          
 #~ GlobalDefs
+
+'''
+    Get the class of a mutation operator in the form AOR, ROR, ...
+'''
+def getOpClass(mutopname, level=1):
+    if level == 5:
+        return mutopname
+
+    # break op into matcher - replacer
+    matchreplace = mutopname.split("!")
+    match = matchreplace[0].split("$")
+    repl = matchreplace[1].split("$")
+    # here match[0] and repl[0] are operations and match[1:] repl[1:] are their operands
+    assert match[0] in globalDefs.CLASSES, "Not in CLASSES: " + match[0]
+    assert repl[0] in globalDefs.CLASSES, "Not in CLASSES: " + repl[0]
+    matchVal = globalDefs.CLASSES[match[0]]
+    replVal = globalDefs.CLASSES[repl[0]]
+    if level == 4: #fined (swap is seen only at this level)
+        # Check if swap
+        swap = ""
+        if len(match) == 3 and len(repl) == len(match):
+            if match[1] == repl[2] and match[2] == repl[1]:
+                swap = "-swap"
+        return matchVal + "_" + replVal + swap
+    if level == 3: 
+        return matchVal + "_" + replVal
+    if level == 2: 
+        return os.path.dirname(matchVal) + "_" + os.path.dirname(replVal)
+    if level == 1: 
+        return os.path.dirname(os.path.dirname(matchVal)) + "_" + os.path.dirname(os.path.dirname(replVal))
+    assert False, "Error: Invalid Level (must be 1-4)"
+#~ def getOpClass()
 
 #Process Match Replace, add a new replacement for key in the map(in the list of repls)
 def processMR (matchOp, matchOprds, repOp, replOprds, tmpStrsMap):
