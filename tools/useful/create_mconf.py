@@ -89,7 +89,7 @@ class GlobalDefs:
         
         # Class of each operation, Useful to get operators in form AOR, ROR, ...
         self.CLASSES = {}
-        for op in self.arith_VAL + self.pointer_VAL:
+        for op in self.arith_VAL | self.pointer_VAL:
             assert op not in self.CLASSES, "Already in CLASSES: "+op
             self.CLASSES[op] = os.path.join("EXPR-ADDR-VAR-PTR", "EXPR-ADDR-VAR-PTR", "EXPR-ADDR-VAR-PTR")
             
