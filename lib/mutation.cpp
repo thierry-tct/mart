@@ -1975,7 +1975,9 @@ void Mutation::setModFuncToFunction(llvm::Module *Mod, llvm::Function *srcF,
 struct DuplicateEquivalentProcessor {
   TCE tce;
 
-  std::map<unsigned, std::vector<unsigned>> duplicateMap;
+  std::map<MutantIDType, std::vector<MutantIDType>> duplicateMap;
+
+  std::map<MutantIDType, MutantIDType> dup2nondupMap;
 
   ///\brief mutant's function or module. that which will be used when
   /// serializing mutants to file.
@@ -1987,7 +1989,7 @@ struct DuplicateEquivalentProcessor {
   /// original optimized
   /// \brief the value is a vector of the ids of all the mutants (non dup) in
   /// duplicateMap for which the function is different than the orig's.
-  std::unordered_map<llvm::Function *, std::vector<unsigned>> diffFuncs2Muts;
+  std::unordered_map<llvm::Function *, std::vector<MutantIDType>> diffFuncs2Muts;
 
   /// \brief map to lookup the module(value) cleaned for each function (key)
   std::unordered_map<llvm::Function *, ReadWriteIRObj> inMemIRModBufByFunc;
@@ -2009,6 +2011,17 @@ struct DuplicateEquivalentProcessor {
       : isTCEFunctionMode(is_tce_func_mode) {
     funcMutByMutID.resize(highestMutID + 1, nullptr);
     diffBBWithOrig.resize(highestMutID + 1);
+  }
+
+  /// Populate dup2nondupMap using the dupliate informations from duplicateMap
+  void createEqDup2NonEqDupMap() {
+    assert (dup2nondupMap.empty() && "Error: dup2nondupMap must be empty here!");
+    for (auto &m_pair: duplicateMap) {
+      for (MutantIDType dupId: m_pair.second) {
+        assert (dup2nondupMap.count(dupId) == 0 && "Error: duplicate mutant of many non dupliate");
+        dup2nondupMap[dupId] = m_pair.first;
+      }
+    }
   }
 
   void update(MutantIDType mutant_id, llvm::Module *clonedOrig,
@@ -2119,7 +2132,7 @@ void Mutation::doTCE(std::unique_ptr<llvm::Module> &modWMLog, bool writeMuts,
       module.getNamedGlobal(mutantIDSelectorName);
   assert(mutantIDSelGlob && "Unmutated module passed to TCE");
 
-  unsigned highestMutID = getHighestMutantID(&module);
+  MutantIDType highestMutID = getHighestMutantID(&module);
 
   DuplicateEquivalentProcessor dup_eq_processor(highestMutID,
                                                 isTCEFunctionMode);
@@ -2161,7 +2174,7 @@ void Mutation::doTCE(std::unique_ptr<llvm::Module> &modWMLog, bool writeMuts,
     std::max(omp_get_max_threads()/2, 1)));
          #pragma omp parallel for
     #endif*/
-    for (unsigned id = 0; id <= highestMutID; id++) // id==0 is the original
+    for (MutantIDType id = 0; id <= highestMutID; id++) // id==0 is the original
     {
       dup_eq_processor.mutModules[id] =
           dup_eq_processor.inMemIRModBufByFunc
@@ -2193,7 +2206,7 @@ void Mutation::doTCE(std::unique_ptr<llvm::Module> &modWMLog, bool writeMuts,
 
   std::vector<bool> visitedEqDupMutants(highestMutID + 1, false);
 
-  for (unsigned id = 1; id <= highestMutID; id++) // id==0 is the original
+  for (MutantIDType id = 1; id <= highestMutID; id++) // id==0 is the original
   {
     llvm::Module *clonedM = nullptr;
 
@@ -2222,13 +2235,13 @@ void Mutation::doTCE(std::unique_ptr<llvm::Module> &modWMLog, bool writeMuts,
         /// \brief get the module for each function (when cleaning all other
         /// funcs)
         std::stack<
-            std::tuple<llvm::Function *, unsigned /*From*/, unsigned /*To*/>>
+            std::tuple<llvm::Function *, MutantIDType /*From*/, MutantIDType /*To*/>>
             workFStack;
 
         llvm::ValueToValueMapTy vmap;
 
         //TODO TODO: Dump previously found function's mutants here to save memory
-        unsigned maxIDOfFunc = id;
+        MutantIDType maxIDOfFunc = id;
         while (dup_eq_processor.funcMutByMutID[maxIDOfFunc] ==
                    dup_eq_processor.funcMutByMutID[id] &&
                maxIDOfFunc <= highestMutID)
@@ -2271,7 +2284,7 @@ void Mutation::doTCE(std::unique_ptr<llvm::Module> &modWMLog, bool writeMuts,
         /// process and delete duplicate)
         while (!workFStack.empty()) {
           auto &queueElem = workFStack.top();
-          unsigned min = std::get<1>(queueElem), max = std::get<2>(queueElem);
+          MutantIDType min = std::get<1>(queueElem), max = std::get<2>(queueElem);
           llvm::Function *cloneFuncL = std::get<0>(queueElem);
           workFStack.pop();
 
@@ -2303,7 +2316,7 @@ void Mutation::doTCE(std::unique_ptr<llvm::Module> &modWMLog, bool writeMuts,
               progressVLandmark = (maxIDOfFunc - id) * nextProgress / 100;
             }
           } else {
-            unsigned mid = min + (max - min) / 2;
+            MutantIDType mid = min + (max - min) / 2;
 
             // add to module as temporary name
             cloneFuncL->setName(temporaryFname);
@@ -2378,9 +2391,12 @@ void Mutation::doTCE(std::unique_ptr<llvm::Module> &modWMLog, bool writeMuts,
       llvm::errs() << "}\n";
   }*/
 
+  // create the equivalent duplicate 2 non eq/dup map. call this only once
+  dup_eq_processor.createEqDup2NonEqDupMap();
+
   // re-assign the ids of mutants
   dup_eq_processor.duplicateMap.erase(0); // Remove original
-  unsigned newmutIDs = 1;
+  MutantIDType newmutIDs = 1;
 
   // The keys of dup_eq_processor.duplicateMap are (must be) sorted in
   // increasing order: helpful when enabled 'forKLEESEMu'
@@ -2390,7 +2406,7 @@ void Mutation::doTCE(std::unique_ptr<llvm::Module> &modWMLog, bool writeMuts,
   }
 
   // update mutants infos
-  mutantsInfos.postTCEUpdate(dup_eq_processor.duplicateMap);
+  mutantsInfos.postTCEUpdate(dup_eq_processor.duplicateMap, dup_eq_processor.dup2nondupMap);
 
   for (auto &Func : module) {
     for (auto &BB : Func) {
@@ -2932,8 +2948,8 @@ void Mutation::loadMutantInfos(std::string filename) {
   mutantsInfos.loadFromJsonFile(filename);
 }
 
-void Mutation::dumpMutantInfos(std::string filename) {
-  mutantsInfos.printToJsonFile(filename);
+void Mutation::dumpMutantInfos(std::string filename, std::string eqdup_filename) {
+  mutantsInfos.printToJsonFile(filename, eqdup_filename);
 }
 
 std::string Mutation::getMutationStats() {

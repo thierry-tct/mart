@@ -1202,9 +1202,26 @@ struct MutantInfoList {
     }
   }; // struct MutantInfo
 
+  struct EquivalentDuplicateMutantInfo: MutantInfo{
+    // ID of the mutant which mutant is dupliacte. if 0, it means it is equivalent mutant.
+    MutantIDType duplicateOfID;
+
+    EquivalentDuplicateMutantInfo(MutantInfo const &mi, MutantIDType newid, MutantIDType dupOfId): MutantInfo(newid, mi.typeName, mi.locFuncName, mi.irLeveLocInFunc, mi.srcLevelLoc), duplicateOfID(dupOfId) {}
+  };
+
 private:
+  // Ordered list of mutants infos (IDs start from 1, the id 0 is the original program)
+  // after TCE, ths contains only the TCE non equivalent, non duplicate mutants
   std::vector<MutantInfo> mutants;
+
+  // Set of all mutants IDs for quich check
+  // after TCE, ths contains only the TCE non equivalent, non duplicate mutants
   std::unordered_set<MutantIDType> containedMutsIDs;
+
+  // Ordered list of equivalent and duplicate mutants infos (IDs start from 1, the id 0 is the original program)
+  // Before TCE, this is empty
+  // After TCE, ths contains only the TCE equivalent and duplicate mutants
+  std::vector<EquivalentDuplicateMutantInfo> equivalent_duplicate_mutants;
 
   void internalAdd(MutantIDType mutant_id, std::string const &type,
                    std::string const &funcName,
@@ -1255,26 +1272,37 @@ public:
    *  \brief remove the TCE's equivalent and duplicate mutants
    */
   void
-  postTCEUpdate(std::map<unsigned, std::vector<unsigned>> const &duplicateMap) {
+  postTCEUpdate(std::map<MutantIDType, std::vector<MutantIDType>> const &nonduplicateIDMap, std::map<MutantIDType, MutantIDType> const &duplicate2nondupMap) {
     std::vector<unsigned> posToDel;
     unsigned pos = 0;
     for (auto &mut : mutants) {
-      if (duplicateMap.count(mut.id) == 0)
+      if (nonduplicateIDMap.count(mut.id) == 0)
         posToDel.push_back(pos);
       else {
-        assert(duplicateMap.at(mut.id).size() == 1 &&
+        assert(nonduplicateIDMap.at(mut.id).size() == 1 &&
                "(CHECK) The number of element in second vector must be one "
                "here (containing the new mutant ID)");
-        mut.id = duplicateMap.at(mut.id).back();
+        // Change mutant ID of non equivalent mutant to new ID
+        mut.id = nonduplicateIDMap.at(mut.id).back();
       }
       pos++;
     }
     std::sort(posToDel.begin(), posToDel.end());
+    MutantIDType newEqDupId = getMutantsNumber() + 1 - posToDel.size();
     for (auto it = posToDel.rbegin(), ie = posToDel.rend(); it != ie; ++it) {
       assert(mutants.at(*it).id == (1 + (*it)) && "Problem with the order of "
                                                   "mutants, or should delete "
                                                   "last element first");
-      containedMutsIDs.erase(mutants.at(*it).id);
+
+      // store Duplicate/Equivalent mutant into dup/eq list
+      MutantIDType nondup_oldid = duplicate2nondupMap.at(1 + (*it));
+      if (nondup_oldid == 0)  // Equivalent mutant, put original ID as the mutant which it is duplicate of
+        equivalent_duplicate_mutants.emplace_back(*(mutants.begin() + (*it)), newEqDupId++, 0);
+      else // Duplicate of a mutant
+        equivalent_duplicate_mutants.emplace_back(*(mutants.begin() + (*it)), newEqDupId++, nonduplicateIDMap.at(nondup_oldid).back());
+
+      // Erase the duplicate/equivalent mutant from non dup/eq set/list
+      containedMutsIDs.erase(1 + (*it));
       mutants.erase(mutants.begin() + (*it));
     }
   }
@@ -1306,11 +1334,16 @@ public:
     // outJSON.writeToStream(std::cout, true, true);
   }
 
-  void printToJsonFile(std::string filename) const {
+  void printToJsonFile(std::string filename, std::string eqdupfilename) const {
     JsonBox::Object outJSON;
     getJson(outJSON);
     JsonBox::Value vout(outJSON);
     vout.writeToFile(filename, false, false);
+
+    outJSON.clear();
+    getEqDupJson(outJSON);
+    JsonBox::Value eqdupvout(outJSON);
+    eqdupvout.writeToFile(eqdupfilename, false, false);
   }
 
   void getJson(JsonBox::Object &outJ) const {
@@ -1327,6 +1360,25 @@ public:
         tmparr.push_back(JsonBox::Value((int)pos));
       outJ[mid]["IRPosInFunc"] = tmparr;
       outJ[mid]["SrcLoc"] = JsonBox::Value(info.srcLevelLoc);
+    }
+  }
+
+  void getEqDupJson(JsonBox::Object &outJ) const {
+    for (auto &eqdupinfo : equivalent_duplicate_mutants) {
+      std::string mid(std::to_string(eqdupinfo.id));
+      // add a mutant field
+      outJ[mid] = JsonBox::Object();
+
+      // Fill in the mutant eqdupinfos
+      outJ[mid]["Type"] = JsonBox::Value(eqdupinfo.typeName);
+      outJ[mid]["FuncName"] = JsonBox::Value(eqdupinfo.locFuncName);
+      JsonBox::Array tmparr;
+      for (auto pos : eqdupinfo.irLeveLocInFunc)
+        tmparr.push_back(JsonBox::Value((int)pos));
+      outJ[mid]["IRPosInFunc"] = tmparr;
+      outJ[mid]["SrcLoc"] = JsonBox::Value(eqdupinfo.srcLevelLoc);
+
+      outJ[mid]["EquivalenDuplicateOf"] = JsonBox::Value(std::to_string(eqdupinfo.duplicateOfID));
     }
   }
 

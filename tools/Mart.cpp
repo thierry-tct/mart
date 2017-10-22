@@ -475,7 +475,7 @@ llvm::cl::opt<std::string> extraLinkingFlags(
 
   /// Mutants Infos into json
   if (!disableDumpMutantInfos)
-    mut.dumpMutantInfos(outputDir + "//" + mutantsInfosFileName);
+    mut.dumpMutantInfos(outputDir + "//" + mutantsInfosFileName, outputDir + "//" + equivalentduplicate_mutantsInfosFileName);
 
   //@ Print post-TCE meta-mutant
   if (!disableDumpMetaIRbc) {

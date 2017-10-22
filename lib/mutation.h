@@ -90,7 +90,7 @@ public:
   unsigned getHighestMutantID(llvm::Module const *module = nullptr);
 
   void loadMutantInfos(std::string filename);
-  void dumpMutantInfos(std::string filename);
+  void dumpMutantInfos(std::string filename, std::string eqdup_filename);
   // llvm::Module & getMetaMutantModule() {return currentMetaMutantModule;}
   std::string getMutationStats();
 
