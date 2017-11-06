@@ -105,61 +105,61 @@ class GlobalDefs:
             assert op not in self.CLASSES, "Already in CLASSES: "+op
             self.CLASSES[op] = os.path.join("STATEMENT-MUTATION", "PARTIAL-STMT", op)
 
-        for op in self.arith_VAL: 
-            assert op not in self.CLASSES, "Already in CLASSES: "+op
-            self.CLASSES[op] = os.path.join("EXPRESSION-MUTATION", "ATOM", op if op != '@' else "EXPR")
-
         for op in self.KEEPOPERAND:
             assert op not in self.CLASSES, "Already in CLASSES: "+op
-            self.CLASSES[op] = os.path.join("EXPRESSION-MUTATION", "UNARY", "KEEP-OPRD")
+            self.CLASSES[op] = os.path.join("EXPRESSION-MUTATION", "KEEP-OPRD")
         for op in self.CONSTVAL:
             assert op not in self.CLASSES, "Already in CLASSES: "+op
             self.CLASSES[op] = os.path.join("EXPRESSION-MUTATION", "CONSTVAL")
 
+        for op in self.arith_VAL: 
+            assert op not in self.CLASSES, "Already in CLASSES: "+op
+            self.CLASSES[op] = os.path.join("EXPRESSION-MUTATION", "SCALAR", "ATOM", op if op != '@' else "EXPR")
+
         for op in self.AOR:
             assert op not in self.CLASSES, "Already in CLASSES: "+op
-            self.CLASSES[op] = os.path.join("EXPRESSION-MUTATION", "BINARY", "AO")
+            self.CLASSES[op] = os.path.join("EXPRESSION-MUTATION", "SCALAR", "BINARY", "AO")
         for op in self.BIT:
             assert op not in self.CLASSES, "Already in CLASSES: "+op
-            self.CLASSES[op] = os.path.join("EXPRESSION-MUTATION", "BINARY", "BO")
+            self.CLASSES[op] = os.path.join("EXPRESSION-MUTATION", "SCALAR", "BINARY", "BO")
         for op in self.ROR:
             assert op not in self.CLASSES, "Already in CLASSES: "+op
-            self.CLASSES[op] = os.path.join("EXPRESSION-MUTATION", "BINARY", "RO")
+            self.CLASSES[op] = os.path.join("EXPRESSION-MUTATION", "SCALAR", "BINARY", "RO")
         for op in self.ASSIGN:
             assert op not in self.CLASSES, "Already in CLASSES: "+op
-            self.CLASSES[op] = os.path.join("EXPRESSION-MUTATION", "BINARY", "EA")
+            self.CLASSES[op] = os.path.join("EXPRESSION-MUTATION", "SCALAR", "BINARY", "EA")
         for op in self.LOR:
             assert op not in self.CLASSES, "Already in CLASSES: "+op
-            self.CLASSES[op] = os.path.join("EXPRESSION-MUTATION", "BINARY", "LO")
+            self.CLASSES[op] = os.path.join("EXPRESSION-MUTATION", "SCALAR", "BINARY", "LO")
         for op in self.UNARY:
             assert op not in self.CLASSES, "Already in CLASSES: "+op
-            self.CLASSES[op] = os.path.join("EXPRESSION-MUTATION", "UNARY", "NG")
+            self.CLASSES[op] = os.path.join("EXPRESSION-MUTATION", "SCALAR", "UNARY", "NG")
         for op in self.ABS_UNARY:
             assert op not in self.CLASSES, "Already in CLASSES: "+op
-            self.CLASSES[op] = os.path.join("EXPRESSION-MUTATION", "UNARY", "ABS")
+            self.CLASSES[op] = os.path.join("EXPRESSION-MUTATION", "SCALAR", "UNARY", "ABS")
         for op in self.INCDEC:
             assert op not in self.CLASSES, "Already in CLASSES: "+op
-            self.CLASSES[op] = os.path.join("EXPRESSION-MUTATION", "UNARY", "ID")
+            self.CLASSES[op] = os.path.join("EXPRESSION-MUTATION", "SCALAR", "UNARY", "ID")
 
         for op in self.pointer_VAL: 
             assert op not in self.CLASSES, "Already in CLASSES: "+op
-            self.CLASSES[op] = os.path.join("POINTER-MUTATION", "ATOM", op)
+            self.CLASSES[op] = os.path.join("EXPRESSION-MUTATION", "POINTER", "ATOM", op)
         for op in self.P_AOR:
             assert op not in self.CLASSES, "Already in CLASSES: "+op
-            self.CLASSES[op] = os.path.join("POINTER-MUTATION", "BINARY", "PAO")
+            self.CLASSES[op] = os.path.join("EXPRESSION-MUTATION", "POINTER", "BINARY", "PAO")
         for op in self.P_ROR:
             assert op not in self.CLASSES, "Already in CLASSES: "+op
-            self.CLASSES[op] = os.path.join("POINTER-MUTATION", "BINARY", "PRO")
+            self.CLASSES[op] = os.path.join("EXPRESSION-MUTATION", "POINTER", "BINARY", "PRO")
         for op in self.P_INCDEC:
             assert op not in self.CLASSES, "Already in CLASSES: "+op
-            self.CLASSES[op] = os.path.join("POINTER-MUTATION", "UNARY", "PID")
+            self.CLASSES[op] = os.path.join("EXPRESSION-MUTATION", "POINTER", "UNARY", "PID")
 
         for op in self.DEREFAOR + self.AORDEREF:
             assert op not in self.CLASSES, "Already in CLASSES: "+op
-            self.CLASSES[op] = os.path.join("DEREFERENCE-MUTATION", "BINARY", "DAO")
+            self.CLASSES[op] = os.path.join("EXPRESSION-MUTATION", "DEREFERENCE", "BINARY", "DAO")
         for op in self.DEREFINCDEC + self.INCDECDEREF:
             assert op not in self.CLASSES, "Already in CLASSES: "+op
-            self.CLASSES[op] = os.path.join("DEREFERENCE-MUTATION", "UNARY", "DID")
+            self.CLASSES[op] = os.path.join("EXPRESSION-MUTATION", "DEREFERENCE", "UNARY", "DID")
 
         
         # What kind of operand does one have
