@@ -88,10 +88,8 @@ class GlobalDefs:
         self.commutativeBinop = {"ADD", "MUL", "BITAND", "BITOR", "BITXOR", "EQ", "NEQ", "PEQ", "PNEQ"} | set(self.LOR) | set(self.P_AOR) | set(derefs) #pointer AOR has one integer oprd one ptr oprd. LOR (TODO)
         
         # Class of each operation, Useful to get operators in form AOR, ROR, ...
+        self.TYPESTREE = {}
         self.CLASSES = {}
-        for op in self.arith_VAL | self.pointer_VAL:
-            assert op not in self.CLASSES, "Already in CLASSES: "+op
-            self.CLASSES[op] = os.path.join("EXPR-ADDR-VAR-PTR", "EXPR-ADDR-VAR-PTR", "EXPR-ADDR-VAR-PTR")
             
         for op in self.MATCH_ONLY_DEL:
             assert op not in self.CLASSES, "Already in CLASSES: "+op
@@ -107,38 +105,45 @@ class GlobalDefs:
             assert op not in self.CLASSES, "Already in CLASSES: "+op
             self.CLASSES[op] = os.path.join("STATEMENT-MUTATION", "PARTIAL-STMT", op)
 
+        for op in self.arith_VAL: 
+            assert op not in self.CLASSES, "Already in CLASSES: "+op
+            self.CLASSES[op] = os.path.join("EXPRESSION-MUTATION", "ATOM", op if op != '@' else "EXPR")
+
         for op in self.KEEPOPERAND:
             assert op not in self.CLASSES, "Already in CLASSES: "+op
-            self.CLASSES[op] = os.path.join("OPERATOR-MUTATION", "KEEP-OPRD", "KEEP-OPRD")
+            self.CLASSES[op] = os.path.join("EXPRESSION-MUTATION", "UNARY", "KEEP-OPRD")
         for op in self.CONSTVAL:
             assert op not in self.CLASSES, "Already in CLASSES: "+op
-            self.CLASSES[op] = os.path.join("OPERATOR-MUTATION", "CONSTVAL", "CONSTVAL")
+            self.CLASSES[op] = os.path.join("EXPRESSION-MUTATION", "CONSTVAL")
 
         for op in self.AOR:
             assert op not in self.CLASSES, "Already in CLASSES: "+op
-            self.CLASSES[op] = os.path.join("OPERATOR-MUTATION", "BINARY", "AO")
+            self.CLASSES[op] = os.path.join("EXPRESSION-MUTATION", "BINARY", "AO")
         for op in self.BIT:
             assert op not in self.CLASSES, "Already in CLASSES: "+op
-            self.CLASSES[op] = os.path.join("OPERATOR-MUTATION", "BINARY", "BO")
+            self.CLASSES[op] = os.path.join("EXPRESSION-MUTATION", "BINARY", "BO")
         for op in self.ROR:
             assert op not in self.CLASSES, "Already in CLASSES: "+op
-            self.CLASSES[op] = os.path.join("OPERATOR-MUTATION", "BINARY", "RO")
+            self.CLASSES[op] = os.path.join("EXPRESSION-MUTATION", "BINARY", "RO")
         for op in self.ASSIGN:
             assert op not in self.CLASSES, "Already in CLASSES: "+op
-            self.CLASSES[op] = os.path.join("OPERATOR-MUTATION", "BINARY", "EA")
+            self.CLASSES[op] = os.path.join("EXPRESSION-MUTATION", "BINARY", "EA")
         for op in self.LOR:
             assert op not in self.CLASSES, "Already in CLASSES: "+op
-            self.CLASSES[op] = os.path.join("OPERATOR-MUTATION", "BINARY", "LO")
+            self.CLASSES[op] = os.path.join("EXPRESSION-MUTATION", "BINARY", "LO")
         for op in self.UNARY:
             assert op not in self.CLASSES, "Already in CLASSES: "+op
-            self.CLASSES[op] = os.path.join("OPERATOR-MUTATION", "UNARY", "NG")
+            self.CLASSES[op] = os.path.join("EXPRESSION-MUTATION", "UNARY", "NG")
         for op in self.ABS_UNARY:
             assert op not in self.CLASSES, "Already in CLASSES: "+op
-            self.CLASSES[op] = os.path.join("OPERATOR-MUTATION", "UNARY", "ABS")
+            self.CLASSES[op] = os.path.join("EXPRESSION-MUTATION", "UNARY", "ABS")
         for op in self.INCDEC:
             assert op not in self.CLASSES, "Already in CLASSES: "+op
-            self.CLASSES[op] = os.path.join("OPERATOR-MUTATION", "UNARY", "ID")
+            self.CLASSES[op] = os.path.join("EXPRESSION-MUTATION", "UNARY", "ID")
 
+        for op in self.pointer_VAL: 
+            assert op not in self.CLASSES, "Already in CLASSES: "+op
+            self.CLASSES[op] = os.path.join("POINTER-MUTATION", "ATOM", op)
         for op in self.P_AOR:
             assert op not in self.CLASSES, "Already in CLASSES: "+op
             self.CLASSES[op] = os.path.join("POINTER-MUTATION", "BINARY", "PAO")
@@ -155,8 +160,6 @@ class GlobalDefs:
         for op in self.DEREFINCDEC + self.INCDECDEREF:
             assert op not in self.CLASSES, "Already in CLASSES: "+op
             self.CLASSES[op] = os.path.join("DEREFERENCE-MUTATION", "UNARY", "DID")
-
-
 
         
         # What kind of operand does one have
@@ -215,14 +218,17 @@ class GlobalDefs:
             for tmpR in self.RULES[tmpM]:
                 assert tmpR not in matchOnlys, "matchOnlys considered as replacor in RULES"
          
+
+        # Compute operator type Matcher and replcer tree as a map
 #~ GlobalDefs
 
 '''
     Get the class of a mutation operator in the form AOR, ROR, ...
 '''
 def getOpClass(mutopname, level=1):
+
     if level == 5:
-        return mutopname
+        return [mutopname]
 
     # break op into matcher - replacer
     matchreplace = mutopname.split("!")
@@ -233,19 +239,30 @@ def getOpClass(mutopname, level=1):
     assert repl[0] in globalDefs.CLASSES, "Not in CLASSES: " + repl[0]
     matchVal = globalDefs.CLASSES[match[0]]
     replVal = globalDefs.CLASSES[repl[0]]
+
+    if level == -1:
+        retres = []
+        m = matchVal
+        while m != '':
+            r = replVal
+            while r != '':
+                retres.append(m+'_'+r)
+                r = os.path.dirname(r)
+            m = os.path.dirname(m)
+        return retres
     if level == 4: #fined (swap is seen only at this level)
         # Check if swap
         swap = ""
         if len(match) == 3 and len(repl) == len(match):
             if match[1] == repl[2] and match[2] == repl[1]:
                 swap = "-swap"
-        return matchVal + "_" + replVal + swap
+        return [matchVal + "_" + replVal + swap]
     if level == 3: 
-        return matchVal + "_" + replVal
+        return [matchVal + "_" + replVal]
     if level == 2: 
-        return os.path.dirname(matchVal) + "_" + os.path.dirname(replVal)
+        return [os.path.dirname(matchVal) + "_" + os.path.dirname(replVal)]
     if level == 1: 
-        return os.path.dirname(os.path.dirname(matchVal)) + "_" + os.path.dirname(os.path.dirname(replVal))
+        return [os.path.dirname(os.path.dirname(matchVal)) + "_" + os.path.dirname(os.path.dirname(replVal))]
     assert False, "Error: Invalid Level (must be 1-4)"
 #~ def getOpClass()
 
