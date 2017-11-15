@@ -1660,8 +1660,15 @@ void Mutation::getWMConditions(
         llvm::Value *o_oprd = origUnsafes[i]->getOperand(j);
         llvm::Value *m_oprd = mutUnsafes[i]->getOperand(j);
 
+        // As long as oprds are equals keep checking
         if (o_oprd == m_oprd)
           continue;
+
+        // If an operand is a BasicBlock (e.g.: switch, br), they  Surely differ
+        if (llvm::isa<llvm::BasicBlock>(o_oprd) && o_oprd != m_oprd) {
+          surelyDiffer = true;
+          break;
+        }
 
         llvm::Type *o_type = o_oprd->getType();
         llvm::Type *m_type = m_oprd->getType();
@@ -1686,6 +1693,9 @@ void Mutation::getWMConditions(
             // create condition
             subconds.push_back(tmpbuilder.CreateFCmpUNE(o_oprd, m_oprd));
           } else {
+            //origUnsafes[i]->dump(); mutUnsafes[i]->dump();
+            //o_oprd->dump(); o_type->dump();
+            //m_oprd->dump(); m_type->dump();
             assert(false && "Unreachable");
           }
         }
@@ -1752,6 +1762,9 @@ void Mutation::computeWeakMutation(std::unique_ptr<llvm::Module> &cmodule,
   }
 #endif
 
+  // Strip useless debugging infos
+  llvm::StripDebugInfo(*cmodule.get());
+
   llvm::Function *funcWMLog = cmodule->getFunction(wmLogFuncName);
   llvm::Function *funcWMFflush = cmodule->getFunction(wmFFlushFuncName);
   llvm::GlobalVariable *constWMHighestID =
@@ -1786,8 +1799,8 @@ void Mutation::computeWeakMutation(std::unique_ptr<llvm::Module> &cmodule,
         }
         if (auto *sw = llvm::dyn_cast<llvm::SwitchInst>(&Inst)) {
           if (auto *ld = llvm::dyn_cast<llvm::LoadInst>(sw->getCondition())) {
-            // No case means that all the mutant
-            // there were duplicate, no need to add label
+            // No case means that all the mutant at this position
+            // were duplicate, no need to add label
             if (ld->getOperand(0) ==
                     cmodule->getNamedGlobal(mutantIDSelectorName) &&
                 sw->getNumCases() > 0) {
@@ -1808,7 +1821,9 @@ void Mutation::computeWeakMutation(std::unique_ptr<llvm::Module> &cmodule,
                                             e = sw->case_end();
                    i != e; ++i) {
                 auto *mutIDConstInt = i.getCaseValue();
-                cases.push_back(mutIDConstInt); // to be removed later
+                
+                // to be removed later
+                cases.push_back(mutIDConstInt); 
 
                 /// Now create the call to weak mutation log func.
                 auto *caseiBB = i.getCaseSuccessor(); // mutant
@@ -1828,7 +1843,7 @@ void Mutation::computeWeakMutation(std::unique_ptr<llvm::Module> &cmodule,
                        "at most 1 condition per unsafe inst");
                 // assert (!condVals.empty() && "there must be at least on
                 // condition");  //no condition mean that the mutant is
-                // equivalen (maybe only safe instructions)
+                // equivalent (maybe only safe instructions)
 
                 for (unsigned ic = 0, ice = condVals.size(); ic < ice; ++ic) {
                   if (ic == 0) {
@@ -1897,9 +1912,12 @@ void Mutation::computeWeakMutation(std::unique_ptr<llvm::Module> &cmodule,
 
                 // Drop all references of mut unsafes (after this , mutUnsafe
                 // should not be used)
-                for (auto *uns : mutUnsafes)
+                for (auto *uns : mutUnsafes) {
                   uns->dropAllReferences();
+                  uns->eraseFromParent();  //actual deletion
+                }
               }
+
               // Now call fflush
               argsv.clear();
               sbuilders.back().CreateCall(funcWMFflush, argsv);

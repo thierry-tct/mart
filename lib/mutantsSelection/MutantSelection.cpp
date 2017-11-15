@@ -1,14 +1,19 @@
-/**
- * -==== MutantSelection.cpp
- *
- *                MART Multi-Language LLVM Mutation Framework
- *
- * This file is distributed under the University of Illinois Open Source
- * License. See LICENSE.TXT for details.
- *
- * \brief     Implementation of mutant selection based on dependency analysis
- * and ... (this make use of DG - https://github.com/mchalupa/dg).
- */
+//===-- mart/lib/MutantSelection.cpp - Implements FaRM Mutant Selection. --===//
+//
+//                MART Multi-Language LLVM Mutation Framework
+//
+// This file is distributed under the University of Illinois Open Source
+// License. See LICENSE.TXT for details.
+//
+//===----------------------------------------------------------------------===//
+///
+/// \file
+/// This file contains the implementation of FaRM, a mutant selection, 
+/// based on machine learning with program elements as features 
+/// (e.g: statement complexity, number of data dependencies, depth in CFG,...)
+/// This make use of DG - https://github.com/mchalupa/dg
+///
+//===----------------------------------------------------------------------===//
 
 #include <algorithm>
 #include <cstdlib> /* srand, rand */
@@ -222,10 +227,18 @@ void MutantDependenceGraph::addDataCtrlFor(
       // we make it's operands as ctrl dependency source as well
       llvm::SmallVector<llvm::Value *, 2> fromIRs;
       fromIRs.push_back(irFrom); // add terminator
+#if (LLVM_VERSION_MAJOR <= 3) && (LLVM_VERSION_MINOR < 5)
+      for (auto II = llvm::dyn_cast<llvm::User>(irFrom)->op_begin(), IE = llvm::dyn_cast<llvm::User>(irFrom)->op_end(); II != IE; ++II) {
+
+        if (llvm::isa<llvm::Instruction>(*II))
+          fromIRs.push_back(*II);
+      }
+#else
       for (llvm::Value *oprd :
            llvm::dyn_cast<llvm::User>(irFrom)->operand_values())
         if (llvm::isa<llvm::Instruction>(oprd))
           fromIRs.push_back(oprd);
+#endif
 
       for (llvm::Value *cvFrom : fromIRs) {
         // if it donesn't have parent it wont be mutated anyway 
@@ -399,18 +412,32 @@ bool MutantDependenceGraph::build(llvm::Module const &mod,
             auto &mutInsts = mutant2IRset.at(mutant_id);
             std::vector<std::string> &dataTypeContext = getOperandDataTypeContextRef(mutant_id);
             for (auto *minst : mutInsts) {
-              for (auto *par : minst->users())
-                if (mutInsts.count(par) == 0)
-                  if (auto *astPar = llvm::dyn_cast<llvm::Instruction>(par)) {
-                    addAstParents(mutant_id, astPar);
-                    if (dataTypeContext.size() == 0)
-                      setReturnDataTypeContext(mutant_id, std::to_string(astPar->getType()->getTypeID()));
-                  }
+#if (LLVM_VERSION_MAJOR <= 3) && (LLVM_VERSION_MINOR < 5)
+              for (auto UI = minst->use_begin(), UE = minst->use_end(); UI != UE; ++UI) {
+                const llvm::User *par = *UI;
+#else
+              for (auto *par : minst->users()) {
+#endif
+                // Skip existing in mutInsts
+                if (mutInsts.count(par) != 0)
+                  continue;
+
+                if (auto *astPar = llvm::dyn_cast<llvm::Instruction>(par)) {
+                  addAstParents(mutant_id, astPar);
+                  if (dataTypeContext.size() == 0)
+                    setReturnDataTypeContext(mutant_id, std::to_string(astPar->getType()->getTypeID()));
+                }
+              }
 
               unsigned nLiteral = 0, nIdentifier = 0, nOperator = 0;
               if (auto *minstU = llvm::dyn_cast<llvm::User>(minst)) {
-                for (auto &childUse : minstU->operands()) {
+#if (LLVM_VERSION_MAJOR <= 3) && (LLVM_VERSION_MINOR < 5)
+                for (auto II = minstU->op_begin(), IE = minstU->op_end(); II != IE; ++II) {
+                  auto *child = II->get();
+#else
+                for (llvm::Use &childUse : minstU->operands()) {
                   auto *child = childUse.get();
+#endif
                   if (mutInsts.count(child) == 0) {
                     nLiteral += (unsigned)llvm::isa<llvm::Constant>(child); 
                     if (auto *isLoad = llvm::dyn_cast<llvm::LoadInst>(child)) {

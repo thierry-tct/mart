@@ -1,13 +1,16 @@
-/**
- * -==== Mart-Selection.cpp
- *
- *                Mart Multi-Language LLVM Mutation Framework
- *
- * This file is distributed under the University of Illinois Open Source
- * License. See LICENSE.TXT for details.
- *
- * \brief     Main source file that implement Mutants Selections
- */
+//===-- mart/tools/Mart-Selection.cpp - Main Mutant Selection Module. -----===//
+//
+//                MART Multi-Language LLVM Mutation Framework
+//
+// This file is distributed under the University of Illinois Open Source
+// License. See LICENSE.TXT for details.
+//
+//===----------------------------------------------------------------------===//
+///
+/// \file
+/// Main source file that implement Mutants Selections
+///
+//===----------------------------------------------------------------------===//
 
 #include <ctime>
 #include <fstream>
@@ -159,13 +162,18 @@ int main(int argc, char **argv) {
     assert(llvm::sys::fs::is_regular_file(mutantInfoJsonfile) &&
            "The specified mutantInfofile do not exist");
   }
-  if (inputIRfile.empty()) { // try to get it from martOutTopDir: end with .bc
-                             // and is neither .WM.bc or .preTCE.MetaMu.bc, or
-                             // .MetaMu.bc
+  
+  // try to get it from martOutTopDir: end with .bc and is neither .WM.bc 
+  // nor .preTCE.MetaMu.bc, nor .MetaMu.bc
+  if (inputIRfile.empty()) { 
+#if (LLVM_VERSION_MAJOR <= 3) && (LLVM_VERSION_MINOR < 5)
+    llvm::error_code ec;
+    llvm::sys::fs::directory_iterator dit(martOutTopDir, ec);
+#elif (LLVM_VERSION_MAJOR <= 3) && (LLVM_VERSION_MINOR < 9)
     std::error_code ec;
-#if (LLVM_VERSION_MAJOR <= 3) && (LLVM_VERSION_MINOR < 9)
     llvm::sys::fs::directory_iterator dit(martOutTopDir, ec);
 #else
+    std::error_code ec;
     llvm::sys::fs::directory_iterator dit(martOutTopDir, ec,
                                           false /*no symlink*/);
 #endif
