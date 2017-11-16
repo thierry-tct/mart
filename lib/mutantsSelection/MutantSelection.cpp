@@ -435,7 +435,7 @@ bool MutantDependenceGraph::build(llvm::Module const &mod,
                 for (auto II = minstU->op_begin(), IE = minstU->op_end(); II != IE; ++II) {
                   auto *child = II->get();
 #else
-                for (llvm::Use &childUse : minstU->operands()) {
+                for (const llvm::Use &childUse : minstU->operands()) {
                   auto *child = childUse.get();
 #endif
                   if (mutInsts.count(child) == 0) {

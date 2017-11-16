@@ -1828,6 +1828,9 @@ void Mutation::computeWeakMutation(std::unique_ptr<llvm::Module> &cmodule,
                 /// Now create the call to weak mutation log func.
                 auto *caseiBB = i.getCaseSuccessor(); // mutant
 
+                /// Since each case of switch correspond to a mutant and 
+                /// each mutant has its own Basic Block, 
+                /// there cannot be redundancy in toBeRemovedBB
                 toBeRemovedBB.push_back(caseiBB);
 
                 // Remove unused instructions (like dangling load created by
@@ -1845,6 +1848,8 @@ void Mutation::computeWeakMutation(std::unique_ptr<llvm::Module> &cmodule,
                 // condition");  //no condition mean that the mutant is
                 // equivalent (maybe only safe instructions)
 
+                /// Move the relevant code in the mutant for computing the 
+                /// Conditions into the final WM part (original's code)
                 for (unsigned ic = 0, ice = condVals.size(); ic < ice; ++ic) {
                   if (ic == 0) {
                     auto insert = &*(defaultBB->begin());
@@ -1896,8 +1901,8 @@ void Mutation::computeWeakMutation(std::unique_ptr<llvm::Module> &cmodule,
                     argsv.push_back(mutIDConstInt); // mutant ID
                     // weak kill condition
                     argsv.push_back(condVals[ic].front());
-                    sbuilders[ic].CreateCall(funcWMLog,
-                                             argsv); // call WM log func
+                    // call WM log func
+                    sbuilders[ic].CreateCall(funcWMLog, argsv); 
                   }
                 }
 
@@ -1905,16 +1910,18 @@ void Mutation::computeWeakMutation(std::unique_ptr<llvm::Module> &cmodule,
                 // orig unsafe (execution reach here with weakly alive only if
                 // both are equivalent before)
                 // XXX we put this here at the end to make sure that the
-                // mutUnsafe use ketp un condVals are all applied tcompletely,
+                // mutUnsafe uses, kept in condVals are all applied completely,
                 // otherwise some won't be changed
-                for (unsigned ic = 1, ice = condVals.size(); ic < ice; ++ic)
-                  mutUnsafes[ic - 1]->replaceAllUsesWith(origUnsafes[ic - 1]);
+                for (unsigned ic = 0, ice = condVals.size(); ic < ice; ++ic) {
+                  if (mutUnsafes[ic]->getType() != origUnsafes[ic]->getType())
+                    continue;
+                  mutUnsafes[ic]->replaceAllUsesWith(origUnsafes[ic]);
+                }
 
                 // Drop all references of mut unsafes (after this , mutUnsafe
                 // should not be used)
                 for (auto *uns : mutUnsafes) {
                   uns->dropAllReferences();
-                  uns->eraseFromParent();  //actual deletion
                 }
               }
 
