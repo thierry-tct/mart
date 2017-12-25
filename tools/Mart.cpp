@@ -301,7 +301,7 @@ llvm::cl::opt<std::string> extraLinkingFlags(
   llvm::cl::opt<bool> dumpMutants(
       "write-mutants", llvm::cl::desc("Enable writing mutant files"));
   llvm::cl::opt<bool> disabledWeakMutation(
-      "no-WM", llvm::cl::desc("Disable dumping Weak Mutatin Module"));
+      "no-WM", llvm::cl::desc("Disable dumping Weak Mutation Module"));
   llvm::cl::opt<bool> disableDumpMutantInfos(
       "no-mutant-info",
       llvm::cl::desc("Disable dumping mutants info JSON file"));
@@ -581,7 +581,7 @@ mutantsDir+"//"+std::to_string(mid)+"//"+outFile+".bc"))
     if (WIFEXITED(child_status)) {
       const int es = WEXITSTATUS(child_status);
       if (es) {
-        llvm::errs() << "Compilation failed!!";
+        llvm::errs() << "Compilation failed with code " << es << " !!";
         assert(false);
       }
     } else {

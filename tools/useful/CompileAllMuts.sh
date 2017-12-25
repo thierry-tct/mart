@@ -69,7 +69,7 @@ then
         echo "$bcCount/$nBCs ($SECONDS s) done $x!"   ##DEBUG
         bcCount=$((bcCount+1))
     done < "$tmpFuncModuleFolder/mapinfo"
-    [ "$removeMutsBCs" = "yes" ] && find $mutantsFolder -type f -name "*.bc" -exec rm -f {} + || error_exit "Failed to remove some mutants .bc files"
+    [ "$removeMutsBCs" = "yes" ] && { find $mutantsFolder -type f -name "*.bc" -exec rm -f {} + || error_exit "Failed to remove some mutants .bc files"; }
     rm -rf $tmpFuncModuleFolder || error_exit "Failed to remove temporary function module folder"
     
     which fdupes > /dev/null || error_exit "'fdupes' is not installed (or in the PATH): cannot remove further TCE dup/eq."
