@@ -8,6 +8,7 @@
 static const std::string mutantsInfosFileName("mutantsInfos.json");
 static const std::string equivalentduplicate_mutantsInfosFileName("equidup-mutantsInfos.json");
 static const char *wmOutIRFileSuffix = ".WM.bc";
+static const char *covOutIRFileSuffix = ".COV.bc";
 static const char *preTCEMetaIRFileSuffix = ".preTCE.MetaMu.bc";
 static const char *commonIRSuffix = ".bc";
 static const char *metaMuIRFileSuffix = ".MetaMu.bc";

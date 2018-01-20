@@ -55,6 +55,7 @@ bool dumpMutantsCallback(Mutation *mutEng,
                          std::map<unsigned, std::vector<unsigned>> *poss,
                          std::vector<llvm::Module *> *mods,
                          llvm::Module *wmModule /*=nullptr*/,
+                         llvm::Module *covModule /*=nullptr*/,
                          std::vector<llvm::Function *> const *mutFunctions) {
   clock_t curClockTime = clock();
   // weak mutation
@@ -63,6 +64,14 @@ bool dumpMutantsCallback(Mutation *mutEng,
     std::string wmFilePath = outputDir + "/" + outFile + wmOutIRFileSuffix;
     if (!ReadWriteIRObj::writeIR(wmModule, wmFilePath)) {
       assert(false && "Failed to output weak mutation IR file");
+    }
+  }
+  // mutant coverage
+  if (covModule) {
+    llvm::outs() << "Mart@Progress: writing mutant coverage...\n";
+    std::string covFilePath = outputDir + "/" + outFile + covOutIRFileSuffix;
+    if (!ReadWriteIRObj::writeIR(covModule, covFilePath)) {
+      assert(false && "Failed to output mutant coverage IR file");
     }
   }
 
@@ -302,6 +311,8 @@ llvm::cl::opt<std::string> extraLinkingFlags(
       "write-mutants", llvm::cl::desc("Enable writing mutant files"));
   llvm::cl::opt<bool> disabledWeakMutation(
       "no-WM", llvm::cl::desc("Disable dumping Weak Mutation Module"));
+  llvm::cl::opt<bool> disabledMutantCoverage(
+      "no-COV", llvm::cl::desc("Disable dumping Mutant Coverage Module"));
   llvm::cl::opt<bool> disableDumpMutantInfos(
       "no-mutant-info",
       llvm::cl::desc("Disable dumping mutants info JSON file"));
@@ -338,7 +349,7 @@ llvm::cl::opt<std::string> extraLinkingFlags(
   assert(!inputIRfile.empty() && "Error: No input llvm IR file passed!");
 
   llvm::Module *moduleM;
-  std::unique_ptr<llvm::Module> modWMLog(nullptr), _M;
+  std::unique_ptr<llvm::Module> modWMLog(nullptr), modCovLog(nullptr), _M;
 
   // Read IR into moduleM
   /// llvm::LLVMContext context;
@@ -357,6 +368,18 @@ llvm::cl::opt<std::string> extraLinkingFlags(
       return 1;
   } else {
     modWMLog = nullptr;
+  }
+
+  /// Mutant Coverage
+  if (!disabledMutantCoverage) {
+    std::string covLogFuncinputIRfile(useful_conf_dir +
+                                     wmLogFuncinputIRfileName);
+    // get the module containing the function to log COV info. to be linked with
+    // CovModule
+    if (!ReadWriteIRObj::readIR(covLogFuncinputIRfile, modCovLog))
+      return 1;
+  } else {
+    modCovLog = nullptr;
   }
 
   /**********************  To BE REMOVED (used to extrac line num from bc whith
@@ -464,7 +487,7 @@ llvm::cl::opt<std::string> extraLinkingFlags(
                   "mutants IRs (with initially "
                << mut.getHighestMutantID() << " mutants)...\n";
   curClockTime = clock();
-  mut.doTCE(modWMLog, dumpMutants, isTCEFunctionMode);
+  mut.doTCE(modWMLog, modCovLog, dumpMutants, isTCEFunctionMode);
   llvm::outs() << "Mart@Progress: Removing TCE Duplicates  & WM & writing "
                   "mutants IRs took: "
                << (float)(clock() - curClockTime) / CLOCKS_PER_SEC

@@ -62,6 +62,8 @@ class Mutation {
   // condition and print the mutant ID if the condition is true.
   const char *wmLogFuncName = "martLLVM_WM_Log__Function";
 
+  const char *covLogFuncName = "martLLVM_COV_Log__Function";
+
   // This fuction flushes the logged mutant to file(call
   // this before actual execution of the statement).
   const char *wmFFlushFuncName = "martLLVM_WM_Log__Function_Explicit_FFlush";
@@ -77,13 +79,13 @@ class Mutation {
 public:
   typedef bool (*DumpMutFunc_t)(
       Mutation *mutEng, std::map<unsigned, std::vector<unsigned>> *,
-      std::vector<llvm::Module *> *, llvm::Module *,
+      std::vector<llvm::Module *> *, llvm::Module *, llvm::Module *,
       std::vector<llvm::Function *> const *mutFunctions);
   Mutation(llvm::Module &module, std::string mutConfFile,
            DumpMutFunc_t writeMutsF, std::string scopeJsonFile = "");
   ~Mutation();
   bool doMutate(); // Transforms module
-  void doTCE(std::unique_ptr<llvm::Module> &modWMLog, bool writeMuts = false,
+  void doTCE(std::unique_ptr<llvm::Module> &modWMLog, std::unique_ptr<llvm::Module> &modCovLog, bool writeMuts = false,
              bool isTCEFunctionMode = false); // Transforms module
   void setModFuncToFunction(llvm::Module *Mod, llvm::Function *srcF,
                             llvm::Function *targetF = nullptr);
@@ -105,10 +107,17 @@ private:
   void getWMConditions(std::vector<llvm::Instruction *> &origUnsafes,
                        std::vector<llvm::Instruction *> &mutUnsafes,
                        std::vector<std::vector<llvm::Value *>> &conditions);
+  
+  // Compute WM of the module passed (pass a cloned module)
   void computeWeakMutation(
       std::unique_ptr<llvm::Module> &cmodule,
-      std::unique_ptr<llvm::Module>
-          &modWMLog); // Compute WM of the module passed (pass a cloned module)
+      std::unique_ptr<llvm::Module> &modWMLog);
+
+  // Compute Mutant Coverage of the module passed (pass a cloned module)
+  void computeMutantCoverage(
+      std::unique_ptr<llvm::Module> &cmodule,
+      std::unique_ptr<llvm::Module> &modWMLog);
+
   void preprocessVariablePhi(llvm::Module &module);
   llvm::AllocaInst *MYDemotePHIToStack(llvm::PHINode *P,
                                        llvm::Instruction *AllocaPoint);
@@ -123,7 +132,8 @@ private:
   void cleanFunctionToMut(llvm::Function &Func, MutantIDType mutantID,
                           llvm::GlobalVariable *mutantIDSelGlob,
                           llvm::Function *mutantIDSelGlob_Func,
-                          bool verifyIfEnabled = true);
+                          bool verifyIfEnabled = true,
+                          bool removeSemuCalls = true);
   void computeModuleBufsByFunc(
       llvm::Module &module,
       std::unordered_map<llvm::Function *, ReadWriteIRObj> *inMemIRModBufByFunc,

@@ -1781,7 +1781,7 @@ void Mutation::computeWeakMutation(std::unique_ptr<llvm::Module> &cmodule,
   constWMHighestID->setConstant(true);
 
   for (auto &Func : *cmodule) {
-    if (&Func == funcWMLog)
+    if (&Func == funcWMLog || &Func == funcWMFflush)
       continue;
     for (auto &BB : Func) {
       std::vector<llvm::BasicBlock *> toBeRemovedBB;
@@ -1958,6 +1958,91 @@ void Mutation::computeWeakMutation(std::unique_ptr<llvm::Module> &cmodule,
 
   llvm::errs() << "Computing weak mutation done!\n"; ////DBG
 } //~Mutation::computeWeakMutation
+
+/*
+ * Compute the module fo mutant coverage (the tests that covers the mutant 
+ * (do not necessarily weakly or strongly kill)
+ */
+void Mutation::computeMutantCoverage(std::unique_ptr<llvm::Module> &metaModule, 
+                                  std::unique_ptr<llvm::Module> &modCovLog) {
+  llvm::errs() << "Computing mutation coverage labels...\n"; ////DBG
+
+  assert (forKLEESEMu && "Coverage requires forKLEESEMu enable (it replaces it)");
+
+  assert(!metaModule->getFunction(covLogFuncName) && "Name clash for mutation coverage"
+                                                 "log function Name, please "
+                                                 "change it from you program");
+  assert(!metaModule->getGlobalVariable(wmHighestMutantIDConst) &&
+         "Name clash for weak mutation highest mutant ID Global Variable Name, "
+         "please change it from you program");
+
+/// Link metaModule with the corresponding driver module (actually only need c
+/// module)
+#if (LLVM_VERSION_MAJOR <= 3) && (LLVM_VERSION_MINOR < 8)
+  llvm::Linker linker(metaModule.get());
+  std::string ErrorMsg;
+  if (linker.linkInModule(modCovLog.get(), &ErrorMsg)) {
+    llvm::errs()
+        << "Failed to link mutation coverage module with log function module: "
+        << ErrorMsg << "\n";
+    assert(false);
+  }
+  modCovLog.reset(nullptr);
+#else
+  llvm::Linker linker(*metaModule);
+  if (linker.linkInModule(std::move(modCovLog))) {
+    assert(false &&
+           "Failed to link weak mutation module with log function module");
+  }
+#endif
+
+  // Strip useless debugging infos
+  llvm::StripDebugInfo(*metaModule.get());
+
+  llvm::Function *funcCovLog = metaModule->getFunction(covLogFuncName);
+  llvm::GlobalVariable *constCovHighestID =
+      metaModule->getNamedGlobal(wmHighestMutantIDConst);
+  assert(funcCovLog && "Mutation coverage Log Function absent in Coverage Module. Was it "
+                      "linked properly?");
+  assert(constCovHighestID && "Mutation coverage coverage Highest mutant ID absent in"
+                             "Coverage Module. Was it linked properly?");
+  constCovHighestID->setInitializer(llvm::ConstantInt::get(
+      moduleInfo.getContext(),
+      llvm::APInt(32, (uint64_t)getHighestMutantID(metaModule.get()), false)));
+  constCovHighestID->setConstant(true);
+
+  llvm::Function *funcForKS = metaModule->getFunction(mutantIDSelectorName_Func);
+  llvm::GlobalVariable *mutantIDSelGlob =
+      metaModule->getNamedGlobal(mutantIDSelectorName);
+
+  for (auto &Func : *metaModule) {
+    if (&Func == funcCovLog)
+      continue;
+    
+    // remove all mutants, keep oly original
+    cleanFunctionToMut(Func, 0/*original mutantID*/, mutantIDSelGlob, funcForKS, false/*verify*/, false/*remove semu func calls*/);
+  }
+
+  // make klee Semu function call cov log function
+  funcForKS->deleteBody();
+  llvm::BasicBlock *block =
+      llvm::BasicBlock::Create(metaModule->getContext(), "entry", funcForKS);
+  llvm::IRBuilder<> builder(block);
+  llvm::Function::arg_iterator args = funcForKS->arg_begin();
+  std::vector<llvm::Value *> argsv;
+  argsv.push_back(llvm::dyn_cast<llvm::Value>(args++));
+  argsv.push_back(llvm::dyn_cast<llvm::Value>(args++));
+  builder.CreateCall(funcCovLog, argsv);
+  builder.CreateRetVoid();
+  
+  if (mutantIDSelGlob)
+    mutantIDSelGlob->setConstant(true); // only original...
+
+  // verify WM module
+  Mutation::checkModuleValidity(*metaModule, "ERROR: Misformed Mutant Coverage Module!");
+
+  llvm::errs() << "Computing mutant-coverage done!\n"; ////DBG
+}
 
 /**
  * \brief If targetF is non nul, it should be the function corresponding to srcF
@@ -2148,7 +2233,7 @@ struct DuplicateEquivalentProcessor {
   }
 }; //~ struct DuplicateEquivalentProcessor
 
-void Mutation::doTCE(std::unique_ptr<llvm::Module> &modWMLog, bool writeMuts,
+void Mutation::doTCE(std::unique_ptr<llvm::Module> &modWMLog, std::unique_ptr<llvm::Module> &modCovLog, bool writeMuts,
                      bool isTCEFunctionMode) {
   assert(currentMetaMutantModule && "Running TCE before mutation");
   llvm::Module &module = *currentMetaMutantModule;
@@ -2541,8 +2626,11 @@ void Mutation::doTCE(std::unique_ptr<llvm::Module> &modWMLog, bool writeMuts,
   /// XXX After writing the, do not use dup_eq_processor.mutModules of
   /// dup_eq_processor.mutFunctions, snce they are modified by the write mutants
   /// callback
-  if (writeMuts || modWMLog) {
+  if (writeMuts || modWMLog || modCovLog) {
     std::unique_ptr<llvm::Module> wmModule(nullptr);
+    std::unique_ptr<llvm::Module> covModule(nullptr);
+
+    // WM
     if (modWMLog) {
 #if (LLVM_VERSION_MAJOR <= 3) && (LLVM_VERSION_MINOR < 8)
       wmModule.reset(llvm::CloneModule(&module));
@@ -2550,6 +2638,16 @@ void Mutation::doTCE(std::unique_ptr<llvm::Module> &modWMLog, bool writeMuts,
       wmModule = llvm::CloneModule(&module);
 #endif
       computeWeakMutation(wmModule, modWMLog);
+    }
+
+    // Cov
+    if (modCovLog) {
+#if (LLVM_VERSION_MAJOR <= 3) && (LLVM_VERSION_MINOR < 8)
+      covModule.reset(llvm::CloneModule(&module));
+#else
+      covModule = llvm::CloneModule(&module);
+#endif
+      computeMutantCoverage(covModule, modCovLog);
     }
 
     // XXX After writing the, do not use dup_eq_processor.mutModules of
@@ -2571,7 +2669,7 @@ void Mutation::doTCE(std::unique_ptr<llvm::Module> &modWMLog, bool writeMuts,
         }
         assert(writeMutantsCallback(this, &dup_eq_processor.duplicateMap,
                                     &dup_eq_processor.mutModules,
-                                    wmModule.get(),
+                                    wmModule.get(), covModule.get(),
                                     &dup_eq_processor.mutFunctions) &&
                "Failed to dump mutants IRs");
         dup_eq_processor.mutModules.clear();
@@ -2579,11 +2677,11 @@ void Mutation::doTCE(std::unique_ptr<llvm::Module> &modWMLog, bool writeMuts,
       } else {
         assert(writeMutantsCallback(this, &dup_eq_processor.duplicateMap,
                                     &dup_eq_processor.mutModules,
-                                    wmModule.get(), nullptr) &&
+                                    wmModule.get(), covModule.get(), nullptr) &&
                "Failed to dump mutants IRs");
       }
     } else {
-      assert(writeMutantsCallback(this, nullptr, nullptr, wmModule.get(),
+      assert(writeMutantsCallback(this, nullptr, nullptr, wmModule.get(), covModule.get(),
                                   nullptr) &&
              "Failed to dump weak mutantion IR. (can be null)");
     }
@@ -2692,7 +2790,8 @@ void Mutation::cleanFunctionSWmIDRange(llvm::Function &Func,
 void Mutation::cleanFunctionToMut(llvm::Function &Func, MutantIDType mutantID,
                                   llvm::GlobalVariable *mutantIDSelGlob,
                                   llvm::Function *mutantIDSelGlob_Func,
-                                  bool verifyIfEnabled) {
+                                  bool verifyIfEnabled, 
+                                  bool removeSemuCalls) {
   if (Func.isDeclaration())
     return;
   for (auto &BB : Func) {
@@ -2702,7 +2801,7 @@ void Mutation::cleanFunctionToMut(llvm::Function &Func, MutantIDType mutantID,
       // we increment here so that 'eraseFromParent' bellow do not cause crash
       llvm::Instruction &Inst = *Iit++;
       if (auto *callI = llvm::dyn_cast<llvm::CallInst>(&Inst)) {
-        if (forKLEESEMu && callI->getCalledFunction() == mutantIDSelGlob_Func) {
+        if (removeSemuCalls && forKLEESEMu && callI->getCalledFunction() == mutantIDSelGlob_Func) {
           // remove all calls to the heler function for KLEE integration
           callI->eraseFromParent();
         }
