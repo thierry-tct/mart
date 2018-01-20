@@ -1074,7 +1074,7 @@ void MutantDependenceGraph::computeMutantFeatures(
         featureValuesPost1Hot.at(str + nsuff_astparent) += 1;
       stmtTypenameTmp.clear();
       getSplittedStmtBBTypename(pid, stmtTypenameTmp);
-      for (auto &str: mutTypenameTmp) 
+      for (auto &str: stmtTypenameTmp) 
         featureValuesPost1Hot.at(str + nsuff_astparent) += 1;
     }
     for (auto odid : getOutDataDependents(mutant_id)) {
@@ -1084,7 +1084,7 @@ void MutantDependenceGraph::computeMutantFeatures(
         featureValuesPost1Hot.at(str + nsuff_outdatadep) += 1;
       stmtTypenameTmp.clear();
       getSplittedStmtBBTypename(odid, stmtTypenameTmp);
-      for (auto &str: mutTypenameTmp) 
+      for (auto &str: stmtTypenameTmp) 
         featureValuesPost1Hot.at(str + nsuff_outdatadep) += 1;
     }
     for (auto idid : getInDataDependents(mutant_id)) {
@@ -1094,7 +1094,7 @@ void MutantDependenceGraph::computeMutantFeatures(
         featureValuesPost1Hot.at(str + nsuff_indatadep) += 1;
       stmtTypenameTmp.clear();
       getSplittedStmtBBTypename(idid, stmtTypenameTmp);
-      for (auto &str: mutTypenameTmp) 
+      for (auto &str: stmtTypenameTmp) 
         featureValuesPost1Hot.at(str + nsuff_indatadep) += 1;
     }
     for (auto ocid : getOutCtrlDependents(mutant_id)) {
@@ -1104,7 +1104,7 @@ void MutantDependenceGraph::computeMutantFeatures(
         featureValuesPost1Hot.at(str + nsuff_outctrldep) += 1;
       stmtTypenameTmp.clear();
       getSplittedStmtBBTypename(ocid, stmtTypenameTmp);
-      for (auto &str: mutTypenameTmp) 
+      for (auto &str: stmtTypenameTmp) 
         featureValuesPost1Hot.at(str + nsuff_outctrldep) += 1;
     }
     for (auto icid : getInCtrlDependents(mutant_id)) {
@@ -1114,7 +1114,7 @@ void MutantDependenceGraph::computeMutantFeatures(
         featureValuesPost1Hot.at(str + nsuff_inctrldep) += 1;
       stmtTypenameTmp.clear();
       getSplittedStmtBBTypename(icid, stmtTypenameTmp);
-      for (auto &str: mutTypenameTmp) 
+      for (auto &str: stmtTypenameTmp) 
         featureValuesPost1Hot.at(str + nsuff_inctrldep) += 1;
     }
 
