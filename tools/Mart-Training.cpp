@@ -392,8 +392,20 @@ int main(int argc, char **argv) {
     }
     for (auto &str: fToRemove)
       Xmapmatrix.erase(str);
+  } else {
+    // Remove feature not needed (relative's BBType fog now)
+    std::vector<std::string> fToRemove;
+    for (auto &it : Xmapmatrix) {
+      llvm::StringRef tmp(it.first);
+      
+      // No stmtBB of relative
+      if (tmp.endswith("-BBType-astparent") || tmp.endswith("-BBType-outdatadep") || tmp.endswith("-BBType-indatadep") || tmp.endswith("-BBType-outctrldep") || tmp.endswith("-BBType-inctrldep")) 
+        fToRemove.push_back(it.first);
+    }
+    for (auto &str: fToRemove)
+      Xmapmatrix.erase(str);
   }
-  
+
   // convert Xmapmatrix to Xmatrix
   for (auto &it : Xmapmatrix) {
     Xmatrix.push_back(it.second);
@@ -431,6 +443,20 @@ int main(int argc, char **argv) {
   }
 
   llvm::outs() << "# X Matrix and Y Vector ready. Training ...\n";
+
+  /*///DBG
+  std::fstream out_all(outputModelFilename+".svmdata.tmp", std::ios_base::out | std::ios_base::trunc);
+  for (auto feat: featuresnames)
+    out_all << feat << ",";
+  out_all << "coupling-weight" << "\n";
+  for (auto i=0; i < Weightsvector.size(); ++i) {
+    for (auto &fv:Xmatrix)
+      out_all << fv[i] << ",";
+    out_all << Weightsvector[i] << "\n";
+  }
+  out_all.close();
+  llvm::outs() << "## merged training data saved into " << outputModelFilename+".svmdata.tmp" << "\n";
+  *////DBG
 
   PredictionModule predmod(outputModelFilename);
   std::map<unsigned long, double> featuresScores = predmod.train(Xmatrix, featuresnames, Yvector, Weightsvector, treesNumber, treesDepth);

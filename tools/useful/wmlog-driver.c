@@ -58,7 +58,7 @@ void martLLVM_COV_Log__Function(unsigned idfrom, unsigned idto) {
   if (!martLLVM_WM_Log__file) {
     char *MARTLLVM_WM_LOG_OUTPUT_file = getenv(xstr(MART_WM_LOG_OUTPUT));
     if (!MARTLLVM_WM_LOG_OUTPUT_file)
-      MARTLLVM_WM_LOG_OUTPUT_file = "mart.defaultFileName.WM.covlabels";
+      MARTLLVM_WM_LOG_OUTPUT_file = "mart.defaultFileName.COV.covlabels";
     // In case many processes(fork).
     // The user should make sure to delete this before run
     martLLVM_WM_Log__file = fopen(MARTLLVM_WM_LOG_OUTPUT_file, "a");
