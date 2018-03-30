@@ -1243,6 +1243,39 @@ private:
     return (containedMutsIDs.count(mid) > 0);
   }
 
+  void setMutantSourceLoc(MutantIDType mutant_id, std::string loc) {
+    mutants[mutant_id - 1].srcLevelLoc = loc;
+  }
+
+  /**
+   * \brief Mutants existing on the IR inserted during compilation or IR preprocessing
+   */
+  void fixMissingSrcLocs() {
+    //Since mutant ID follow the stmt order, search nearest after and before,
+    // within the same function and take the closest 
+    auto nMuts = getMutantsNumber();
+    for (auto mid = 1; mid <= nMuts; ++mid)
+      if (getMutantSourceLoc(mid).length() == 0) {
+        auto &func = getMutantFunction(mid);
+        MutantIDType b_mid = mid-1;
+        MutantIDType a_mid = mid+1;
+        while (b_mid > 0 && getMutantFunction(b_mid) == func && getMutantSourceLoc(b_mid).length() == 0)
+          b_mid--;
+        while (a_mid <= nMuts && getMutantFunction(a_mid) == func && getMutantSourceLoc(a_mid).length() == 0)
+          a_mid++;
+        if (b_mid > 0 and a_mid <= nMuts) {
+          // take the one after XXX (more likely to be good)
+          setMutantSourceLoc(mid, getMutantSourceLoc(b_mid));
+        } else {
+          if (b_mid > 0)
+            setMutantSourceLoc(mid, getMutantSourceLoc(b_mid));
+          if (a_mid <= nMuts)
+            setMutantSourceLoc(mid, getMutantSourceLoc(a_mid));
+          // If none, it means that no stmt has DBG info
+        }
+      }
+  }
+
 public:
   /**
    * \brief This method add a new mutant's info.
@@ -1382,7 +1415,7 @@ public:
     }
   }
 
-  void loadFromJsonFile(std::string filename) {
+  void loadFromJsonFile(std::string filename, bool fix_missing_srclocs=false) {
     JsonBox::Value value_in;
     value_in.loadFromFile(filename);
     assert(value_in.isObject() &&
@@ -1429,6 +1462,8 @@ public:
 
       internalAdd(mutant_id, type, funcName, irPos, srcLoc);
     }
+    if (fix_missing_srclocs)
+      fixMissingSrcLocs();
   }
 }; // struct MutantInfoList
 

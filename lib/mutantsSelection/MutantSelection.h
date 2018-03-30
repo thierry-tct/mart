@@ -300,9 +300,23 @@ public:
     return mutantDGraphData[mutant_id].tieDependents;
   }
 
+  template <typename T>
+  void getTSetOfMutSet(std::unordered_set<MutantIDType> const &mutset,
+                          std::unordered_map<MutantIDType, std::unordered_set<T>> mutant2Tset,
+                          std::unordered_set<T> &Tset) {
+    for (auto mid: mutset) {
+      auto &s = mutant2Tset[mid];
+      Tset.insert(s.begin(), s.end());
+    }
+  }
+
   // if @param featuresnames is not null put the ordered feature names in it
   void computeMutantFeatures(std::vector<std::vector<float>> &featuresmatrix,
                              std::vector<std::string> &featuresnames);
+  // if @param featuresnames is not null put the ordered feature names in it
+  void computeStatementFeatures(std::vector<std::vector<float>> &featuresmatrix,
+                             std::vector<std::string> &featuresnames,
+                             std::vector<std::unordered_set<MutantIDType>> &stmt2muts);
 
   bool build(llvm::Module const &mod, dg::LLVMDependenceGraph const *irDg,
              MutantInfoList const &mutInfos,
@@ -313,7 +327,9 @@ public:
 
   void load(std::string filename, MutantInfoList const &mutInfos);
 
-  void exportMutantFeaturesCSV(std::string filenameCSV);
+  void exportMutantFeaturesCSV(std::string filenameCSV, 
+                               MutantInfoList const &mutInfos, 
+                               bool isDefectPrediction);
 
   // Others
 public:
@@ -462,7 +478,7 @@ private:
   void relaxMutant(MutantIDType mutant_id, std::vector<double> &scores);
   void
   getMachineLearningPrediction(std::vector<float> &couplingProbabilitiesOut,
-                               std::string modelFilename);
+                               std::string modelFilename, bool isDefectPrediction);
 
 public:
   MutantSelection(llvm::Module &inMod, MutantInfoList const &mInf,
@@ -473,12 +489,16 @@ public:
     buildDependenceGraphs(mutant_depend_filename, rerundg, isFlowSensitive, true, disable_selection);
   }
   void dumpMutantsFeaturesToCSV(std::string csvFilename) {
-    mutantDGraph.exportMutantFeaturesCSV(csvFilename);
+    mutantDGraph.exportMutantFeaturesCSV(csvFilename, mutantInfos, false /*isDefectPrediction*/);
+  }
+  void dumpStmtsFeaturesToCSV(std::string csvFilename) {
+    mutantDGraph.exportMutantFeaturesCSV(csvFilename, mutantInfos, true /*isDefectPrediction*/);
   }
   void smartSelectMutants(std::vector<MutantIDType> &selectedMutants,
                           // std::vector<double> &selectedScores,
                           std::vector<float> &cachedPrediction,
-                          std::string trainedModelFilename, bool mlOn, bool mclOn);
+                          std::string trainedModelFilename, bool mlOn, bool mclOn, 
+                          bool defectPredOn);
   void randomMutants(std::vector<MutantIDType> &spreadSelectedMutants,
                      std::vector<MutantIDType> &dummySelectedMutants,
                      unsigned long number);

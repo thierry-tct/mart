@@ -277,10 +277,16 @@ int main(int argc, char **argv) {
       llvm::cl::desc("(optional) enable prioritising hard to find fault for training"));
   llvm::cl::opt<bool> onlyAstAndMutantType(
       "only-astparent-and-mutanttype",
-      llvm::cl::desc("(optional) enable using only AST parent and Mutant type features"));
+      llvm::cl::desc("(optional) enable using only AST parent and Mutant type features (ISSTA-2017 paper)"));
+  llvm::cl::opt<bool> onlyMutantType(
+      "only-mutanttype",
+      llvm::cl::desc("(optional) enable using only Mutant type features"));
+  llvm::cl::opt<bool> defectPrediction(
+      "defect-prediction-mode",
+      llvm::cl::desc("(optional) enable using defect prediction"));
   llvm::cl::opt<bool> forEquivalent(
       "for-equivalent",
-      llvm::cl::desc("(optional) enable training to detec equivalent mutants"));
+      llvm::cl::desc("(optional) enable training for mode to select equivalent mutants"));
   llvm::cl::opt<bool> noRandom(
       "no-random",
       llvm::cl::desc("(optional) Do not randomize the specified project, use from the top downward"));
@@ -382,28 +388,39 @@ int main(int argc, char **argv) {
   llvm::outs() << "# CSVs Loaded. Preparing training data ...\n";
 
   // apply feature selection if specified
-  if (onlyAstAndMutantType) {
-    // remove other features like: depth, complexity, data/ctrl dependency
-    std::vector<std::string> fToRemove;
-    for (auto &it : Xmapmatrix) {
-      llvm::StringRef tmp(it.first);
-      if (!tmp.endswith("-Matcher") && !tmp.endswith("-Replacer") && !tmp.endswith("-BBType") && !tmp.endswith("-ASTp") && !tmp.endswith("-ChildContext") && !tmp.endswith("-DataTypeContext")) 
-        fToRemove.push_back(it.first);
-    }
-    for (auto &str: fToRemove)
-      Xmapmatrix.erase(str);
+  if (defectPrediction) {
+    assert (!(onlyAstAndMutantType || onlyMutantType) && "Must not enable ISSTA 2017 nor mutant type on defect prediction mode");
   } else {
-    // Remove feature not needed (relative's BBType fog now)
-    std::vector<std::string> fToRemove;
-    for (auto &it : Xmapmatrix) {
-      llvm::StringRef tmp(it.first);
-      
-      // No stmtBB of relative
-      if (tmp.endswith("-BBType-astparent") || tmp.endswith("-BBType-outdatadep") || tmp.endswith("-BBType-indatadep") || tmp.endswith("-BBType-outctrldep") || tmp.endswith("-BBType-inctrldep")) 
-        fToRemove.push_back(it.first);
+    assert (!(onlyAstAndMutantType && onlyMutantType) && "Must not enable ISSTA 2017 and mutant type only mode at the same time");
+    if (onlyAstAndMutantType || onlyMutantType) {
+      // remove other features like: depth, complexity, data/ctrl dependency
+      std::vector<std::string> fToRemove;
+      for (auto &it : Xmapmatrix) {
+        llvm::StringRef tmp(it.first);
+        if (!tmp.endswith("-Matcher") && !tmp.endswith("-Replacer"))
+          if (onlyMutantType || (!tmp.endswith("-BBType") && !tmp.endswith("-ASTp") && !tmp.endswith("-ChildContext") && !tmp.endswith("-DataTypeContext"))) 
+            fToRemove.push_back(it.first);
+      }
+      for (auto &str: fToRemove)
+        Xmapmatrix.erase(str);
+    } else {
+      // Remove feature not needed (relative's BBType fog now)
+      std::vector<std::string> fToRemove;
+      for (auto &it : Xmapmatrix) {
+        llvm::StringRef tmp(it.first);
+        
+#if 1
+        // Top 6 features only (IG >= 0.02)
+        if (!tmp.equals("Complexity") && !tmp.equals("NumInCtrlDeps") && !tmp.equals("NumOutDataDeps") && !tmp.equals("NumInDataDeps") && !tmp.equals("NumTieDeps") && !tmp.equals("CfgDepth"))
+          fToRemove.push_back(it.first);
+#endif
+        // No stmtBB of relative
+        if (tmp.endswith("-BBType-astparent") || tmp.endswith("-BBType-outdatadep") || tmp.endswith("-BBType-indatadep") || tmp.endswith("-BBType-outctrldep") || tmp.endswith("-BBType-inctrldep")) 
+          fToRemove.push_back(it.first);
+      }
+      for (auto &str: fToRemove)
+        Xmapmatrix.erase(str);
     }
-    for (auto &str: fToRemove)
-      Xmapmatrix.erase(str);
   }
 
   // convert Xmapmatrix to Xmatrix

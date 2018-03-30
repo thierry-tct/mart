@@ -374,6 +374,7 @@ bool MutantDependenceGraph::build(llvm::Module const &mod,
         std::string bbTypename = bb->getName().substr(0, bbtypenameend).str();
 
         // Update the info for all the mutants for this popped basic block
+        // XXX \ref CONSTRUCT SRC level STMTS
         std::unordered_set<MutantIDType> mutantsofstmt;
         std::unordered_set<const llvm::Instruction *> visitedI;
         for (auto &inst : *bb) {
@@ -403,6 +404,7 @@ bool MutantDependenceGraph::build(llvm::Module const &mod,
                              getTieDependents(mId).end());
             }
           }
+
           // set the info for each mutant here
           for (auto mutant_id : mutantsofstmt) {
             setMutantTypename(mutant_id, mutInfos.getMutantTypeName(mutant_id));
@@ -490,7 +492,7 @@ bool MutantDependenceGraph::build(llvm::Module const &mod,
         getRelationOutgoingRef(mid)[did] = outproba;
       }
 
-      //Tie dependent are added as self loop inchuling This mutant
+      //Tie dependent are added as self loop including This mutant
       // they are added both for In and Out
       //matrixInOut[mid][mid].first = inproba;
       getRelationIncomingRef(mid)[mid] = inproba;
@@ -762,7 +764,7 @@ void MutantDependenceGraph::computeMutantFeatures(
     std::vector<std::string> &features_names) {
   auto nummuts = getMutantsNumber();
 
-  // Features requiring One Hot Encodin (more like python pandas' get_dummies)
+  // Features requiring One Hot Encoding (more like python pandas' get_dummies)
   std::unordered_set<std::string> allMutantTypenames; // all mutantTypeNames
   std::unordered_set<std::string> allStmtBBTypenames; // all stmtBBTypeNames
   std::unordered_set<std::string> allASTParentOpcodenames;
@@ -1150,6 +1152,255 @@ void MutantDependenceGraph::computeMutantFeatures(
          "@MutantSelection: Features size mismatch, Please report Bug!");
 }
 
+void MutantDependenceGraph::computeStatementFeatures(
+    std::vector<std::vector<float>> &features_matrix,
+    std::vector<std::string> &features_names, 
+    std::vector<std::unordered_set<MutantIDType>> &stmt2muts) {
+
+  typedef size_t StmtIDType;
+  std::unordered_map<MutantIDType, std::unordered_set<StmtIDType>> mutant2stmtid;
+
+  // XXX \ref CONSTRUCT SRC level STMTS
+  std::unordered_set<const llvm::Value *> visitedI;
+  for (auto &kv_pair : IR2mutantset) {
+    auto const *inst_val = kv_pair.first;
+    auto *bb = llvm::dyn_cast<llvm::Instruction>(inst_val)->getParent();
+    if (visitedI.count(inst_val) || IR2mutantset.count(inst_val) == 0)
+      continue;
+    stmt2muts.emplace_back();
+    std::unordered_set<MutantIDType> tmpmuts(IR2mutantset.at(inst_val));
+    std::unordered_set<MutantIDType> tmpnewmuts;
+    while (true) {
+      tmpnewmuts.clear();
+      for (auto mId : tmpmuts) {
+        if (stmt2muts.back().insert(mId).second) {
+          tmpnewmuts.insert(mId);
+        }
+      }
+      if (tmpnewmuts.empty())
+        break;
+      for (auto mId : tmpnewmuts) {
+        for (auto *minst : mutant2IRset.at(mId)) {
+          assert(
+              llvm::dyn_cast<llvm::Instruction>(minst)->getParent() ==
+                  bb &&
+              "mutants spawning multiple BBs not yet implemented. TODO");
+          visitedI.insert(llvm::dyn_cast<llvm::Instruction>(minst));
+        }
+        tmpmuts.insert(getTieDependents(mId).begin(),
+                       getTieDependents(mId).end());
+      }
+    }
+    for (auto mid: stmt2muts.back()) {
+      assert (mutant2stmtid.count(mid) == 0 && "Mutant spawning 2 stmts, impossible(BUG)");
+      mutant2stmtid[mid] = std::unordered_set<StmtIDType> {stmt2muts.size()-1};
+    }
+  }
+
+  auto numstmts = stmt2muts.size();
+  std::vector<std::unordered_set<std::string>> stmt2BBTypenames(numstmts); 
+
+  // Features requiring One Hot Encoding (more like python pandas' get_dummies)
+  std::unordered_set<std::string> allStmtBBTypenames; // all stmtBBTypeNames
+  std::vector<std::string> stmtTypenameTmp;
+  const std::string nsuff_outdatadep("-outdatadep");
+  const std::string nsuff_indatadep("-indatadep");
+  const std::string nsuff_outctrldep("-outctrldep");
+  const std::string nsuff_inctrldep("-inctrldep");
+  
+  for (auto stmt_id = 0; stmt_id < numstmts; ++stmt_id) {
+    if (stmt2muts[stmt_id].empty()) 
+      continue;
+    for (auto a_mut_id: stmt2muts[stmt_id]) {
+      stmtTypenameTmp.clear();
+      getSplittedStmtBBTypename(a_mut_id, stmtTypenameTmp);
+      allStmtBBTypenames.insert(stmtTypenameTmp.begin(), stmtTypenameTmp.end());
+      stmt2BBTypenames[stmt_id].insert(stmtTypenameTmp.begin(), stmtTypenameTmp.end());
+    }
+  }
+
+  std::unordered_map<std::string, unsigned long long> stmtFeatures;
+  // insert features names
+  features_matrix.emplace_back();
+  features_matrix.back().reserve(numstmts);
+  features_names.emplace_back("Complexity");
+  stmtFeatures[features_names.back()] = features_matrix.size() - 1;
+
+  features_matrix.emplace_back();
+  features_matrix.back().reserve(numstmts);
+  features_names.emplace_back("CfgDepth");
+  stmtFeatures[features_names.back()] = features_matrix.size() - 1;
+
+  features_matrix.emplace_back();
+  features_matrix.back().reserve(numstmts);
+  features_names.emplace_back("CfgPredNum");
+  stmtFeatures[features_names.back()] = features_matrix.size() - 1;
+
+  features_matrix.emplace_back();
+  features_matrix.back().reserve(numstmts);
+  features_names.emplace_back("CfgSuccNum");
+  stmtFeatures[features_names.back()] = features_matrix.size() - 1;
+
+  features_matrix.emplace_back();
+  features_matrix.back().reserve(numstmts);
+  features_names.emplace_back("NumOutDataDeps");
+  stmtFeatures[features_names.back()] = features_matrix.size() - 1;
+
+  features_matrix.emplace_back();
+  features_matrix.back().reserve(numstmts);
+  features_names.emplace_back("NumInDataDeps");
+  stmtFeatures[features_names.back()] = features_matrix.size() - 1;
+
+  features_matrix.emplace_back();
+  features_matrix.back().reserve(numstmts);
+  features_names.emplace_back("NumOutCtrlDeps");
+  stmtFeatures[features_names.back()] = features_matrix.size() - 1;
+
+  features_matrix.emplace_back();
+  features_matrix.back().reserve(numstmts);
+  features_names.emplace_back("NumInCtrlDeps");
+  stmtFeatures[features_names.back()] = features_matrix.size() - 1;
+
+
+
+  // stmt BB typename as one hot form
+  for (auto &sbbtname : allStmtBBTypenames) {
+    features_matrix.emplace_back();
+    features_matrix.back().reserve(numstmts);
+    features_names.emplace_back(sbbtname);
+    stmtFeatures[features_names.back()] = features_matrix.size() - 1;
+
+    features_matrix.emplace_back();
+    features_matrix.back().reserve(numstmts);
+    features_names.emplace_back(sbbtname + nsuff_outdatadep);
+    stmtFeatures[features_names.back()] = features_matrix.size() - 1;
+
+    features_matrix.emplace_back();
+    features_matrix.back().reserve(numstmts);
+    features_names.emplace_back(sbbtname + nsuff_indatadep);
+    stmtFeatures[features_names.back()] = features_matrix.size() - 1;
+
+    features_matrix.emplace_back();
+    features_matrix.back().reserve(numstmts);
+    features_names.emplace_back(sbbtname + nsuff_outctrldep);
+    stmtFeatures[features_names.back()] = features_matrix.size() - 1;
+
+    features_matrix.emplace_back();
+    features_matrix.back().reserve(numstmts);
+    features_names.emplace_back(sbbtname + nsuff_inctrldep);
+    stmtFeatures[features_names.back()] = features_matrix.size() - 1;
+  }
+
+  /// Create feature values for all mutants
+  std::unordered_set<llvm::Value const *> irset_tmp;
+  std::unordered_set<StmtIDType> stmtset_tmp;
+  std::unordered_map<std::string, float> featureValuesPost1Hot;
+  for (auto stmt_id = 0; stmt_id < numstmts; ++stmt_id) {
+    if (stmt2muts[stmt_id].empty()) 
+      continue;
+    auto a_mut_id = *(stmt2muts[stmt_id].begin());
+  
+    featureValuesPost1Hot.clear();
+    irset_tmp.clear();
+    getTSetOfMutSet<llvm::Value const *>(stmt2muts[stmt_id], mutant2IRset, irset_tmp);
+    featureValuesPost1Hot["Complexity"] = (irset_tmp.size());
+    featureValuesPost1Hot["CfgDepth"] = (getCfgDepth(a_mut_id));
+    featureValuesPost1Hot["CfgPredNum"] = (getCfgPredNum(a_mut_id));
+    featureValuesPost1Hot["CfgSuccNum"] = (getCfgSuccNum(a_mut_id));
+    stmtset_tmp.clear();
+    getTSetOfMutSet<StmtIDType>(getOutDataDependents(a_mut_id), mutant2stmtid, stmtset_tmp);
+    stmtset_tmp.erase(stmt_id);
+    featureValuesPost1Hot["NumOutDataDeps"] =
+        (stmtset_tmp.size()); 
+    stmtset_tmp.clear();
+    getTSetOfMutSet<StmtIDType>(getInDataDependents(a_mut_id), mutant2stmtid, stmtset_tmp);
+    stmtset_tmp.erase(stmt_id);
+    featureValuesPost1Hot["NumInDataDeps"] =
+        (stmtset_tmp.size());
+    stmtset_tmp.clear();
+    getTSetOfMutSet<StmtIDType>(getOutCtrlDependents(a_mut_id), mutant2stmtid, stmtset_tmp);
+    stmtset_tmp.erase(stmt_id);
+    featureValuesPost1Hot["NumOutCtrlDeps"] =
+        (stmtset_tmp.size());
+    stmtset_tmp.clear();
+    getTSetOfMutSet<StmtIDType>(getInCtrlDependents(a_mut_id), mutant2stmtid, stmtset_tmp);
+    stmtset_tmp.erase(stmt_id);
+    featureValuesPost1Hot["NumInCtrlDeps"] =
+        (stmtset_tmp.size());
+
+    for (auto &sbbtname : allStmtBBTypenames) {
+      featureValuesPost1Hot[sbbtname] = 0;
+      featureValuesPost1Hot[sbbtname + nsuff_outdatadep] = 0;
+      featureValuesPost1Hot[sbbtname + nsuff_indatadep] = 0;
+      featureValuesPost1Hot[sbbtname + nsuff_outctrldep] = 0;
+      featureValuesPost1Hot[sbbtname + nsuff_inctrldep] = 0;
+    }
+
+    for (auto &str: stmt2BBTypenames[stmt_id])
+      featureValuesPost1Hot.at(str) = 1;
+
+    stmtset_tmp.clear();
+    getTSetOfMutSet<StmtIDType>(getOutDataDependents(a_mut_id), mutant2stmtid, stmtset_tmp);
+    stmtset_tmp.erase(stmt_id);
+    for (auto odid : stmtset_tmp) {
+      for (auto &str: stmt2BBTypenames[odid]) 
+        featureValuesPost1Hot.at(str + nsuff_outdatadep) += 1;
+    }
+    stmtset_tmp.clear();
+    getTSetOfMutSet<StmtIDType>(getInDataDependents(a_mut_id), mutant2stmtid, stmtset_tmp);
+    stmtset_tmp.erase(stmt_id);
+    for (auto idid : stmtset_tmp) { 
+      for (auto &str: stmt2BBTypenames[idid]) 
+        featureValuesPost1Hot.at(str + nsuff_indatadep) += 1;
+    }
+    stmtset_tmp.clear();
+    getTSetOfMutSet<StmtIDType>(getOutCtrlDependents(a_mut_id), mutant2stmtid, stmtset_tmp);
+    stmtset_tmp.erase(stmt_id);
+    for (auto ocid : stmtset_tmp) { 
+      for (auto &str: stmt2BBTypenames[ocid]) 
+        featureValuesPost1Hot.at(str + nsuff_outctrldep) += 1;
+    }
+    stmtset_tmp.clear();
+    getTSetOfMutSet<StmtIDType>(getInCtrlDependents(a_mut_id), mutant2stmtid, stmtset_tmp);
+    stmtset_tmp.erase(stmt_id);
+    for (auto icid : stmtset_tmp) { 
+      for (auto &str: stmt2BBTypenames[icid]) 
+        featureValuesPost1Hot.at(str + nsuff_inctrldep) += 1;
+    }
+
+    /// Append this mutant feature values to the mutant features table
+    // llvm::errs() << mutantFeatures.size()<< " " <<
+    // featureValuesPost1Hot.size()<< "\n";
+    assert(stmtFeatures.size() == featureValuesPost1Hot.size() &&
+           "must have same size");
+    for (auto &mfIt : featureValuesPost1Hot) {
+      features_matrix.at(stmtFeatures.at(mfIt.first)).push_back(mfIt.second);
+    }
+  }
+
+
+  /// Normalize each feature value between 0 and 1 to have a normalization
+  /// accross programs
+  for (auto &feature_val : stmtFeatures) {
+    auto mM =
+        std::minmax_element(features_matrix.at(feature_val.second).begin(),
+                            features_matrix.at(feature_val.second).end());
+    auto min = *(mM.first);
+    auto max = *(mM.second);
+    auto max_min = max - min;
+
+    // normalize
+    if (max > min)
+      for (auto It = features_matrix.at(feature_val.second).begin(),
+                Ie = features_matrix.at(feature_val.second).end();
+           It != Ie; ++It)
+        *It = (*It - min) / max_min;
+  }
+  assert(stmtFeatures.size() == features_matrix.size() &&
+         stmtFeatures.size() == features_names.size() &&
+         "@MutantSelection: (Stmt) Features size mismatch, Please report Bug!");
+}
+
 ///
 void MutantDependenceGraph::dump(std::string filename) {
   JsonBox::Array outListJSON;
@@ -1342,14 +1593,41 @@ void MutantDependenceGraph::load(std::string filename,
   }
 }
 
-void MutantDependenceGraph::exportMutantFeaturesCSV(std::string filenameCSV) {
+void MutantDependenceGraph::exportMutantFeaturesCSV(std::string filenameCSV, 
+                                                    MutantInfoList const &mutInfos,
+                                                    bool isDefectPrediction) {
   // each embedded vector represent a feature
   std::vector<std::vector<float>> features_matrix;
   std::vector<std::string> features_names;
 
-  computeMutantFeatures(features_matrix, features_names);
-
-  auto nummuts = getMutantsNumber();
+  MutantIDType numObjs;
+  if (isDefectPrediction) {
+    std::vector<std::unordered_set<MutantIDType>> stmt2muts;
+    computeStatementFeatures(features_matrix, features_names, stmt2muts);
+    numObjs = stmt2muts.size();
+    // write mapping of stmt into srcloc
+    std::ofstream locout(filenameCSV+".srcloc.list");
+    if (locout.is_open()) {
+      locout << "Statement-LOC\n";
+      for (auto &mset: stmt2muts) {
+        // get locs
+        std::unordered_set<std::string> locset;
+        for (auto mid: mset)
+          locset.insert(mutInfos.getMutantSourceLoc(mid));
+        //write locs
+        for (auto loc: locset)
+          locout << loc << ",";
+        locout << "\n";
+      }
+    } else {
+      llvm::errs() << "Err: Unable to create Stmt loc list file:" << filenameCSV+".srcloc.list"
+                   << "\n\n";
+      assert(false);
+    }
+  } else {
+    computeMutantFeatures(features_matrix, features_names);
+    numObjs = getMutantsNumber();
+  }
 
   /// Dump into CSV file
   std::ofstream csvout(filenameCSV);
@@ -1366,17 +1644,17 @@ void MutantDependenceGraph::exportMutantFeaturesCSV(std::string filenameCSV) {
     csvout << "\n";
 
     // mutants features
-    for (MutantIDType mutant_id = 1; mutant_id <= nummuts; ++mutant_id) {
+    for (auto obj_id = 0; obj_id < numObjs; ++obj_id) {
       isFirst = 1;
       for (auto &feature_val : features_matrix) {
-        csvout << comma[isFirst] << feature_val[mutant_id - 1];
+        csvout << comma[isFirst] << feature_val[obj_id];
         isFirst = 0;
       }
       csvout << "\n";
     }
     csvout.close();
   } else {
-    llvm::errs() << "Unable to create mutant features CSV file:" << filenameCSV
+    llvm::errs() << "Unable to create mutant (or STmt) features CSV file:" << filenameCSV
                  << "\n\n";
     assert(false);
   }
@@ -1555,18 +1833,29 @@ void MutantSelection::relaxMutant(MutantIDType mutant_id,
  *
  */
 void MutantSelection::getMachineLearningPrediction(
-    std::vector<float> &couplingProbabilitiesOut, std::string modelFilename) {
+    std::vector<float> &couplingProbabilitiesOut, std::string modelFilename, 
+    bool isDefectPrediction) {
   MutantIDType mutants_number = mutantInfos.getMutantsNumber();
   couplingProbabilitiesOut.reserve(mutants_number);
 
   std::vector<std::vector<float>> features_matrix;
   std::vector<std::string> features_names;
 
-  mutantDGraph.computeMutantFeatures(features_matrix, features_names);
-
   PredictionModule predmodule(modelFilename);
 
-  predmodule.predict(features_matrix, features_names, couplingProbabilitiesOut);
+  if (isDefectPrediction) {
+    std::vector<float> defectProbabilitiesOut;
+    std::vector<std::unordered_set<MutantIDType>> mutantsPerStmt;
+    mutantDGraph.computeStatementFeatures(features_matrix, features_names, mutantsPerStmt);
+    predmodule.predict(features_matrix, features_names, defectProbabilitiesOut);
+    assert(defectProbabilitiesOut.size() == mutantsPerStmt.size() && "Statement count mismatch");
+    for (auto sid = 0; sid < defectProbabilitiesOut.size(); ++sid)
+      for (auto mid: mutantsPerStmt.at(sid))
+        couplingProbabilitiesOut.at(mid) = defectProbabilitiesOut[sid];
+  } else {
+    mutantDGraph.computeMutantFeatures(features_matrix, features_names);
+    predmodule.predict(features_matrix, features_names, couplingProbabilitiesOut);
+  }
 }
 
 /**
@@ -1576,7 +1865,7 @@ void MutantSelection::getMachineLearningPrediction(
 void MutantSelection::smartSelectMutants(
     std::vector<MutantIDType> &selectedMutants,
     std::vector<float> &cachedPrediction, std::string trainedModelFilename,
-    bool mlOn, bool mclOn) {
+    bool mlOn, bool mclOn, bool defectPredOn) {
 
   MutantIDType mutants_number = mutantInfos.getMutantsNumber();
 
@@ -1592,7 +1881,7 @@ void MutantSelection::smartSelectMutants(
   std::vector<float> isCoupledProbability;
   if (mlOn) {
     if (cachedPrediction.empty()) {
-      getMachineLearningPrediction(isCoupledProbability, trainedModelFilename);
+      getMachineLearningPrediction(isCoupledProbability, trainedModelFilename, defectPredOn);
       cachedPrediction = isCoupledProbability;
     } else {
       isCoupledProbability = cachedPrediction;
