@@ -199,9 +199,13 @@ void MutantDependenceGraph::addDataCtrlFor(
        ++nodeIt) {
     auto *nodefrom = nodeIt->second;
     llvm::Value *irFrom = nodefrom->getKey();
+    if (IR2mutantset.count(irFrom) == 0) 
+      continue;
     for (auto ndata = nodefrom->data_begin(), nde = nodefrom->data_end();
          ndata != nde; ++ndata) {
       llvm::Value *irDataTo = (*ndata)->getKey();
+      if (IR2mutantset.count(irDataTo) == 0) 
+        continue;
       for (MutantIDType m_id_from : IR2mutantset[irFrom])
         for (MutantIDType m_id_datato : IR2mutantset[irDataTo])
           if (m_id_from != m_id_datato)
@@ -210,6 +214,8 @@ void MutantDependenceGraph::addDataCtrlFor(
     for (auto nctrl = nodefrom->control_begin(), nce = nodefrom->control_end();
          nctrl != nce; ++nctrl) {
       llvm::Value *irCtrlTo = (*nctrl)->getKey();
+      if (IR2mutantset.count(irCtrlTo) == 0) 
+        continue;
       for (MutantIDType m_id_from : IR2mutantset[irFrom])
         for (MutantIDType m_id_ctrlto : IR2mutantset[irCtrlTo])
           if (m_id_from != m_id_ctrlto)
@@ -241,10 +247,14 @@ void MutantDependenceGraph::addDataCtrlFor(
 #endif
 
       for (llvm::Value *cvFrom : fromIRs) {
+        if (IR2mutantset.count(cvFrom) == 0) 
+          continue;
         // if it donesn't have parent it wont be mutated anyway 
         // (seems dg add ret void to the code and that have no parent...)
         if (auto *ictBB = llvm::dyn_cast<llvm::Instruction>(irCtrlTo)->getParent()) {
           for (auto &cinstTo : *ictBB) {
+            if (IR2mutantset.count(&cinstTo) == 0) 
+              continue;
             for (MutantIDType m_id_from : IR2mutantset[cvFrom])
               for (MutantIDType m_id_ctrlto : IR2mutantset[&cinstTo])
                 if (m_id_from != m_id_ctrlto)
@@ -258,6 +268,8 @@ void MutantDependenceGraph::addDataCtrlFor(
     /*for (auto *dgbbTo : dgbbFrom->getPostDomFrontiers()) {
       llvm::Value *irFrom = dgbbFrom->getFirstNode()->getKey();
       llvm::Value *irCtrlTo = dgbbTo->getLastNode()->getKey();
+      if (IR2mutantset.count(irFrom) == 0 || IR2mutantset.count(irCtrlTo) == 0) 
+        continue;
       for (MutantIDType m_id_from : IR2mutantset[irFrom])
         for (MutantIDType m_id_ctrlto : IR2mutantset[irCtrlTo])
           if (m_id_from != m_id_ctrlto)
