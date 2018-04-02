@@ -271,12 +271,13 @@ bool MutantDependenceGraph::build(llvm::Module const &mod,
                                   MutantInfoList const &mutInfos,
                                   std::string mutant_depend_filename,
                                   bool disable_selection) {
+  usedModule = &mod;
   std::unordered_map<std::string,
                      std::unordered_map<unsigned, llvm::Value const *>>
       functionName_position2IR;
 
   // First compute IR2mutantset
-  for (auto &Func : mod) {
+  for (auto &Func : *usedModule) {
     unsigned instPosition = 0;
     std::string funcName = Func.getName();
     // functionName_position2IR.clear();        //XXX: Since each mutant belong
@@ -339,7 +340,7 @@ bool MutantDependenceGraph::build(llvm::Module const &mod,
     /// XXX: it could be possible that some mutants are not visted bellow
     /// because their Basic block is unreachable, but all those are removed by
     /// the compiler front-end, so it is actually impossible
-    for (auto &func : mod) {
+    for (auto &func : *usedModule) {
       if (func.isDeclaration())
         continue;
       // workQ.clear();

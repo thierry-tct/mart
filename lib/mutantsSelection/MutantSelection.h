@@ -106,6 +106,7 @@ class MutantDependenceGraph //: public DependenceGraph<MutantNode>
   };
 
 private:
+  llvm::Module const *usedModule;
   std::vector<MutantDepends> mutantDGraphData; // Adjacent List
   std::vector<std::unordered_set<MutantIDType>> DDClusters;
   std::unordered_map<MutantIDType, std::unordered_set<llvm::Value const *>>
