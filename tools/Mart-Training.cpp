@@ -409,7 +409,7 @@ int main(int argc, char **argv) {
       for (auto &it : Xmapmatrix) {
         llvm::StringRef tmp(it.first);
         
-#if 1
+#if 0
         // Top 6 features only (IG >= 0.02)
         if (!tmp.equals("Complexity") && !tmp.equals("NumInCtrlDeps") && !tmp.equals("NumOutDataDeps") && !tmp.equals("NumInDataDeps") && !tmp.equals("NumTieDeps") && !tmp.equals("CfgDepth"))
           fToRemove.push_back(it.first);
