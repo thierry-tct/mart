@@ -1862,9 +1862,10 @@ void MutantSelection::getMachineLearningPrediction(
     mutantDGraph.computeStatementFeatures(features_matrix, features_names, mutantsPerStmt);
     predmodule.predict(features_matrix, features_names, defectProbabilitiesOut);
     assert(defectProbabilitiesOut.size() == mutantsPerStmt.size() && "Statement count mismatch");
+    couplingProbabilitiesOut.resize(mutants_number, 0);
     for (auto sid = 0; sid < defectProbabilitiesOut.size(); ++sid)
       for (auto mid: mutantsPerStmt.at(sid))
-        couplingProbabilitiesOut.at(mid) = defectProbabilitiesOut[sid];
+        couplingProbabilitiesOut.at(mid-1) = defectProbabilitiesOut[sid];
   } else {
     mutantDGraph.computeMutantFeatures(features_matrix, features_names);
     predmodule.predict(features_matrix, features_names, couplingProbabilitiesOut);
