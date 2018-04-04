@@ -1901,13 +1901,13 @@ void MutantSelection::smartSelectMutants(
     } else {
       isCoupledProbability = cachedPrediction;
     }
-    std::vector<bool> eqprob;
+    /*std::vector<bool> eqprob;
     eqprob.resize(isCoupledProbability.size()*80/100.0, false);
     eqprob.resize(isCoupledProbability.size(), true);
     std::srand(std::time(NULL) + clock()); //+ clock() because fast running
     std::random_shuffle(eqprob.begin(), eqprob.end());
     for (MutantIDType i=0; i<isCoupledProbability.size(); ++i)
-      isCoupledProbability[i] *= (!eqprob[i]);
+      isCoupledProbability[i] *= (!eqprob[i]);*/
   } else {    // MCL only
     isCoupledProbability.resize(mutants_number, 0.0);
   }
