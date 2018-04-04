@@ -41,6 +41,10 @@ if (MART_SEMU_GENMU)
                  COMMAND cp -f ${CMAKE_CURRENT_SOURCE_DIR}/useful/trained-models/default-trained.model.infos.json ${CMAKE_CURRENT_BINARY_DIR}/useful/trained-models/default-trained.model.infos.json
                  COMMAND cp -f ${CMAKE_CURRENT_SOURCE_DIR}/useful/trained-models/issta2017.model ${CMAKE_CURRENT_BINARY_DIR}/useful/trained-models/issta2017.model
                  COMMAND cp -f ${CMAKE_CURRENT_SOURCE_DIR}/useful/trained-models/issta2017.model.infos.json ${CMAKE_CURRENT_BINARY_DIR}/useful/trained-models/issta2017.model.infos.json
+                 COMMAND cp -f ${CMAKE_CURRENT_SOURCE_DIR}/useful/trained-models/mutant-type-only.model ${CMAKE_CURRENT_BINARY_DIR}/useful/trained-models/mutant-type-only.model
+                 COMMAND cp -f ${CMAKE_CURRENT_SOURCE_DIR}/useful/trained-models/mutant-type-only.model.infos.json ${CMAKE_CURRENT_BINARY_DIR}/useful/trained-models/mutant-type-only.model.infos.json
+                 COMMAND cp -f ${CMAKE_CURRENT_SOURCE_DIR}/useful/trained-models/defect-prediction.model ${CMAKE_CURRENT_BINARY_DIR}/useful/trained-models/defect-prediction.model
+                 COMMAND cp -f ${CMAKE_CURRENT_SOURCE_DIR}/useful/trained-models/defect-prediction.model.infos.json ${CMAKE_CURRENT_BINARY_DIR}/useful/trained-models/defect-prediction.model.infos.json
                  
                  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/)
     
