@@ -6,6 +6,7 @@
 
 import os, sys
 import re
+import json
 
 class GlobalDefs:
     #get the oprd type in oprdTake including the most others and and which is in oprdCheck
@@ -223,6 +224,85 @@ class GlobalDefs:
 #~ GlobalDefs
 
 '''
+    Return true if the operator is SDL
+'''
+def isSLDOperation(mutopname):
+    return (mutopname.lower().endswith("delstmt"))
+#~ def isSLDOperation():
+
+SWAP_SUFFIX="-swap"
+'''
+    Return true if the operator is part of Selective mutation operators
+    seltype represent the selective type. must be either 'E' or 'ES' or 'RE' or 'RS'. Default is 'E'
+'''
+def isSelectiveMutationOperation(mutopname, seltype='E'):
+    assert seltype == 'E', "For now only support E-Selective. Implement others TODO"
+
+    def combinelists(list1, list2):
+        res = []
+        for e1 in list1:
+            for e2 in list2:
+                res.append((e1,e2))
+        return res
+
+    # Use getOpClass with level 4 to consider swap
+    clsL = getOpClass(mutopname)
+    assert len(cls) == 1, "must be single value"
+    cls = clsL[0]
+    SelMutClasses_Starts = []
+    SelMutClasses_Full = []
+    SelMutClasses_Ends = []
+    # ABS
+    SelMutClasses_Ends += ["_"+globalDefs.CLASSES[globalDefs.ABS_UNARY[0]]]
+    # AOR
+    a_bin = globalDefs.CLASSES[globalDefs.AOR[0]]
+    a_bit = globalDefs.CLASSES[globalDefs.BIT[0]]
+    SelMutClasses_Full += ["_".join([m, r]) for m, r in combinelists([a_bin, a_bit], [a_bin, a_bit])]
+    # LCR
+    lor = globalDefs.CLASSES[globalDefs.LOR[0]]
+    SelMutClasses_Full += ["_".join([m, r]) for m, r in combinelists([lor], [lor])]
+    # ROR
+    ror = globalDefs.CLASSES[globalDefs.ROR[0]]
+    SelMutClasses_Full += ["_".join([m, r]) for m, r in combinelists([ror], [ror])]
+    # UOI
+    matches = []
+    repls = []
+    matches.append(globalDefs.CLASSES[globalDefs.ARITHEXP])
+    matches.append(globalDefs.CLASSES[globalDefs.ARITHVAR])
+    matches.append(globalDefs.CLASSES[globalDefs.ARITHCONST])
+    matches = list(set(matches))
+    repls.append(globalDefs.CLASSES[globalDefs.UNARY[0]])
+    repls.append(globalDefs.CLASSES[globalDefs.INCDEC[0]])
+    SelMutClasses_Full += ["_".join([m, r]) for m, r in combinelists(matches, repls)]
+
+    # CRP //TODO enable for RE or RS selective
+    #SelMutClasses_Starts += [globalDefs.CLASSES[globalDefs.ARITHCONST]+'_', globalDefs.CLASSES[globalDefs.self.CONSTVAL[0]]+'_']
+    return (cls in SelMutClasses)
+#~ def isSelectiveMutationOperation():
+
+'''
+    return the list of mutant of the specified class as well as the total number of mutants
+    classtype is either 'SDL' or 'E-SELECTIVE'. TODO: other Selective
+'''
+def getClassMutants(mutantInfoFile, classtype):
+    assert classtype in ['SDL', 'E-SELECTIVE'], "invalid classstype"
+
+    mList = []
+    with open(mutantInfoFile) as f:
+        minfo = json.load(f)
+    if classtype == 'SDL':
+        for mid_str in minfo:
+            if isSLDOperation(minfo[mid_str]["Type"]):
+                mList.append(int(mid_str))
+    else:
+        s_type = classtype.split('-')[0]
+        for mid_str in minfo:
+            if isSelectiveMutationOperation(minfo[mid_str]["Type"], s_type):
+                mList.append(int(mid_str))
+    return mList, len(minfo)
+#~ def getClassMutants()
+
+'''
     Get the class of a mutation operator in the form AOR, ROR, ...
 '''
 def getOpClass(mutopname, level=1):
@@ -255,7 +335,7 @@ def getOpClass(mutopname, level=1):
         swap = ""
         if len(match) == 3 and len(repl) == len(match):
             if match[1] == repl[2] and match[2] == repl[1]:
-                swap = "-swap"
+                swap = SWAP_SUFFIX
         return [matchVal + "_" + replVal + swap]
     if level == 3: 
         return [matchVal + "_" + replVal]

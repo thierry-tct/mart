@@ -284,6 +284,18 @@ int main(int argc, char **argv) {
   llvm::cl::opt<bool> defectPrediction(
       "defect-prediction-mode",
       llvm::cl::desc("(optional) enable using defect prediction"));
+  llvm::cl::opt<double> overSamplingWeightThreshold(
+      "oversampling-weight-threshold",
+      llvm::cl::desc(
+          "(optional) Specify the minimum weight to consider for positive for oversampling."
+          " This helps to equilibrate the number of positive and negative data for training."
+          " Take effect only if oversampling-ratio is set to non zero positive real number."),
+      llvm::cl::init(1.0));
+  llvm::cl::opt<double> overSamplingRatio(
+      "oversampling-ratio",
+      llvm::cl::desc(
+          "(optional) Specify the minimum ratio of positive over negative. oversample to reach it."),
+      llvm::cl::init(0.0));
   llvm::cl::opt<bool> forEquivalent(
       "for-equivalent",
       llvm::cl::desc("(optional) enable training for mode to select equivalent mutants"));
@@ -456,6 +468,59 @@ int main(int argc, char **argv) {
       // Consider mutant at least killed once by failing test as a bit good...
       // but with small weight
        //Yvector[i] = true;   //the weight stay the same
+    }
+  }
+
+  // Oversampling if enabled
+  if (overSamplingRatio > 0.0) {
+    assert (overSamplingRatio <= 1.0 && "Invalid overSamplingRatio passed");
+    assert (overSamplingWeightThreshold <= 1.0 && overSamplingWeightThreshold >= 0.0 && "Invalid overSamplingWeightThreshold passed");
+    llvm::outs() << "## Oversampling: Ratio is " << overSamplingRatio << ", threshold is " << overSamplingWeightThreshold << "\n";
+    std::vector<size_t> nonAbsPositive;
+    std::vector<size_t> threshPositive;
+    size_t nThreshNegative = 0;
+    for (auto i = 0; i < Yvector.size(); ++i) {
+      if (Yvector[i]) {
+        threshPositive.push_back(i);
+      } else {
+        auto invweigththresh = 1 - overSamplingWeightThreshold;
+        if (Weightsvector[i] <= invweigththresh)
+          nonAbsPositive.push_back(i);
+        else
+          ++nThreshNegative;
+      }
+    }
+    threshPositive.insert(threshPositive.end(), nonAbsPositive.begin(), nonAbsPositive.end());
+    nonAbsPositive.clear();
+    size_t nFinalPositive = nThreshNegative * overSamplingRatio;
+    if (nFinalPositive > threshPositive.size()) {
+      // do oversampling
+      auto extra = nFinalPositive - threshPositive.size();
+      llvm::outs() << "### Oversampling is adding " << extra << " rows!\n";
+      // - compute the number of repetition of each positive
+      size_t nRepPerPos = extra / threshPositive.size();
+      size_t offset = extra % threshPositive.size();
+      // - actually copy
+      Yvector.reserve(Yvector.size() + extra);
+      Weightsvector.reserve(Weightsvector.size() + extra);
+      for (auto &featVect : Xmatrix)
+        featVect.reserve(featVect.size() + extra);
+
+      size_t index;
+      for (index = 0; index < threshPositive.size(); ++index) {
+        auto reps = nRepPerPos;
+        if (offset > 0) {
+          ++reps;
+          --offset;
+        }
+        for (auto i = 0; i < reps; ++i) {
+          auto pos = threshPositive[index];
+          Yvector.push_back(Yvector[pos]);
+          Weightsvector.push_back(Weightsvector[pos]);
+          for (auto &featVect : Xmatrix)
+            featVect.push_back(featVect[pos]);
+        }
+      }
     }
   }
 
