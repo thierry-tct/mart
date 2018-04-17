@@ -246,8 +246,8 @@ def isSelectiveMutationOperation(mutopname, seltype='E'):
         return res
 
     # Use getOpClass with level 4 to consider swap
-    clsL = getOpClass(mutopname)
-    assert len(cls) == 1, "must be single value"
+    clsL = getOpClass(mutopname, level=4)
+    assert len(clsL) == 1, "must be single value"
     cls = clsL[0]
     SelMutClasses_Starts = []
     SelMutClasses_Full = []
@@ -267,7 +267,7 @@ def isSelectiveMutationOperation(mutopname, seltype='E'):
     # UOI
     matches = []
     repls = []
-    matches.append(globalDefs.CLASSES[globalDefs.ARITHEXP])
+    matches.append(globalDefs.CLASSES[globalDefs.ARITHEXPR])
     matches.append(globalDefs.CLASSES[globalDefs.ARITHVAR])
     matches.append(globalDefs.CLASSES[globalDefs.ARITHCONST])
     matches = list(set(matches))
@@ -277,7 +277,14 @@ def isSelectiveMutationOperation(mutopname, seltype='E'):
 
     # CRP //TODO enable for RE or RS selective
     #SelMutClasses_Starts += [globalDefs.CLASSES[globalDefs.ARITHCONST]+'_', globalDefs.CLASSES[globalDefs.self.CONSTVAL[0]]+'_']
-    return (cls in SelMutClasses)
+    verdict = (cls in SelMutClasses_Full)
+    for e in SelMutClasses_Ends:
+        if cls.endswith(e):
+            verdict = True
+    for s in SelMutClasses_Starts:
+        if cls.startswith(s):
+            verdict = True
+    return verdict
 #~ def isSelectiveMutationOperation():
 
 '''
@@ -301,6 +308,40 @@ def getClassMutants(mutantInfoFile, classtype):
                 mList.append(int(mid_str))
     return mList, len(minfo)
 #~ def getClassMutants()
+
+#---------- START RUN ---------#
+'''
+import matplotlib
+matplotlib.use('Agg')
+import os, sys
+import matplotlib.pyplot as plt
+assert "MART_BINARY_DIR" in os.environ, "MART_BINARY_DIR not set!"
+sys.path.insert(0, os.path.join(os.environ["MART_BINARY_DIR"], "useful"))
+import create_mconf
+#--
+assert len(sys.argv) == 2, "Expect one parameter project data dir"
+projdir = sys.argv[1]
+assert os.path.isdir(projdir), "Invalid data dir"
+SDL=[]
+E_SELECTIVE=[]
+projlist = os.listdir(projdir)
+chunksize = len(projlist) / 20
+chunk_val = 0
+for ind, proj in enumerate(projlist):
+    if (ind % chunksize == 0):
+        print str(chunk_val)+'%'
+        chunk_val += 5
+    mutjson = os.path.join(projdir, proj, "mutantsdata", "mutantsInfos.json")
+    mlist, totmutnum = create_mconf.getClassMutants(mutjson, "SDL")
+    SDL.append(len(mlist) * 100.0 / totmutnum)
+    mlist, totmutnum = create_mconf.getClassMutants(mutjson, "E-SELECTIVE")
+    E_SELECTIVE.append(len(mlist) * 100.0 / totmutnum)
+plt.boxplot([SDL, E_SELECTIVE], labels=["SDL", "E-SELCTIVE"])
+plt.ylabel("Percentage of Mutants Belonging to Class")
+plt.savefig("percentages.tmp.png")
+print "\nDONE!"
+'''
+#------------ END -------------#
 
 '''
     Get the class of a mutation operator in the form AOR, ROR, ...
