@@ -311,36 +311,42 @@ def getClassMutants(mutantInfoFile, classtype):
 
 #---------- START RUN ---------#
 '''
-import matplotlib
-matplotlib.use('Agg')
-import os, sys
-import matplotlib.pyplot as plt
-assert "MART_BINARY_DIR" in os.environ, "MART_BINARY_DIR not set!"
-sys.path.insert(0, os.path.join(os.environ["MART_BINARY_DIR"], "useful"))
-import create_mconf
-#--
-assert len(sys.argv) == 2, "Expect one parameter project data dir"
-projdir = sys.argv[1]
-assert os.path.isdir(projdir), "Invalid data dir"
-SDL=[]
-E_SELECTIVE=[]
-projlist = os.listdir(projdir)
-chunksize = len(projlist) / 20
-chunk_val = 0
-for ind, proj in enumerate(projlist):
-    if (ind % chunksize == 0):
-        print str(chunk_val)+'%'
-        chunk_val += 5
-    mutjson = os.path.join(projdir, proj, "mutantsdata", "mutantsInfos.json")
-    mlist, totmutnum = create_mconf.getClassMutants(mutjson, "SDL")
-    SDL.append(len(mlist) * 100.0 / totmutnum)
-    mlist, totmutnum = create_mconf.getClassMutants(mutjson, "E-SELECTIVE")
-    E_SELECTIVE.append(len(mlist) * 100.0 / totmutnum)
-plt.boxplot([SDL, E_SELECTIVE], labels=["SDL", "E-SELCTIVE"])
-plt.ylabel("Percentage of Mutants Belonging to Class")
-plt.savefig("percentages.tmp.png")
-print "\nDONE!"
+    Get the percentage of sdl and eselective mutants among all mutants
 '''
+def getSDL_ESELECTIVE_Distribution(projTopDir, imagefilename):
+    import matplotlib
+    matplotlib.use('Agg')
+    import os, sys
+    import matplotlib.pyplot as plt
+    assert "MART_BINARY_DIR" in os.environ, "MART_BINARY_DIR not set!"
+    sys.path.insert(0, os.path.join(os.environ["MART_BINARY_DIR"], "useful"))
+    import create_mconf
+    #--
+    #assert len(sys.argv) == 2, "Expect one parameter project data dir"
+    #projTopDir = sys.argv[1]
+    assert os.path.isdir(projTopDir), "Invalid data dir"
+    SDL=[]
+    E_SELECTIVE=[]
+    projlist = os.listdir(projTopDir)
+    if "SKIP_PROJS" in os.environ:
+        print "# Skipping:", os.environ["SKIP_PROJS"]
+        projlist = list(set(projlist) - {v for v in os.environ["SKIP_PROJS"] if len(v) > 0})
+    chunksize = len(projlist) / 20
+    chunk_val = 0
+    for ind, proj in enumerate(projlist):
+        if (ind % chunksize == 0):
+            print str(chunk_val)+'%'
+            chunk_val += 5
+        mutjson = os.path.join(projdir, proj, "mutantsdata", "mutantsInfos.json")
+        mlist, totmutnum = create_mconf.getClassMutants(mutjson, "SDL")
+        SDL.append(len(mlist) * 100.0 / totmutnum)
+        mlist, totmutnum = create_mconf.getClassMutants(mutjson, "E-SELECTIVE")
+        E_SELECTIVE.append(len(mlist) * 100.0 / totmutnum)
+    plt.boxplot([SDL, E_SELECTIVE], labels=["SDL", "E-SELCTIVE"])
+    plt.ylabel("Percentage of Mutants Belonging to Class")
+    plt.savefig(imagefilename)
+    print "\nDONE!"
+#~ def getSDL_ESELECTIVE_Distribution()
 #------------ END -------------#
 
 '''
