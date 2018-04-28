@@ -332,12 +332,12 @@ def getSDL_ESELECTIVE_Distribution(projTopDirCList, imagefilename=None):
     #projTopDir = sys.argv[1]
     projTopDirList = projTopDirCList.strip().split(',')
     for projTopDir in projTopDirList:
-        assert os.path.isdir(projTopDir), "Invalid data dir: "+projTopDir
+        assert os.path.isdir(projTopDir), "Invalid data dir: '"+projTopDir+"'"
     SDL=[]
     E_SELECTIVE=[]
     projlist = [] 
     for projTopDir in projTopDirList:
-        projlist = [os.path.join(projTopDir, d) for d in os.listdir(projTopDir)]
+        projlist += [os.path.join(projTopDir, d) for d in os.listdir(projTopDir)]
     #if "SKIP_PROJS" in os.environ:
     #    print "# Skipping:", os.environ["SKIP_PROJS"]
     #    projlist = list(set(projlist) - {v for v in os.environ["SKIP_PROJS"] if len(v) > 0})
