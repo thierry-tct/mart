@@ -467,6 +467,7 @@ int main(int argc, char **argv) {
   }
   out_all.close();
   llvm::outs() << "## merged training data saved into " << outputModelFilename+".svmdata.tmp" << "\n";
+  return 0;
   ///DBG ~
 #endif
 
