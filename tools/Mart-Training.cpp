@@ -382,7 +382,8 @@ int main(int argc, char **argv) {
   llvm::outs() << "# Loading CSVs for " << selectedPrograms.size()
                << " programs ...\n";
 
-    std::vector<std::string> selectedProjectIDs;
+  std::vector<std::string> selectedProjectIDs;
+  std::vector<std::string> projectIDPerRow;
   // for (auto &pair: programTrainSets) {
   for (auto posindex : selectedPrograms) {
     auto &triple = programTrainSets.at(posindex);
@@ -393,6 +394,7 @@ int main(int argc, char **argv) {
     // time costly
     selectedProjectIDs.push_back(std::get<0>(triple));
     readXY(std::get<1>(triple), std::get<2>(triple), tmpXmapmatrix, tmpYvector, tmpWeightsvector);
+    projectIDPerRow.resize(projectIDPerRow.size() + tmpYvector.size(), std::get<0>(triple));
     merge2into1(Xmapmatrix, Yvector, Weightsvector, tmpXmapmatrix, tmpYvector, tmpWeightsvector,
                 trainingSetEventSize);
   }
@@ -448,6 +450,25 @@ int main(int argc, char **argv) {
     assert(featVect.size() == Yvector.size() && "mart-training@error: all "
                                                 "feature vector in X must have "
                                                 "same size with Y");
+
+#if 0
+  ///DBG : XXX This is used to get all projects data in a matrix, for use for example with python
+  assert (projectIDPerRow.size() == Weightsvector.size() && "projectIDPerRow size don't match number of rows");
+  std::fstream out_all(outputModelFilename+".svmdata.tmp", std::ios_base::out | std::ios_base::trunc);
+  out_all << "projectID,";
+  for (auto feat: featuresnames)
+    out_all << feat << ",";
+  out_all << "coupling-weight" << "\n";
+  for (auto i=0; i < Weightsvector.size(); ++i) {
+    out_all << projectIDPerRow[i] << ",";
+    for (auto &fv:Xmatrix)
+      out_all << fv[i] << ",";
+    out_all << Weightsvector[i] << "\n";
+  }
+  out_all.close();
+  llvm::outs() << "## merged training data saved into " << outputModelFilename+".svmdata.tmp" << "\n";
+  ///DBG ~
+#endif
 
   // XXX Handle unkilled mutants (weigh is -1) and tune weights
   if (forEquivalent) {
@@ -525,20 +546,6 @@ int main(int argc, char **argv) {
   }
 
   llvm::outs() << "# X Matrix and Y Vector ready. Training ...\n";
-
-  /*///DBG
-  std::fstream out_all(outputModelFilename+".svmdata.tmp", std::ios_base::out | std::ios_base::trunc);
-  for (auto feat: featuresnames)
-    out_all << feat << ",";
-  out_all << "coupling-weight" << "\n";
-  for (auto i=0; i < Weightsvector.size(); ++i) {
-    for (auto &fv:Xmatrix)
-      out_all << fv[i] << ",";
-    out_all << Weightsvector[i] << "\n";
-  }
-  out_all.close();
-  llvm::outs() << "## merged training data saved into " << outputModelFilename+".svmdata.tmp" << "\n";
-  *////DBG
 
   PredictionModule predmod(outputModelFilename);
   std::map<unsigned long, double> featuresScores = predmod.train(Xmatrix, featuresnames, Yvector, Weightsvector, treesNumber, treesDepth);
