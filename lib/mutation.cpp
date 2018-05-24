@@ -161,7 +161,7 @@ Mutation::Mutation(llvm::Module &module, std::string mutConfFile,
 
 /**
  * \brief PREPROCESSING - Remove PHI Nodes, replacing by reg2mem, for every
- * funtion in module
+ * function in module
  */
 void Mutation::preprocessVariablePhi(llvm::Module &module) {
   // Replace the PHI node with memory, to avoid error with verify, as it don't
@@ -2659,6 +2659,11 @@ void Mutation::doTCE(std::unique_ptr<llvm::Module> &modWMLog, std::unique_ptr<ll
         unsigned tmpHMID =
             dup_eq_processor.mutFunctions.size() - 1; // initial highestMutID
         dup_eq_processor.mutModules.resize(tmpHMID + 1, nullptr);
+        // set clonedOrig to have KLEE SEMU function as declaration, not definition
+        if (forKLEESEMu) {
+          llvm::Function *funcForKS = clonedOrig->getFunction(mutantIDSelectorName_Func);
+          funcForKS->deleteBody();
+        }
         dup_eq_processor.mutModules[0] = clonedOrig;
         for (unsigned tmpid = 1; tmpid <= tmpHMID;
              tmpid++) // id==0 is the original

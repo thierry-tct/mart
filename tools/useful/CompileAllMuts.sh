@@ -21,6 +21,7 @@ tmpFuncModuleFolder=$3
 removeMutsBCs=$4
 extraLinkingFlags=$5
 fdupesData=$Dir/"fdupes_duplicates.txt"
+fdupesJson=$Dir/"fdupes_duplicates.json"
 mutantsFolder="mutants.out"
 
 ##### CONFIGURATION #####
@@ -62,11 +63,15 @@ then
     sed -i'' 's|.bc|.o|g' "$tmpFuncModuleFolder/mapinfo"
     while read in
     do 
-        x=`printf "$in" | cut -d' ' -f1`
+        x_path=`printf "$in" | cut -d' ' -f1`
+        x_dir=$(dirname $x_path)
+        x=$(basename $x_path)
+        cd $x_dir || error_exit "Failed to cd into x_dir ($x_dir)"
         $llc -O0 -filetype=obj -o $x ${x%.o}.bc || error_exit "Failed to compile mutant $m to object (cmd: $llc -O0 -filetype=obj -o $x ${x%.o}.bc)"
-        $CC -O3 -o ${x%.o} $in $CFLAGS || error_exit "Failed to compile mutant $m to executable (cmd: $CC -O3 -o ${x%.o} $in $CFLAGS)"
-        rm -f $x #$m
-        echo "$bcCount/$nBCs ($SECONDS s) done $x!"   ##DEBUG
+        cd - > /dev/null # go back from x_dir
+        $CC -O3 -o ${x_path%.o} $in $CFLAGS || error_exit "Failed to compile mutant $m to executable (cmd: $CC -O3 -o ${x_path%.o} $in $CFLAGS)"
+        rm -f $x_path #$m
+        echo "$bcCount/$nBCs ($SECONDS s) done $x_path!"   ##DEBUG
         bcCount=$((bcCount+1))
     done < "$tmpFuncModuleFolder/mapinfo"
     [ "$removeMutsBCs" = "yes" ] && { find $mutantsFolder -type f -name "*.bc" -exec rm -f {} + || error_exit "Failed to remove some mutants .bc files"; }
@@ -75,6 +80,33 @@ then
     which fdupes > /dev/null || error_exit "'fdupes' is not installed (or in the PATH): cannot remove further TCE dup/eq."
     fdupes -r -dN  $mutantsFolder > $fdupesData 
     test -s $fdupesData  && find $mutantsFolder -type d -empty -exec rm -rf {} +  #Check if some duplicate mutants were found and remove their folders
+    # Create fdupes_duplicates.json
+    echo "{" > $fdupesJson || error_exit "Failed to create fdupesJson1"
+    newdup=1
+    while read in
+    do
+        # in can be (1) empty line <separator>, (2) master mutant <[+]...>, (3) duplicates <[-]...>
+        if echo $in | grep '\[-]' > /dev/null; then
+            # duplicate
+            [ $newdup -eq 1 ] || error_exit "Invalid fdupes results: newdup not 1 when [-]"
+            echo -n "\"$(basename $(dirname $(echo $in | awk '{print $2}')))\"," >> $fdupesJson
+        elif echo $in | grep '\[+]' > /dev/null; then
+            # master
+            [ $newdup -eq 0 ] || error_exit "Invalid fdupes results: newdup not 0 when [+]"
+            newdup=1
+            echo -n "    \"$(basename $(dirname $(echo $in | awk '{print $2}')))\": [" >> $fdupesJson
+        else
+            if [ $newdup -eq 1 ]; then
+                sed -i'' '$s|,$|],|' $fdupesJson
+                echo >> $fdupesJson
+            fi
+            newdup=0
+        fi
+    done < $fdupesData
+    sed -i'' '$s|,$||' $fdupesJson
+    echo >> $fdupesJson
+    echo "}" >> $fdupesJson || error_exit "Failed to create fdupesJson3"
+    rm -f $fdupesData
 fi
 
 cd - >/dev/null
