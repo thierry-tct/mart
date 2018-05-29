@@ -95,9 +95,10 @@ void readXY(std::string const &fileX, std::string const &fileY,
 
 void merge2into1(
     std::unordered_map<std::string, std::vector<float>> &matrixX1,
-    std::vector<bool> &vectorY1, std::vector<float> &weights1,
+    std::vector<bool> &vectorY1, std::vector<float> &weights1, std::vector<MutantIDType> &mutantIDs1,
     std::unordered_map<std::string, std::vector<float>> const &matrixX2,
-    std::vector<bool> const &vectorY2, std::vector<float> &weights2, std::string const &size) {
+    std::vector<bool> const &vectorY2, std::vector<float> &weights2, std::vector<MutantIDType> &mutantIDs2, 
+    std::string const &size) {
   auto curTotNMuts = vectorY1.size();
   std::vector<MutantIDType> eventsIndices(vectorY2.size(), 0);
   for (MutantIDType v = 0, ve = vectorY2.size(); v < ve; ++v)
@@ -136,6 +137,7 @@ void merge2into1(
   for (auto indx : eventsIndices) {
     vectorY1.push_back(vectorY2[indx]);
     weights1.push_back(weights2[indx]);
+    mutantIDs1.push_back(mutantIDs2[indx]);
   }
 }
 
@@ -372,11 +374,13 @@ int main(int argc, char **argv) {
   std::vector<std::vector<float>> Xmatrix;
   std::vector<bool> Yvector;
   std::vector<float> Weightsvector;
+  std::vector<MutantIDType> MutantsIDvector;
 
   std::unordered_map<std::string, std::vector<float>> Xmapmatrix;
   std::unordered_map<std::string, std::vector<float>> tmpXmapmatrix;
   std::vector<bool> tmpYvector;
   std::vector<float> tmpWeightsvector;
+  std::vector<MutantIDType> tmpMutantsIDvector;
   std::vector<std::string> featuresnames;
 
   llvm::outs() << "# Loading CSVs for " << selectedPrograms.size()
@@ -395,8 +399,11 @@ int main(int argc, char **argv) {
     selectedProjectIDs.push_back(std::get<0>(triple));
     readXY(std::get<1>(triple), std::get<2>(triple), tmpXmapmatrix, tmpYvector, tmpWeightsvector);
     projectIDPerRow.resize(projectIDPerRow.size() + tmpYvector.size(), std::get<0>(triple));
-    merge2into1(Xmapmatrix, Yvector, Weightsvector, tmpXmapmatrix, tmpYvector, tmpWeightsvector,
-                trainingSetEventSize);
+    tmpMutantsIDvector.resize(tmpYvector.size(), 0);
+    for(MutantIDType mid=1; mid <= tmpYvector.size(); ++mid)
+        tmpMutantsIDvector[mid-1] = mid;
+    merge2into1(Xmapmatrix, Yvector, Weightsvector, MutantsIDvector, tmpXmapmatrix, tmpYvector, 
+                tmpWeightsvector, tmpMutantsIDvector, trainingSetEventSize);
   }
 
   llvm::outs() << "# CSVs Loaded. Preparing training data ...\n";
@@ -456,11 +463,13 @@ int main(int argc, char **argv) {
   assert (projectIDPerRow.size() == Weightsvector.size() && "projectIDPerRow size don't match number of rows");
   std::fstream out_all(outputModelFilename+".svmdata.tmp", std::ios_base::out | std::ios_base::trunc);
   out_all << "projectID,";
+  out_all << "mutantID,";
   for (auto feat: featuresnames)
     out_all << feat << ",";
   out_all << "coupling-weight" << "\n";
   for (auto i=0; i < Weightsvector.size(); ++i) {
     out_all << projectIDPerRow[i] << ",";
+    out_all << MutantsIDvector[i] << ",";
     for (auto &fv:Xmatrix)
       out_all << fv[i] << ",";
     out_all << Weightsvector[i] << "\n";
