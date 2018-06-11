@@ -36,6 +36,7 @@ CC=gcc
 #########################
 
 test -d $Dir || error_exit "directory $Dir do not exist"
+entryDir=`pwd`
 cd $Dir
 
 #Compile the generated mutants
@@ -109,5 +110,5 @@ then
     rm -f $fdupesData
 fi
 
-cd - >/dev/null
+cd $entryDir
 
