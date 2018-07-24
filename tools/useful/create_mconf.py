@@ -94,24 +94,24 @@ class GlobalDefs:
             
         for op in self.MATCH_ONLY_DEL:
             assert op not in self.CLASSES, "Already in CLASSES: "+op
-            self.CLASSES[op] = os.path.join("STATEMENT-MUTATION", "WHOLE-STMT", "STMT")
+            self.CLASSES[op] = os.path.join("STATEMENT-MUTATION", "WHOLE-STMT", "WHOLE-STMT", "STMT")
         for op in self.CALL + self.SWITCH:
             assert op not in self.CLASSES, "Already in CLASSES: "+op
-            self.CLASSES[op] = os.path.join("STATEMENT-MUTATION", "PARTIAL-STMT", op)
+            self.CLASSES[op] = os.path.join("STATEMENT-MUTATION", "PARTIAL-STMT", "PARTIAL-STMT", op)
 
         for op in self.DELSTMT + self.TRAPSTMT:
             assert op not in self.CLASSES, "Already in CLASSES: "+op
-            self.CLASSES[op] = os.path.join("STATEMENT-MUTATION", "WHOLE-STMT", op)
+            self.CLASSES[op] = os.path.join("STATEMENT-MUTATION", "WHOLE-STMT", "WHOLE-STMT", op)
         for op in self.NEWCALLEE + self.SHUFFLE_ARGS + self.SHUFFLE_CASESDESTS + self.REMOVE_CASES:
             assert op not in self.CLASSES, "Already in CLASSES: "+op
-            self.CLASSES[op] = os.path.join("STATEMENT-MUTATION", "PARTIAL-STMT", op)
+            self.CLASSES[op] = os.path.join("STATEMENT-MUTATION", "PARTIAL-STMT", "PARTIAL-STMT", op)
 
         for op in self.KEEPOPERAND:
             assert op not in self.CLASSES, "Already in CLASSES: "+op
-            self.CLASSES[op] = os.path.join("EXPRESSION-MUTATION", "KEEP-OPRD")
+            self.CLASSES[op] = os.path.join("EXPRESSION-MUTATION", "ANY", "UNARY", "KEEP-OPRD")
         for op in self.CONSTVAL:
             assert op not in self.CLASSES, "Already in CLASSES: "+op
-            self.CLASSES[op] = os.path.join("EXPRESSION-MUTATION", "CONSTVAL")
+            self.CLASSES[op] = os.path.join("EXPRESSION-MUTATION", "ANY", "UNARY", "CONSTVAL")
 
         for op in self.arith_VAL: 
             assert op not in self.CLASSES, "Already in CLASSES: "+op
