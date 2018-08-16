@@ -52,8 +52,6 @@ done
 
 if test -d $mutantsFolder # && [ `ls 'mutants' | wc -l` -gt 0 ]        #no need to check non empty because the original is alway there
 then
-    progname_=""
-
     nBCs=$(find $mutantsFolder -type f -name "*.bc" | wc -l)
     bcCount=1
     
@@ -72,7 +70,6 @@ then
         cd $x_dir || error_exit "Failed to cd into x_dir ($x_dir)"
         $llc -O0 -filetype=obj -o $x ${x%.o}.bc || error_exit "Failed to compile mutant $m to object (cmd: $llc -O0 -filetype=obj -o $x ${x%.o}.bc)"
         cd - > /dev/null # go back from x_dir
-        progname_=$(basename ${x_path%.o})
         $CC -O3 -o ${x_path%.o} $in $CFLAGS || error_exit "Failed to compile mutant $m to executable (cmd: $CC -O3 -o ${x_path%.o} $in $CFLAGS)"
         rm -f $x_path #$m
         echo "$bcCount/$nBCs ($SECONDS s) done $x_path!"   ##DEBUG
@@ -81,25 +78,10 @@ then
     [ "$removeMutsBCs" = "yes" ] && { find $mutantsFolder -type f -name "*.bc" -exec rm -f {} + || error_exit "Failed to remove some mutants .bc files"; }
     rm -rf $tmpFuncModuleFolder || error_exit "Failed to remove temporary function module folder"
     
-    # Copy original into folder 0, to be considered in fdupes
-    orig_tmp_folder=$mutantsFolder/0
-    if [ "$progname_" != "" ]; then
-        test -d $orig_tmp_folder && error_exit "original folder for fdupes already exist, must not (BUG??). $orig_tmp_folder"
-        mkdir $orig_tmp_folder || error_exit "Failed to create original folder for fdupes. $orig_tmp_folder"
-        # the original was compiled in the loop before the if to check if mutants are generated. Copy here
-        cp $Dir/$progname_ $orig_tmp_folder || error_exit "Failed to copy original for fdupes: cp $Dir/$progname_ $orig_tmp_folder"
-        # make sure fdupe will keep it
-        touch -d "$(date -R -r $Dir/$progname_) - 1 day" $orig_tmp_folder/$progname_ || error_exit "Failed to set time of $orig_tmp_folder/$progname_"
-        touch -d "$(date -R -r $Dir/$progname_) - 1 day" $orig_tmp_folder || error_exit "Failed to set time of $orig_tmp_folder"
-    fi
-
     which fdupes > /dev/null || error_exit "'fdupes' is not installed (or in the PATH): cannot remove further TCE dup/eq."
     fdupes -r -dN  $mutantsFolder > $fdupesData 
     test -s $fdupesData  && find $mutantsFolder -type d -empty -exec rm -rf {} +  #Check if some duplicate mutants were found and remove their folders
     
-    # remove orig_tmp_folder
-    rm -rf $orig_tmp_folder || error_exit "failed to remove original tmp folder for fdupes"
-
     # Create fdupes_duplicates.json
     echo "{" > $fdupesJson || error_exit "Failed to create fdupesJson1"
     newdup=1

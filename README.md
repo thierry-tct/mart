@@ -67,4 +67,9 @@ cmake \
   ../src
 ```
 
+# TODO
+- Fix auto creation of AUTOGE headers ".inc"
+- Fix compiling third-parties/dg (CMake file when pull), should point to right version
+- Give build option to enable mutant selection
+
 
