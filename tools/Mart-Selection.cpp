@@ -146,6 +146,24 @@ int main(int argc, char **argv) {
       "no-selection",
       llvm::cl::desc("(optional) Disable selection. useful when only want to "
                      "get the mutants features into a CSV file for training"));
+  llvm::cl::opt<bool> enable_smart_selection(
+      "do-smart-selection",
+      llvm::cl::desc("(optional) enable smart selection"));
+  llvm::cl::opt<bool> enable_MCL_selection(
+      "do-mcl-selection",
+      llvm::cl::desc("(optional) enable MCL selection"));
+  llvm::cl::opt<bool> enable_ISSTA2017_selection(
+      "do-issta2017-selection",
+      llvm::cl::desc("(optional) enable ISSTA2017 selection"));
+  llvm::cl::opt<bool> enable_mutanttypeonly_selection(
+      "do-mutanttypeonly-selection",
+      llvm::cl::desc("(optional) enable mutant type only selection"));
+  llvm::cl::opt<bool> enable_defectprediction_selection(
+      "do-defectprediction-selection",
+      llvm::cl::desc("(optional) enable defect prediction selection"));
+  llvm::cl::opt<bool> enable_random_selection(
+      "do-random-selection",
+      llvm::cl::desc("(optional) enable random selection"));
 
   llvm::cl::SetVersionPrinter(printVersion);
 
@@ -273,10 +291,12 @@ int main(int argc, char **argv) {
       llvm::errs() << "Mart@Warning: Nothing Done because selection and dump "
                       "features disabled\n";
   } else {
-    bool doSmart = false;
-    bool doMCLOnly = false;
-    bool doMutTypeOnly = true;
-    bool doDefectPrediction = true;
+    bool doSmart = enable_smart_selection;
+    bool doMCLOnly = enable_MCL_selection;
+    bool doMutTypeOnly = enable_mutanttypeonly_selection;
+    bool doDefectPrediction = enable_defectprediction_selection;
+    bool doISSTA2017 = enable_ISSTA2017_selection;
+    bool doRandom = enable_random_selection;
 
     if (smartSelectionTrainedModel.empty()) {
       smartSelectionTrainedModel.assign(getUsefulAbsPath(argv[0]) + "/" + defaultTrainedModel);
@@ -394,26 +414,28 @@ int main(int argc, char **argv) {
               << " Seconds.\n";
     }
     
-    llvm::outs() << "Doing ISSTA2017 Selection...\n";
-    curClockTime = clock();
-    selectedMutants1.clear();
-    selectedMutants1.resize(numberOfRandomSelections);
-    // std::vector<double> selectedScores;
-    // to make experiment faster XXX: Note to take this in consideration when
-    // measuring the algorithm time
-    cachedPrediction.clear();
-    for (unsigned si = 0; si < numberOfRandomSelections; ++si) {
-      selection.smartSelectMutants(selectedMutants1[si], cachedPrediction,
-                                   issta2017SelectionTrainedModel, 
-                                   true /*mlOff*/, false /*mclOn*/, false/*dp*/);
+    if (doISSTA2017) {
+      llvm::outs() << "Doing ISSTA2017 Selection...\n";
+      curClockTime = clock();
+      selectedMutants1.clear();
+      selectedMutants1.resize(numberOfRandomSelections);
+      // std::vector<double> selectedScores;
+      // to make experiment faster XXX: Note to take this in consideration when
+      // measuring the algorithm time
+      cachedPrediction.clear();
+      for (unsigned si = 0; si < numberOfRandomSelections; ++si) {
+        selection.smartSelectMutants(selectedMutants1[si], cachedPrediction,
+                                     issta2017SelectionTrainedModel, 
+                                     true /*mlOff*/, false /*mclOn*/, false/*dp*/);
+      }
+      mutantListAsJsON<MutantIDType>(selectedMutants1, issta2017SelectionOutJson);
+      llvm::outs() << "Mart@Progress: ISSTA2017 selection took: "
+                   << (float)(clock() - curClockTime) / CLOCKS_PER_SEC
+                   << " Seconds.\n";
+      loginfo << "Mart@Progress: ISSTA2017 selection took: "
+              << (float)(clock() - curClockTime) / CLOCKS_PER_SEC
+              << " Seconds.\n";
     }
-    mutantListAsJsON<MutantIDType>(selectedMutants1, issta2017SelectionOutJson);
-    llvm::outs() << "Mart@Progress: ISSTA2017 selection took: "
-                 << (float)(clock() - curClockTime) / CLOCKS_PER_SEC
-                 << " Seconds.\n";
-    loginfo << "Mart@Progress: ISSTA2017 selection took: "
-            << (float)(clock() - curClockTime) / CLOCKS_PER_SEC
-            << " Seconds.\n";
 
     if (doMutTypeOnly) {
       llvm::outs() << "Doing MutTypeOnly Selection...\n";
@@ -461,26 +483,28 @@ int main(int argc, char **argv) {
               << " Seconds.\n";
     }
 
-    llvm::outs() << "Doing dummy and spread random selection...\n";
-    curClockTime = clock();
-    selectedMutants1.clear();
-    selectedMutants2.clear();
-    selectedMutants1.resize(numberOfRandomSelections);
-    selectedMutants2.resize(numberOfRandomSelections);
-    for (unsigned si = 0; si < numberOfRandomSelections; ++si)
-      selection.randomMutants(selectedMutants1[si], selectedMutants2[si],
-                              number);
-    mutantListAsJsON<MutantIDType>(selectedMutants1,
-                                   spreadRandomSelectionOutJson);
-    mutantListAsJsON<MutantIDType>(selectedMutants2,
-                                   dummyRandomSelectionOutJson);
-    llvm::outs() << "Mart@Progress: dummy and spread random took: "
-                 << (float)(clock() - curClockTime) / CLOCKS_PER_SEC
-                 << " Seconds. (" << numberOfRandomSelections
-                 << " repetitions)\n";
-    loginfo << "Mart@Progress: dummy and spread random took: "
-            << (float)(clock() - curClockTime) / CLOCKS_PER_SEC << " Seconds. ("
-            << numberOfRandomSelections << " repetitions)\n";
+    if (doRandom) {
+      llvm::outs() << "Doing dummy and spread random selection...\n";
+      curClockTime = clock();
+      selectedMutants1.clear();
+      selectedMutants2.clear();
+      selectedMutants1.resize(numberOfRandomSelections);
+      selectedMutants2.resize(numberOfRandomSelections);
+      for (unsigned si = 0; si < numberOfRandomSelections; ++si)
+        selection.randomMutants(selectedMutants1[si], selectedMutants2[si],
+                                number);
+      mutantListAsJsON<MutantIDType>(selectedMutants1,
+                                     spreadRandomSelectionOutJson);
+      mutantListAsJsON<MutantIDType>(selectedMutants2,
+                                     dummyRandomSelectionOutJson);
+      llvm::outs() << "Mart@Progress: dummy and spread random took: "
+                   << (float)(clock() - curClockTime) / CLOCKS_PER_SEC
+                   << " Seconds. (" << numberOfRandomSelections
+                   << " repetitions)\n";
+      loginfo << "Mart@Progress: dummy and spread random took: "
+              << (float)(clock() - curClockTime) / CLOCKS_PER_SEC << " Seconds. ("
+              << numberOfRandomSelections << " repetitions)\n";
+    }
 
     /*llvm::outs()
         << "Doing random SDL selection...\n"; // select only SDL mutants
