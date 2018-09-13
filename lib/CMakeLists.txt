@@ -3,7 +3,11 @@ if (MART_SEMU_GENMU)
     include_directories( ${CMAKE_CURRENT_SOURCE_DIR}/operatorsClasses )
     #include_directories(${CMAKE_CURRENT_BINARY_DIR}/third-parties/FastBDT/include)
     #include_directories( ${CMAKE_CURRENT_SOURCE_DIR}/third-parties )
-    include_directories( ${CMAKE_CURRENT_SOURCE_DIR}/third-parties/dg/src )
+
+    if (MART_MUTANT_SELECTION)
+        include_directories( ${CMAKE_CURRENT_SOURCE_DIR}/third-parties/dg/src )
+    endif (MART_MUTANT_SELECTION)
+
     #include_directories( ${CMAKE_CURRENT_SOURCE_DIR}/third-parties/random-forest/include)
     
     add_custom_command ( OUTPUT ${CMAKE_CURRENT_SOURCE_DIR}/AUTOGEN_mutation_op_headers.h.inc
@@ -42,21 +46,25 @@ if (MART_SEMU_GENMU)
 
     target_link_libraries(KLEE-SEMu-GenMu UserMaps ${llvm_libs} JsonBox) #link with JsonBox
     
-    #Mutant Selection
-    add_subdirectory(third-parties/dg)     #Add dg build dir
-    add_subdirectory(third-parties/FastBDT)     #Add FastBDT build dir
-    #add_subdirectory(third-parties/random-forest)     #Add FastBDT build dir
-    add_library(MutantSelection SHARED
-        mutantsSelection/MutantSelection.cpp
-    )
-    target_include_directories( MutantSelection PRIVATE 
-                                ${CMAKE_CURRENT_SOURCE_DIR}/third-parties/dg/src 
-                                ${CMAKE_CURRENT_BINARY_DIR}/third-parties/FastBDT/include
-                                ${CMAKE_CURRENT_SOURCE_DIR}/third-parties/random-forest/include 
-                            )
-    target_link_libraries(MutantSelection UserMaps JsonBox LLVMdg FastBDT_shared) #LLVMpta PTA RD 
+    if (MART_MUTANT_SELECTION)
+        #Mutant Selection
+        add_subdirectory(third-parties/dg)     #Add dg build dir
+        add_subdirectory(third-parties/FastBDT)     #Add FastBDT build dir
+        #add_subdirectory(third-parties/random-forest)     #Add FastBDT build dir
+        add_library(MutantSelection SHARED
+            mutantsSelection/MutantSelection.cpp
+        )
+        target_include_directories( MutantSelection PRIVATE 
+                                    ${CMAKE_CURRENT_SOURCE_DIR}/third-parties/dg/src 
+                                    ${CMAKE_CURRENT_BINARY_DIR}/third-parties/FastBDT/include
+                                    ${CMAKE_CURRENT_SOURCE_DIR}/third-parties/random-forest/include 
+                                )
+        target_link_libraries(MutantSelection UserMaps JsonBox LLVMdg FastBDT_shared) #LLVMpta PTA RD 
+        install(TARGETS MutantSelection
+                LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR})
+    endif (MART_MUTANT_SELECTION)
         
-    install(TARGETS KLEE-SEMu-GenMu MutantSelection
+    install(TARGETS KLEE-SEMu-GenMu
             LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR})
 
     install(FILES
