@@ -21,7 +21,11 @@ set(CMAKE_CXX_STANDARD_REQUIRED on)
 OPTION(MART_SEMU_GENMU "Support for Mutant Generation" ON)
 
 #OPTION(MART_MUTANT_SELECTION "Support for Mutant Selection" ON)
-message(STATUS "Enable mutant selection by setting MART_MUTANT_SELECTION using -DMART_MUTANT_SELECTION")
+if (MART_MUTANT_SELECTION)
+    message(STATUS "Mutant selection is enabled")
+else()
+    message(STATUS "Enable mutant selection by setting MART_MUTANT_SELECTION using -DMART_MUTANT_SELECTION=on")
+endif()
 
 #Set this to ON for generation of mutants object file (note that this will increase the executable size:  4MB VS 400MB)
 OPTION(MART_SEMU_GENMU_OBJECTFILE "Support for object file generation" OFF) 
