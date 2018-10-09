@@ -48,6 +48,8 @@ static const std::string
     mutantTypeOnlyTrainedModel("trained-models/mutant-type-only.model");
 static const std::string
     defectPredictionTrainedModel("trained-models/defect-prediction.model");
+static const std::string
+    equivalentMutantsTrainedModel("trained-models/equivalent-mutants.model");
 static std::stringstream loginfo;
 static std::string outFile;
 
@@ -139,6 +141,11 @@ int main(int argc, char **argv) {
       llvm::cl::desc(
           "(optional) Specify the alternative to use for prediction for defect prediction"),
       llvm::cl::init(""));
+  llvm::cl::opt<std::string> equivalentMutantsDetectionTrainedModel(
+      "equivalent-mutants-trained-model",
+      llvm::cl::desc(
+          "(optional) Specify the alternative to use for prediction for equivalent mutants"),
+      llvm::cl::init(""));
   llvm::cl::opt<bool> dumpMutantsFeaturesToCSV(
       "dump-features",
       llvm::cl::desc("(optional) enable dumping features to CSV file"));
@@ -146,6 +153,9 @@ int main(int argc, char **argv) {
       "no-selection",
       llvm::cl::desc("(optional) Disable selection. useful when only want to "
                      "get the mutants features into a CSV file for training"));
+  llvm::cl::opt<bool> disable_mlonly_selection(
+      "no-mlonly-selection",
+      llvm::cl::desc("(optional) disable ml-only selection"));
   llvm::cl::opt<bool> enable_smart_selection(
       "do-smart-selection",
       llvm::cl::desc("(optional) enable smart selection"));
@@ -161,6 +171,9 @@ int main(int argc, char **argv) {
   llvm::cl::opt<bool> enable_defectprediction_selection(
       "do-defectprediction-selection",
       llvm::cl::desc("(optional) enable defect prediction selection"));
+  llvm::cl::opt<bool> enable_equivalentmutant_detection(
+      "do-equivalentmutants-detection",
+      llvm::cl::desc("(optional) enable detection of equivalent mutants"));
   llvm::cl::opt<bool> enable_random_selection(
       "do-random-selection",
       llvm::cl::desc("(optional) enable random selection"));
@@ -291,17 +304,19 @@ int main(int argc, char **argv) {
       llvm::errs() << "Mart@Warning: Nothing Done because selection and dump "
                       "features disabled\n";
   } else {
+    bool doMLOnly = ! disable_mlonly_selection;
     bool doSmart = enable_smart_selection;
     bool doMCLOnly = enable_MCL_selection;
     bool doMutTypeOnly = enable_mutanttypeonly_selection;
     bool doDefectPrediction = enable_defectprediction_selection;
     bool doISSTA2017 = enable_ISSTA2017_selection;
     bool doRandom = enable_random_selection;
+    bool doEquivalentMutants = enable_equivalentmutant_detection;
 
     if (smartSelectionTrainedModel.empty()) {
       smartSelectionTrainedModel.assign(getUsefulAbsPath(argv[0]) + "/" + defaultTrainedModel);
     }
-    assert(llvm::sys::fs::is_regular_file(smartSelectionTrainedModel) && "Selection model file is not found");
+    assert(llvm::sys::fs::is_regular_file(smartSelectionTrainedModel) && "Smart Selection model file is not found");
 
     if (issta2017SelectionTrainedModel.empty()) {
       issta2017SelectionTrainedModel.assign(getUsefulAbsPath(argv[0]) + "/" + issta2017TrainedModel);
@@ -311,12 +326,16 @@ int main(int argc, char **argv) {
     if (mutantTypeOnlySelectionTrainedModel.empty()) {
       mutantTypeOnlySelectionTrainedModel.assign(getUsefulAbsPath(argv[0]) + "/" + mutantTypeOnlyTrainedModel);
     }
-    assert(llvm::sys::fs::is_regular_file(mutantTypeOnlySelectionTrainedModel) && "Issta2017 selection model file is not found");
+    assert(llvm::sys::fs::is_regular_file(mutantTypeOnlySelectionTrainedModel) && "cwmutant type only selection model file is not found");
 
     if (defectPredictionSelectionTrainedModel.empty()) {
       defectPredictionSelectionTrainedModel.assign(getUsefulAbsPath(argv[0]) + "/" + defectPredictionTrainedModel);
     }
-    assert(llvm::sys::fs::is_regular_file(defectPredictionSelectionTrainedModel) && "Issta2017 selection model file is not found");
+    assert(llvm::sys::fs::is_regular_file(defectPredictionSelectionTrainedModel) && "Defect pred selection model file is not found");
+    if (equivalentMutantsDetectionTrainedModel.empty()) {
+      equivalentMutantsDetectionTrainedModel.assign(getUsefulAbsPath(argv[0]) + "/" + equivalentMutantsTrainedModel);
+    }
+    assert(llvm::sys::fs::is_regular_file(equivalentMutantsDetectionTrainedModel) && "equivalent mutants detection model file is not found");
 
     std::string smartSelectionOutJson = outDir + "/" + "smartSelection.json";
     std::string mutTypeOnlySelectionOutJson = outDir + "/" + "mutTypeOnlySelection.json";
@@ -332,6 +351,8 @@ int main(int argc, char **argv) {
         outDir + "/" + "spreadRandomSelection.json";
     std::string dummyRandomSelectionOutJson =
         outDir + "/" + "dummyRandomSelection.json";
+    std::string scoresForEquivalentmutantsDetectionOutJson =
+        outDir + "/" + "scoresForEquivalentMutantsDetection.json";
 
     std::vector<std::vector<MutantIDType>> selectedMutants1, selectedMutants2;
     unsigned long number = 0;
@@ -362,34 +383,58 @@ int main(int argc, char **argv) {
     }
 
 
-    llvm::outs() << "Doing ML Only Selection...\n";
-    curClockTime = clock();
-    selectedMutants1.clear();
-    selectedMutants1.resize(numberOfRandomSelections);
-    // std::vector<double> selectedScores;
-    // to make experiment faster XXX: Note to take this in consideration when
-    // measuring the algorithm time
-    cachedPrediction.clear();
-    for (unsigned si = 0; si < numberOfRandomSelections; ++si) {
-      selection.smartSelectMutants(selectedMutants1[si], cachedPrediction,
-                                   smartSelectionTrainedModel, 
-                                   true /*mlOn*/, false /*mclOff*/, false/*dp*/);
+    if (doMLOnly) {
+      llvm::outs() << "Doing ML Only Selection...\n";
+      curClockTime = clock();
+      selectedMutants1.clear();
+      selectedMutants1.resize(numberOfRandomSelections);
+      // std::vector<double> selectedScores;
+      // to make experiment faster XXX: Note to take this in consideration when
+      // measuring the algorithm time
+      cachedPrediction.clear();
+      for (unsigned si = 0; si < numberOfRandomSelections; ++si) {
+        selection.smartSelectMutants(selectedMutants1[si], cachedPrediction,
+                                     smartSelectionTrainedModel, 
+                                     true /*mlOn*/, false /*mclOff*/, false/*dp*/);
+      }
+      mutantListAsJsON<MutantIDType>(selectedMutants1, mlOnlySelectionOutJson);
+      llvm::outs() << "Mart@Progress: ML Only selection took: "
+                   << (float)(clock() - curClockTime) / CLOCKS_PER_SEC
+                   << " Seconds.\n";
+      loginfo << "Mart@Progress: ML Only selection took: "
+              << (float)(clock() - curClockTime) / CLOCKS_PER_SEC
+              << " Seconds.\n";
+
+      number = selectedMutants1.back().size();
+      assert(number == mutantInfo.getMutantsNumber() &&
+             "The number of mutants mismatch. Bug in Selection function!");
+
+      // write ML's scores
+      mutantListAsJsON<float>(std::vector<std::vector<float>>({cachedPrediction}),
+                               scoresForSmartSelectionOutJson);
     }
-    mutantListAsJsON<MutantIDType>(selectedMutants1, mlOnlySelectionOutJson);
-    llvm::outs() << "Mart@Progress: ML Only selection took: "
-                 << (float)(clock() - curClockTime) / CLOCKS_PER_SEC
-                 << " Seconds.\n";
-    loginfo << "Mart@Progress: ML Only selection took: "
-            << (float)(clock() - curClockTime) / CLOCKS_PER_SEC
-            << " Seconds.\n";
 
-    number = selectedMutants1.back().size();
-    assert(number == mutantInfo.getMutantsNumber() &&
-           "The number of mutants mismatch. Bug in Selection function!");
+    if (doEquivalentMutants) {
+      llvm::outs() << "Doing Equivalent mutants detection...\n";
+      curClockTime = clock();
+      cachedPrediction.clear();
 
-    // write ML's scores
-    mutantListAsJsON<float>(std::vector<std::vector<float>>({cachedPrediction}),
-                             scoresForSmartSelectionOutJson);
+      selectedMutants1.clear();
+      selectedMutants1.resize(1);
+      selection.smartSelectMutants(selectedMutants1[0], cachedPrediction,
+                                   equivalentMutantsDetectionTrainedModel,
+                                   true /*mlOn*/, false /*mclOff*/, false/*dp*/);
+
+      // XXX No need to store mutants order
+      
+      number = selectedMutants1.back().size();
+      assert(number == mutantInfo.getMutantsNumber() &&
+             "The number of mutants mismatch. Bug in Selection function!");
+
+      // write ML's scores
+      mutantListAsJsON<float>(std::vector<std::vector<float>>({cachedPrediction}),
+                               scoresForEquivalentmutantsDetectionOutJson);
+    }
 
     if (doMCLOnly) {
       llvm::outs() << "Doing MCL Only Selection...\n";
