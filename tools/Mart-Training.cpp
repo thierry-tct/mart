@@ -15,6 +15,8 @@
 #include <fstream>
 #include <iostream>
 #include <string>
+//#include <unordered_map>
+//#include <unordered_set>
 
 #include "../lib/mutantsSelection/MutantSelection.h" //for PredictionModule
 
@@ -27,6 +29,20 @@ using namespace mart::selection;
 #include "tools_commondefs.h"
 
 #define NaN (0.0)
+
+void loadMapOfConsideredMutants(
+    std::string inputMapFilename,
+    std::unordered_map<std::string, std::unordered_set<MutantIDType>> &project2consideredMuts) {
+  std::ifstream m_in(inputMapFilename);
+  std::string line, projectID, tmp;
+  while (std::getline(m_in, line)) {
+    std::istringstream ss(line);
+    std::getline(ss, projectID, ' ');
+    project2consideredMuts[projectID];
+    while (std::getline(ss, tmp, ' '))
+      project2consideredMuts[projectID].insert(std::stoul(tmp));
+  }
+}
 
 void loadDescription(
     std::string inputDescriptionFile,
@@ -46,14 +62,22 @@ void loadDescription(
 
 void readXY(std::string const &fileX, std::string const &fileY,
             std::unordered_map<std::string, std::vector<float>> &matrixX,
-            std::vector<bool> &vectorY, std::vector<float> &weights) {
+            std::vector<bool> &vectorY, std::vector<float> &weights,
+            std::vector<MutantIDType> &mutantIDList,
+            std::unordered_set<MutantIDType> const *consideredMutants) {
   // read Y and weights
   std::ifstream listin(fileY);
   std::string line;
   std::getline(listin, line); // read the header and discard
   int isCoupled;
   float weight;
+  MutantIDType mutID;
+  mutID = 0;
   while (std::getline(listin, line)) {
+    ++mutID;
+    if (consideredMutants && consideredMutants->count(mutID) == 0)
+      continue;
+    mutantIDList.push_back(mutID);
     std::string tmp;
     std::istringstream ssin(line);
     std::getline(ssin, tmp, ',');
@@ -76,7 +100,11 @@ void readXY(std::string const &fileX, std::string const &fileY,
   }
 
   float featurevalue;
+  mutID = 0;
   while (std::getline(csvin, line)) {
+    ++mutID;
+    if (consideredMutants && consideredMutants->count(mutID) == 0)
+      continue;
     std::istringstream ss(line);
     unsigned long index = 0;
     while (ss.good()) {
@@ -304,6 +332,10 @@ int main(int argc, char **argv) {
   llvm::cl::opt<bool> noRandom(
       "no-random",
       llvm::cl::desc("(optional) Do not randomize the specified project, use from the top downward"));
+  llvm::cl::opt<std::string> mapOfMutantsToConsiderPerProject( 
+      "considered-mutants",
+      llvm::cl::desc(
+          "(Required) Specify the filepath of the file containing the mutants to use for training. each row has: <projectID> <list of mutants>"));
 
   llvm::cl::SetVersionPrinter(printVersion);
 
@@ -386,6 +418,13 @@ int main(int argc, char **argv) {
   llvm::outs() << "# Loading CSVs for " << selectedPrograms.size()
                << " programs ...\n";
 
+  
+  std::unordered_map<std::string, std::unordered_set<MutantIDType>> project2consideredMuts;
+  if (! mapOfMutantsToConsiderPerProject.empty()) {
+    loadMapOfConsideredMutants(mapOfMutantsToConsiderPerProject, 
+                                project2consideredMuts);
+  }
+
   std::vector<std::string> selectedProjectIDs;
   std::vector<std::string> projectIDPerRow;
   // for (auto &pair: programTrainSets) {
@@ -394,17 +433,26 @@ int main(int argc, char **argv) {
     tmpXmapmatrix.clear();
     tmpYvector.clear();
     tmpWeightsvector.clear();
+    tmpMutantsIDvector.clear();
 
     // time costly
     selectedProjectIDs.push_back(std::get<0>(triple));
-    readXY(std::get<1>(triple), std::get<2>(triple), tmpXmapmatrix, tmpYvector, tmpWeightsvector);
-    projectIDPerRow.resize(projectIDPerRow.size() + tmpYvector.size(), std::get<0>(triple));
-    tmpMutantsIDvector.resize(tmpYvector.size(), 0);
-    for(MutantIDType mid=1; mid <= tmpYvector.size(); ++mid)
-        tmpMutantsIDvector[mid-1] = mid;
-    merge2into1(Xmapmatrix, Yvector, Weightsvector, MutantsIDvector, tmpXmapmatrix, tmpYvector, 
-                tmpWeightsvector, tmpMutantsIDvector, trainingSetEventSize);
+    if (mapOfMutantsToConsiderPerProject.empty()) {
+      readXY(std::get<1>(triple), std::get<2>(triple), tmpXmapmatrix, tmpYvector, tmpWeightsvector,
+              tmpMutantsIDvector, nullptr);
+    } else {
+      readXY(std::get<1>(triple), std::get<2>(triple), tmpXmapmatrix, tmpYvector, tmpWeightsvector,
+              tmpMutantsIDvector, &(project2consideredMuts[std::get<0>(triple)]));
+    }
+
+    if (tmpYvector.size() > 0) {
+      projectIDPerRow.resize(projectIDPerRow.size() + tmpYvector.size(), std::get<0>(triple));
+      merge2into1(Xmapmatrix, Yvector, Weightsvector, MutantsIDvector, tmpXmapmatrix, tmpYvector, 
+                  tmpWeightsvector, tmpMutantsIDvector, trainingSetEventSize);
+    }
   }
+
+  project2consideredMuts.clear();
 
   llvm::outs() << "# CSVs Loaded. Preparing training data ...\n";
 
