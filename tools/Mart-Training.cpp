@@ -365,6 +365,13 @@ int main(int argc, char **argv) {
 
   std::vector<std::tuple<std::string, std::string, std::string>> programTrainSets;
 
+  // Make sure that only one of equivalent, subsuming and hard to kill is used
+  if (int(forEquivalent)+int(forSubsuming)+int(forHardToKill) > 1) {
+    llvm::errs() << "error: should enable only one of equivalent, subsuming and hard to kill";
+    assert (false);
+    exit(1);
+  }
+
   std::string Xfilename;
   std::string Yfilename;
   auto commapos = inputDescriptionFile.find(',');
