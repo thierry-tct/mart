@@ -50,6 +50,10 @@ static const std::string
     defectPredictionTrainedModel("trained-models/defect-prediction.model");
 static const std::string
     equivalentMutantsTrainedModel("trained-models/equivalent-mutants.model");
+static const std::string
+    subsumingMutantsTrainedModel("trained-models/subsuming-mutants.model");
+static const std::string
+    hardtokillMutantsTrainedModel("trained-models/hardtokill-mutants.model");
 static std::stringstream loginfo;
 static std::string outFile;
 
@@ -146,6 +150,16 @@ int main(int argc, char **argv) {
       llvm::cl::desc(
           "(optional) Specify the alternative to use for prediction for equivalent mutants"),
       llvm::cl::init(""));
+  llvm::cl::opt<std::string> subsumingMutantsDetectionTrainedModel(
+      "subsuming-mutants-trained-model",
+      llvm::cl::desc(
+          "(optional) Specify the alternative to use for prediction for subsuming mutants"),
+      llvm::cl::init(""));
+  llvm::cl::opt<std::string> hardtokillMutantsDetectionTrainedModel(
+      "hardtokill-mutants-trained-model",
+      llvm::cl::desc(
+          "(optional) Specify the alternative to use for prediction for hardtokill mutants"),
+      llvm::cl::init(""));
   llvm::cl::opt<bool> dumpMutantsFeaturesToCSV(
       "dump-features",
       llvm::cl::desc("(optional) enable dumping features to CSV file"));
@@ -174,6 +188,12 @@ int main(int argc, char **argv) {
   llvm::cl::opt<bool> enable_equivalentmutant_detection(
       "do-equivalentmutants-detection",
       llvm::cl::desc("(optional) enable detection of equivalent mutants"));
+  llvm::cl::opt<bool> enable_subsumingmutant_detection(
+      "do-subsumingmutants-detection",
+      llvm::cl::desc("(optional) enable detection of subsuming mutants"));
+  llvm::cl::opt<bool> enable_hardtokillmutant_detection(
+      "do-hardtokillmutants-detection",
+      llvm::cl::desc("(optional) enable detection of hard to kill mutants"));
   llvm::cl::opt<bool> enable_random_selection(
       "do-random-selection",
       llvm::cl::desc("(optional) enable random selection"));
@@ -312,30 +332,50 @@ int main(int argc, char **argv) {
     bool doISSTA2017 = enable_ISSTA2017_selection;
     bool doRandom = enable_random_selection;
     bool doEquivalentMutants = enable_equivalentmutant_detection;
+    bool doSubsumingMutants = enable_subsumingmutant_detection;
+    bool doHardtokillMutants = enable_hardtokillmutant_detection;
 
     if (smartSelectionTrainedModel.empty()) {
       smartSelectionTrainedModel.assign(getUsefulAbsPath(argv[0]) + "/" + defaultTrainedModel);
     }
-    assert(llvm::sys::fs::is_regular_file(smartSelectionTrainedModel) && "Smart Selection model file is not found");
+    if (doSmart || doMLOnly)
+        assert(llvm::sys::fs::is_regular_file(smartSelectionTrainedModel) && "Smart Selection model file is not found");
 
     if (issta2017SelectionTrainedModel.empty()) {
       issta2017SelectionTrainedModel.assign(getUsefulAbsPath(argv[0]) + "/" + issta2017TrainedModel);
     }
-    assert(llvm::sys::fs::is_regular_file(issta2017SelectionTrainedModel) && "Issta2017 selection model file is not found");
+    if (doISSTA2017)
+        assert(llvm::sys::fs::is_regular_file(issta2017SelectionTrainedModel) && "Issta2017 selection model file is not found");
 
     if (mutantTypeOnlySelectionTrainedModel.empty()) {
       mutantTypeOnlySelectionTrainedModel.assign(getUsefulAbsPath(argv[0]) + "/" + mutantTypeOnlyTrainedModel);
     }
-    assert(llvm::sys::fs::is_regular_file(mutantTypeOnlySelectionTrainedModel) && "cwmutant type only selection model file is not found");
+    if (doMutTypeOnly)
+        assert(llvm::sys::fs::is_regular_file(mutantTypeOnlySelectionTrainedModel) && "cwmutant type only selection model file is not found");
 
     if (defectPredictionSelectionTrainedModel.empty()) {
       defectPredictionSelectionTrainedModel.assign(getUsefulAbsPath(argv[0]) + "/" + defectPredictionTrainedModel);
     }
-    assert(llvm::sys::fs::is_regular_file(defectPredictionSelectionTrainedModel) && "Defect pred selection model file is not found");
+    if (doDefectPrediction)
+        assert(llvm::sys::fs::is_regular_file(defectPredictionSelectionTrainedModel) && "Defect pred selection model file is not found");
+
     if (equivalentMutantsDetectionTrainedModel.empty()) {
       equivalentMutantsDetectionTrainedModel.assign(getUsefulAbsPath(argv[0]) + "/" + equivalentMutantsTrainedModel);
     }
-    assert(llvm::sys::fs::is_regular_file(equivalentMutantsDetectionTrainedModel) && "equivalent mutants detection model file is not found");
+    if (doEquivalentMutants)
+        assert(llvm::sys::fs::is_regular_file(equivalentMutantsDetectionTrainedModel) && "equivalent mutants detection model file is not found");
+
+    if (subsumingMutantsDetectionTrainedModel.empty()) {
+      subsumingMutantsDetectionTrainedModel.assign(getUsefulAbsPath(argv[0]) + "/" + subsumingMutantsTrainedModel);
+    }
+    if (doSubsumingMutants)
+        assert(llvm::sys::fs::is_regular_file(subsumingMutantsDetectionTrainedModel) && "subsuming mutants detection model file is not found");
+
+    if (hardtokillMutantsDetectionTrainedModel.empty()) {
+      hardtokillMutantsDetectionTrainedModel.assign(getUsefulAbsPath(argv[0]) + "/" + hardtokillMutantsTrainedModel);
+    }
+    if (doHardtokillMutants)
+        assert(llvm::sys::fs::is_regular_file(hardtokillMutantsDetectionTrainedModel) && "hardtokill mutants detection model file is not found");
 
     std::string smartSelectionOutJson = outDir + "/" + "smartSelection.json";
     std::string mutTypeOnlySelectionOutJson = outDir + "/" + "mutTypeOnlySelection.json";
@@ -353,6 +393,10 @@ int main(int argc, char **argv) {
         outDir + "/" + "dummyRandomSelection.json";
     std::string scoresForEquivalentmutantsDetectionOutJson =
         outDir + "/" + "scoresForEquivalentMutantsDetection.json";
+    std::string scoresForSubsumingmutantsDetectionOutJson =
+        outDir + "/" + "scoresForSubsumingMutantsDetection.json";
+    std::string scoresForHardtokillmutantsDetectionOutJson =
+        outDir + "/" + "scoresForHardtokillMutantsDetection.json";
 
     std::vector<std::vector<MutantIDType>> selectedMutants1, selectedMutants2;
     unsigned long number = 0;
@@ -434,6 +478,50 @@ int main(int argc, char **argv) {
       // write ML's scores
       mutantListAsJsON<float>(std::vector<std::vector<float>>({cachedPrediction}),
                                scoresForEquivalentmutantsDetectionOutJson);
+    }
+
+    if (doSubsumingMutants) {
+      llvm::outs() << "Doing Subsuming mutants detection...\n";
+      curClockTime = clock();
+      cachedPrediction.clear();
+
+      selectedMutants1.clear();
+      selectedMutants1.resize(1);
+      selection.smartSelectMutants(selectedMutants1[0], cachedPrediction,
+                                   subsumingMutantsDetectionTrainedModel,
+                                   true /*mlOn*/, false /*mclOff*/, false/*dp*/);
+
+      // XXX No need to store mutants order
+      
+      number = selectedMutants1.back().size();
+      assert(number == mutantInfo.getMutantsNumber() &&
+             "The number of mutants mismatch. Bug in Selection function!");
+
+      // write ML's scores
+      mutantListAsJsON<float>(std::vector<std::vector<float>>({cachedPrediction}),
+                               scoresForSubsumingmutantsDetectionOutJson);
+    }
+
+    if (doHardtokillMutants) {
+      llvm::outs() << "Doing Hardtokill mutants detection...\n";
+      curClockTime = clock();
+      cachedPrediction.clear();
+
+      selectedMutants1.clear();
+      selectedMutants1.resize(1);
+      selection.smartSelectMutants(selectedMutants1[0], cachedPrediction,
+                                   hardtokillMutantsDetectionTrainedModel,
+                                   true /*mlOn*/, false /*mclOff*/, false/*dp*/);
+
+      // XXX No need to store mutants order
+      
+      number = selectedMutants1.back().size();
+      assert(number == mutantInfo.getMutantsNumber() &&
+             "The number of mutants mismatch. Bug in Selection function!");
+
+      // write ML's scores
+      mutantListAsJsON<float>(std::vector<std::vector<float>>({cachedPrediction}),
+                               scoresForHardtokillmutantsDetectionOutJson);
     }
 
     if (doMCLOnly) {

@@ -63,9 +63,11 @@ void loadDescription(
 void readXY(std::string const &fileX, std::string const &fileY,
             std::unordered_map<std::string, std::vector<float>> &matrixX,
             std::vector<bool> &vectorY, std::vector<float> &weights,
+            std::vector<bool> &isSubsumingVector, 
+            std::vector<float> &killedRatioVector,
             std::vector<MutantIDType> &mutantIDList,
             std::unordered_set<MutantIDType> const *consideredMutants) {
-  // read Y and weights
+  // read Y and weights, subsumption and killratio
   std::ifstream listin(fileY);
   std::string line;
   std::getline(listin, line); // read the header and discard
@@ -84,6 +86,10 @@ void readXY(std::string const &fileX, std::string const &fileY,
     vectorY.push_back(std::stoul(tmp) != 0);
     std::getline(ssin, tmp, ',');
     weights.push_back(std::stof(tmp));
+    std::getline(ssin, tmp, ',');
+    isSubsumingVector.push_back(std::stoul(tmp) != 0);
+    std::getline(ssin, tmp, ',');
+    killedRatioVector.push_back(std::stof(tmp));
   }
 
   std::ifstream csvin(fileX);
@@ -123,10 +129,13 @@ void readXY(std::string const &fileX, std::string const &fileY,
 
 void merge2into1(
     std::unordered_map<std::string, std::vector<float>> &matrixX1,
-    std::vector<bool> &vectorY1, std::vector<float> &weights1, std::vector<MutantIDType> &mutantIDs1,
+    std::vector<bool> &vectorY1, std::vector<float> &weights1, 
+    std::vector<bool> &IsSubsumingVector1, std::vector<float> &KilledRatioVector1, 
+    std::vector<MutantIDType> &mutantIDs1,
     std::unordered_map<std::string, std::vector<float>> const &matrixX2,
-    std::vector<bool> const &vectorY2, std::vector<float> &weights2, std::vector<MutantIDType> &mutantIDs2, 
-    std::string const &size) {
+    std::vector<bool> const &vectorY2, std::vector<float> &weights2, 
+    std::vector<bool> &IsSubsumingVector2, std::vector<float> &KilledRatioVector2, 
+    std::vector<MutantIDType> &mutantIDs2, std::string const &size) {
   auto curTotNMuts = vectorY1.size();
   std::vector<MutantIDType> eventsIndices(vectorY2.size(), 0);
   for (MutantIDType v = 0, ve = vectorY2.size(); v < ve; ++v)
@@ -165,6 +174,8 @@ void merge2into1(
   for (auto indx : eventsIndices) {
     vectorY1.push_back(vectorY2[indx]);
     weights1.push_back(weights2[indx]);
+    IsSubsumingVector1.push_back(IsSubsumingVector2[indx]);
+    KilledRatioVector1.push_back(KilledRatioVector2[indx]);
     mutantIDs1.push_back(mutantIDs2[indx]);
   }
 }
@@ -329,6 +340,16 @@ int main(int argc, char **argv) {
   llvm::cl::opt<bool> forEquivalent(
       "for-equivalent",
       llvm::cl::desc("(optional) enable training for mode to select equivalent mutants"));
+  llvm::cl::opt<bool> forSubsuming(
+      "for-subsuming",
+      llvm::cl::desc("(optional) enable training for mode to select subsuming mutants"));
+  llvm::cl::opt<bool> forHardToKill(
+      "for-hardtokill",
+      llvm::cl::desc("(optional) enable training for mode to select hard to kill mutants"));
+  llvm::cl::opt<float> hardToKill_Threshold(
+      "hardtokillthreshold",
+      llvm::cl::desc("(optional) set the max killed ratio threshold for hard to kill mutant. value in interval ]0.0,1.0]"),
+      llvm::cl::init(5.0));
   llvm::cl::opt<bool> noRandom(
       "no-random",
       llvm::cl::desc("(optional) Do not randomize the specified project, use from the top downward"));
@@ -406,12 +427,16 @@ int main(int argc, char **argv) {
   std::vector<std::vector<float>> Xmatrix;
   std::vector<bool> Yvector;
   std::vector<float> Weightsvector;
+  std::vector<bool> IsSubsumingVector;
+  std::vector<float> KilledRatioVector;
   std::vector<MutantIDType> MutantsIDvector;
 
   std::unordered_map<std::string, std::vector<float>> Xmapmatrix;
   std::unordered_map<std::string, std::vector<float>> tmpXmapmatrix;
   std::vector<bool> tmpYvector;
   std::vector<float> tmpWeightsvector;
+  std::vector<bool> tmpIsSubsumingVector;
+  std::vector<float> tmpKilledRatioVector;
   std::vector<MutantIDType> tmpMutantsIDvector;
   std::vector<std::string> featuresnames;
 
@@ -433,22 +458,27 @@ int main(int argc, char **argv) {
     tmpXmapmatrix.clear();
     tmpYvector.clear();
     tmpWeightsvector.clear();
+    tmpIsSubsumingVector.clear();
+    tmpKilledRatioVector.clear();
     tmpMutantsIDvector.clear();
 
     // time costly
     selectedProjectIDs.push_back(std::get<0>(triple));
     if (mapOfMutantsToConsiderPerProject.empty()) {
       readXY(std::get<1>(triple), std::get<2>(triple), tmpXmapmatrix, tmpYvector, tmpWeightsvector,
+              tmpIsSubsumingVector, tmpKilledRatioVector,
               tmpMutantsIDvector, nullptr);
     } else {
       readXY(std::get<1>(triple), std::get<2>(triple), tmpXmapmatrix, tmpYvector, tmpWeightsvector,
+              tmpIsSubsumingVector, tmpKilledRatioVector,
               tmpMutantsIDvector, &(project2consideredMuts[std::get<0>(triple)]));
     }
 
     if (tmpYvector.size() > 0) {
       projectIDPerRow.resize(projectIDPerRow.size() + tmpYvector.size(), std::get<0>(triple));
-      merge2into1(Xmapmatrix, Yvector, Weightsvector, MutantsIDvector, tmpXmapmatrix, tmpYvector, 
-                  tmpWeightsvector, tmpMutantsIDvector, trainingSetEventSize);
+      merge2into1(Xmapmatrix, Yvector, Weightsvector, IsSubsumingVector, KilledRatioVector, 
+                  MutantsIDvector, tmpXmapmatrix, tmpYvector, tmpWeightsvector,
+                  tmpKilledRatioVector, tmpIsSubsumingVector, tmpMutantsIDvector, trainingSetEventSize);
     }
   }
 
@@ -514,13 +544,15 @@ int main(int argc, char **argv) {
   out_all << "mutantID,";
   for (auto feat: featuresnames)
     out_all << feat << ",";
-  out_all << "coupling-weight" << "\n";
+  out_all << "coupling-weight,is-subsuming,killed-ratio" << "\n";
   for (auto i=0; i < Weightsvector.size(); ++i) {
     out_all << projectIDPerRow[i] << ",";
     out_all << MutantsIDvector[i] << ",";
     for (auto &fv:Xmatrix)
       out_all << fv[i] << ",";
-    out_all << Weightsvector[i] << "\n";
+    out_all << Weightsvector[i] << ",";
+    out_all << IsSubsumingVector[i] << ",";
+    out_all << KilledRatioVector[i] << "\n";
   }
   out_all.close();
   llvm::outs() << "## merged training data saved into " << outputModelFilename+".svmdata.tmp" << "\n";
@@ -532,6 +564,16 @@ int main(int argc, char **argv) {
   if (forEquivalent) {
     for (auto i=0; i < Yvector.size(); ++i) {
       Yvector[i] = (Weightsvector[i] == -1.0);
+      Weightsvector[i] = 1.0;  //all have same weight for simplicity
+    }
+  } else if (forSubsuming) {
+    for (auto i=0; i < Yvector.size(); ++i) {
+      Yvector[i] = isSubsumingVector[i];
+      Weightsvector[i] = 1.0;  //all have same weight for simplicity
+    }
+  } else  if (forHardToKill) {
+    for (auto i=0; i < Yvector.size(); ++i) {
+      Yvector[i] = (KilledRatioVector[i] > 0 && KilledRatioVector[i] <= hardToKill_Threshold);
       Weightsvector[i] = 1.0;  //all have same weight for simplicity
     }
   } else {
