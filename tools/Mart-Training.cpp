@@ -181,7 +181,9 @@ void merge2into1(
 }
 
 void writeModelInfos (std::vector<std::string> &selectedProjectIDs, std::map<unsigned long, double> const &featuresScores, std::vector<std::string> &featuresnames, std::string modelInfosFilename) {
-  assert (featuresScores.size() > 0 && "Error: Problem in ML computation (maybe failed: check its log above)");
+  //assert (featuresScores.size() > 0 && "Error: Problem in ML computation (maybe failed: check its log above)");
+  if (featuresScores.size() <= 0)
+      llvm::errs() << "WARNING: Problem in ML computation (maybe failed: check its log above). No feature importance\n";
   std::fstream out_stream(modelInfosFilename, std::ios_base::out | std::ios_base::trunc);
   out_stream << "{\n";
   out_stream << "\"training-projects\": [";
