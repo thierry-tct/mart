@@ -485,7 +485,7 @@ int main(int argc, char **argv) {
       projectIDPerRow.resize(projectIDPerRow.size() + tmpYvector.size(), std::get<0>(triple));
       merge2into1(Xmapmatrix, Yvector, Weightsvector, IsSubsumingVector, KilledRatioVector, 
                   MutantsIDvector, tmpXmapmatrix, tmpYvector, tmpWeightsvector,
-                  tmpKilledRatioVector, tmpIsSubsumingVector, tmpMutantsIDvector, trainingSetEventSize);
+                  tmpIsSubsumingVector, tmpKilledRatioVector, tmpMutantsIDvector, trainingSetEventSize);
     }
   }
 
