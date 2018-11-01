@@ -575,7 +575,7 @@ int main(int argc, char **argv) {
     }
   } else if (forSubsuming) {
     for (auto i=0; i < Yvector.size(); ++i) {
-      Yvector[i] = isSubsumingVector[i];
+      Yvector[i] = IsSubsumingVector[i];
       Weightsvector[i] = 1.0;  //all have same weight for simplicity
     }
   } else  if (forHardToKill) {
