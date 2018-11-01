@@ -349,7 +349,7 @@ int main(int argc, char **argv) {
   llvm::cl::opt<float> hardToKill_Threshold(
       "hardtokillthreshold",
       llvm::cl::desc("(optional) set the max killed ratio threshold for hard to kill mutant. value in interval ]0.0,1.0]"),
-      llvm::cl::init(5.0));
+      llvm::cl::init(0.05));
   llvm::cl::opt<bool> noRandom(
       "no-random",
       llvm::cl::desc("(optional) Do not randomize the specified project, use from the top downward"));
