@@ -66,9 +66,15 @@ cmake \
  -DLLVM_DIR=../../llvm-3.7.1/build/share/llvm/cmake \
   ../src
 ```
+* make:
+compile using make while in the _build_ folder.
+```
+make CollectMutOpHeaders
+make
+```
 
 # TODO
-- Fix auto creation of AUTOGE headers ".inc"
+- Fix auto creation of AUTOGEN headers ".inc"
 - Fix compiling third-parties/dg (CMake file when pull), should point to right version
 - Give build option to enable mutant selection
 
