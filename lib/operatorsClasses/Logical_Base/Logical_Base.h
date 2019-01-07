@@ -175,7 +175,8 @@ public:
           } else {
             toMatchMutant.setToCloneStmtIROf(toMatch, MI);
             if (repl.getExpElemKey() == mAND || repl.getExpElemKey() == mOR ||
-                repl.getExpElemKey() == mKEEP_ONE_OPRD) { // directly replace
+                repl.getExpElemKey() == mKEEP_ONE_OPRD ||
+                repl.getExpElemKey() == mCONST_VALUE_OF) { // directly replace
               // NO CALL TO doReplacement HERE
               llvm::BranchInst *clonedBr =
                   llvm::dyn_cast<llvm::BranchInst>(toMatchMutant.getIRAt(pos));
@@ -213,6 +214,27 @@ public:
                   assert(false &&
                          "Unreachable -- Or and And only supported here");
                 break;
+              }
+              case mCONST_VALUE_OF: {
+                bool const_bool_val = (std::stod(
+                                            llvmMutationOp::getConstValueStr(
+                                            repl.getOprdIndexList()[0])
+                                        ) != 0);
+                if (const_bool_val) {
+                  clonedBr->setSuccessor(shortCircuitSID, thenBB);
+                  if (mutationOp.getMatchOp() == mAND)
+                    clonedBr->setSuccessor(elseSID, thenBB);
+                  else
+                    assert(mutationOp.getMatchOp() == mOR && 
+                                            "Invalid arg for CONST_VALUE_OF");
+                } else {
+                  clonedBr->setSuccessor(shortCircuitSID, elseBB);
+                  if (mutationOp.getMatchOp() == mOR)
+                    clonedBr->setSuccessor(thenSID, elseBB);
+                  else
+                    assert(mutationOp.getMatchOp() == mAND && 
+                                            "Invalid arg for CONST_VALUE_OF");
+                }
               }
               default:
                 assert(false && "Unreachable");

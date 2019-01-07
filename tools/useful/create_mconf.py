@@ -198,6 +198,7 @@ class GlobalDefs:
         self.RULES.update({opName: set(pointerOps + pointerExtraRepl) - {opName} for opName in pointerOps})
         self.RULES.update({opName: set(self.P_ROR + pointerExtraRepl) - {opName} for opName in self.P_ROR}) # pointer relational only with pointer relational or del or keepoprd
         self.RULES.update({opName: set(self.LOR + self.DELSTMT + self.TRAPSTMT + self.KEEPOPERAND + self.CONSTVAL) - {opName} for opName in self.LOR})
+        #self.RULES.update({opName: set(self.LOR + self.DELSTMT + self.TRAPSTMT + self.KEEPOPERAND) - {opName} for opName in self.LOR}) # LOR do not yet support CONSTVAL replacement
 
         self.RULES.update({self.ARITHEXPR: set(arithOps + arthExtraRepl) - set(self.KEEPOPERAND) - set(self.INCDEC)})
         self.RULES.update({self.ARITHVAR: set(arithOps + arthExtraRepl) - set(self.KEEPOPERAND)})
