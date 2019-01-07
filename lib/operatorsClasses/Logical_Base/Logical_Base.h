@@ -235,6 +235,7 @@ public:
                     assert(mutationOp.getMatchOp() == mAND && 
                                             "Invalid arg for CONST_VALUE_OF");
                 }
+                break;
               }
               default:
                 assert(false && "Unreachable");
@@ -245,6 +246,8 @@ public:
                              relevantPosInToMatch);
               toMatchMutant.clear();
             } else {
+              llvm::errs() << "repl.getExpElemKey() is " 
+                           << repl.getExpElemKey() << "\n";
               assert(false && "Unsuported yet");
             }
           }
