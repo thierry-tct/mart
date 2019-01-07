@@ -191,7 +191,7 @@ class GlobalDefs:
         pointerOps = self.P_AOR + self.P_INCDEC
         pointerExtraRepl = self.DELSTMT + self.TRAPSTMT + self.KEEPOPERAND
 
-        # Who can replace who: key is matcher, value is replcor
+        # Who can replace who: key is matcher, value is replacor
         # Key: operation, Value: set or possible replacors
         self.RULES = {}
         self.RULES.update({opName: set(arithOps + arthExtraRepl) - {opName} for opName in arithOps})
@@ -432,6 +432,8 @@ def processMR (matchOp, matchOprds, repOp, replOprds, tmpStrsMap):
 #~ def processMR()
 
 def getAllPossibleMConf():
+    add = "ADD"
+    constval = "CONSTVAL"
     outStr = "## Automatically generated mutant conf for MART ##\n\n"
     for op in globalDefs.RULES:
         tmpStrsMap = {}
@@ -442,8 +444,6 @@ def getAllPossibleMConf():
                     if rep in globalDefs.ABS_UNARY:
                         processMR (op, (), rep, (op,), tmpStrsMap)
             elif op == globalDefs.ARITHCONST:  #const c --> c+1, c-1, 0
-                add = "ADD"
-                constval = "CONSTVAL"
                 assert (add in globalDefs.RULES[op]), "ADD not in replacors for C"
                 assert (constval in globalDefs.RULES[op]), "CONSTVAL not in replacors for C"
                 for sc in globalDefs.SCALAR_CONST:
@@ -490,13 +490,13 @@ def getAllPossibleMConf():
                 assert False, "error: unreachable -- op has no oprd"
         else:  #the matcher has operands
             for repl in globalDefs.RULES[op]:
-                # if op has no oprd
+                # if repl has no oprd
                 if len(globalDefs.FORMATS[repl]) == 0:
                     matchOprdsL = []
                     for ind,moprd in enumerate(globalDefs.FORMATS[op]):
                         matchOprdsL.append(globalDefs.getMaxOprdsType (moprd, None)+str(ind+1))
                     processMR (op, tuple(matchOprdsL), repl, (), tmpStrsMap)
-                # if op has one oprd
+                # if repl has one oprd
                 elif len(globalDefs.FORMATS[repl]) == 1:
                     for moprdind in range(len(globalDefs.FORMATS[op])):
                         soprd = globalDefs.getMaxOprdsType (globalDefs.FORMATS[op][moprdind], globalDefs.FORMATS[repl][0])
@@ -510,7 +510,14 @@ def getAllPossibleMConf():
                             else:
                                 matchOprdsL.append(globalDefs.getMaxOprdsType (moprd, None)+str(ind+1))
                         processMR (op, tuple(matchOprdsL), repl, (soprd,), tmpStrsMap)
-                # if op has two oprds
+
+                    # Add replacing by 0 and 1 # XXX ADDED LATER
+                    if repl == constval: # in globalDefs.RULES[op]:
+                        #assert (constval in globalDefs.RULES[op]), "CONSTVAL not in replacors for C"
+                        for bc in globalDefs.BOOLEAN_CONST:
+                            processMR (op, tuple(matchOprdsL), constval, (bc,), tmpStrsMap)
+
+                # if repl has two oprds
                 elif len(globalDefs.FORMATS[repl]) == 2:
                     for rh_moprdind in range(len(globalDefs.FORMATS[op])):
                         for lh_moprdind in range(rh_moprdind):
@@ -538,7 +545,7 @@ def getAllPossibleMConf():
                 else:
                     assert False, "invalid number of operands for replacer"
         for line in tmpStrsMap:
-            outStr += line + " --> " + "; ".join(tmpStrsMap[line]) + ";\n"
+            outStr += line + " --> " + "; ".join(list(set(tmpStrsMap[line]))) + ";\n"
     return outStr
 #~ def getMConf()
 
