@@ -157,6 +157,9 @@ Mutation::Mutation(llvm::Module &module, std::string mutConfFile,
   // initialize mutantIDSelectorName
   getanothermutantIDSelectorName();
   curMutantID = 0;
+
+  // initialize postMutationPointFuncName
+  getanotherPostMutantPointFuncName();
 }
 
 /**
@@ -746,6 +749,14 @@ void Mutation::getanothermutantIDSelectorName() {
   mutantIDSelectorName_Func.assign(mutantIDSelectorName + "_Func");
 }
 
+void Mutation::getanotherPostMutantPointFuncName() {
+  static unsigned tempglob = 0;
+  postMutationPointFuncName.assign("klee_semu_GenMu_Post_Mutation_Point_Func");
+  if (tempglob > 0)
+    postMutationPointFuncName.append(std::to_string(tempglob));
+  tempglob++;
+}
+
 // @Name: Mutation::getMutantsOfStmt
 // This function takes a statement as a list of IR instruction, using the
 // mutation model specified for this class, generate a list of all possible
@@ -807,20 +818,26 @@ void Mutation::getMutantsOfStmt(MatchStmtIR const &stmtIR,
   }
 } //~Mutation::getMutantsOfStmt
 
-llvm::Function *Mutation::createGlobalMutIDSelector_Func(llvm::Module &module,
-                                                         bool bodyOnly) {
+llvm::Function *Mutation::createKSFunc(llvm::Module &module, bool bodyOnly,
+                                        std::string ks_func_name) {
   llvm::Function *funcForKS = nullptr;
   if (!bodyOnly) {
     llvm::Constant *c = module.getOrInsertFunction(
-        mutantIDSelectorName_Func,
+        ks_func_name,
         llvm::Type::getVoidTy(moduleInfo.getContext()),
         llvm::Type::getInt32Ty(moduleInfo.getContext()),
         llvm::Type::getInt32Ty(moduleInfo.getContext()), NULL);
     funcForKS = llvm::cast<llvm::Function>(c);
-    assert(funcForKS && "Failed to create function 'GlobalMutIDSelector_Func'");
+    if (!funcForKS) {
+      llvm::errs() << "Failed to create function " << ks_func_name << "\n";
+      assert(false);
+    }
   } else {
-    funcForKS = module.getFunction(mutantIDSelectorName_Func);
-    assert(funcForKS && "function 'GlobalMutIDSelector_Func' is not existing");
+    funcForKS = module.getFunction(ks_func_name);
+    if (!funcForKS) {
+      llvm::errs() << "Function" << ks_func_name << " is not existing\n";
+      assert(false);
+    }
   }
   llvm::BasicBlock *block =
       llvm::BasicBlock::Create(moduleInfo.getContext(), "entry", funcForKS);
@@ -834,6 +851,16 @@ llvm::Function *Mutation::createGlobalMutIDSelector_Func(llvm::Module &module,
   builder.CreateRetVoid();
 
   return funcForKS;
+}
+
+llvm::Function *Mutation::createGlobalMutIDSelector_Func(llvm::Module &module,
+                                                         bool bodyOnly) {
+  return Mutation::createKSFunc(module, bodyOnly, mutantIDSelectorName_Func);
+}
+
+llvm::Function *Mutation::createPostMutationPointFunc(llvm::Module &module,
+                                                         bool bodyOnly) {
+  return Mutation::createKSFunc(module, bodyOnly, postMutationPointFuncName);
 }
 
 void Mutation::checkModuleValidity(llvm::Module &Mod, const char *errMsg) {
@@ -2692,14 +2719,24 @@ void Mutation::doTCE(std::unique_ptr<llvm::Module> &modWMLog, std::unique_ptr<ll
     }
   }
 
-  // create the final version of the meta-mutant file
+  // XXX create the final version of the meta-mutant file
   if (forKLEESEMu) {
+    // add the function to check mutant join (post mutation point instruction)
+    Mutation::applyPostMutationPointForKSOnMetaModule(module);
+    // Delete the body for optimization to apply 
     llvm::Function *funcForKS = module.getFunction(mutantIDSelectorName_Func);
+    funcForKS->deleteBody();
+    funcForKS = module.getFunction(postMutationPointFuncName);
     funcForKS->deleteBody();
     // dup_eq_processor.tce.optimize(module);
 
-    if (highestMutID > 0) // if There are mutants
+    // if There are mutants
+    if (highestMutID > 0) {
+      // Create a body for the function 'mutantIDSelectorName_Func'
       createGlobalMutIDSelector_Func(module, true);
+      // Create a body for the function 'postMutationPointFuncName'
+      createPostMutationPointFunc(module, true);
+    }
 
     /// reduce consecutive range (of selector func) into one //TODO
   } else {
@@ -2721,6 +2758,95 @@ void Mutation::doTCE(std::unique_ptr<llvm::Module> &modWMLog, std::unique_ptr<ll
   } else {
     for (auto *mm : dup_eq_processor.mutModules)
       delete mm;
+  }
+}
+
+/**
+ * \brief Create the post mutation point function and insert as needed
+ */
+void Mutation::applyPostMutationPointForKSOnMetaModule(llvm::Module &module) {
+  // First create the function into the module
+  llvm::Function *funcForKS = Mutation::createPostMutationPointFunc(module, false);
+
+  llvm::GlobalVariable *mutantIDSelGlob = module.getNamedGlobal(mutantIDSelectorName);
+  
+  // look for every mutation point and insert a call to the function
+  std::map<llvm::BasicBlock*, std::vector<MutantIDType>> pointBB2mutantIDVect; 
+  for (auto &func: module) {
+    for (auto &BB: func) {
+      for (auto &inst: BB) {
+        if (auto *sw = llvm::dyn_cast<llvm::SwitchInst>(&inst)) {
+          if (auto *ld = llvm::dyn_cast<llvm::LoadInst>(sw->getCondition())) {
+            if (ld->getOperand(0) == mutantIDSelGlob) {
+              //XXX is mutation point, now process
+              if (sw->getNumCases() == 0)
+                continue;
+
+              pointBB2mutantIDVect.clear();
+              
+              // Original
+              llvm::TerminatorInst* origBBterm_i = 
+                            llvm::dyn_cast<llvm::TerminatorInst>(
+                                        sw->getDefaultDest()->getTerminator());
+              assert (origBBterm_i && "malformed original BB");
+              for (auto sid = 0; sid < origBBterm_i->getNumSuccessors(); ++sid) {
+                llvm::BasicBlock * pointBB = origBBterm_i->getSuccessor(sid);
+                pointBB2mutantIDVect[pointBB].push_back(0);
+              }
+              
+              // Mutants
+              for (auto csit = sw->case_begin(), cse = sw->case_end();
+                   csit != cse; ++csit) {
+                llvm::TerminatorInst* mutBBterm_i = 
+                            llvm::dyn_cast<llvm::TerminatorInst>(
+                                        csit.getCaseSuccessor()->getTerminator());
+                assert (mutBBterm_i && "malformed mutant BB");
+                uint64_t curcaseuint = csit.getCaseValue()->getZExtValue();
+                for (auto sid = 0; sid < mutBBterm_i->getNumSuccessors(); ++sid) {
+                  llvm::BasicBlock * pointBB = mutBBterm_i->getSuccessor(sid);
+                  pointBB2mutantIDVect[pointBB].push_back(curcaseuint);
+                }
+              }
+
+              // add the function call instrumentations
+              for (auto &pbb_it: pointBB2mutantIDVect) {
+                llvm::Instruction * insert_pt = &*(pbb_it.first->getFirstInsertionPt());
+                // Sort the value in increasing order
+                std::sort(pbb_it.second.begin(), pbb_it.second.end());
+                llvm::IRBuilder<> sbuilder(insert_pt);
+                std::vector<llvm::Value *> argsv;
+                MutantIDType fromID, toID;
+                fromID = toID = pbb_it.second.front();
+                for (auto mid : pbb_it.second) {
+                  if (mid > toID+1) {
+                    // Store
+                    argsv.clear();
+                    argsv.push_back(llvm::ConstantInt::get(
+                        moduleInfo.getContext(),
+                        llvm::APInt(32, (uint64_t)(fromID), false)));
+                    argsv.push_back(llvm::ConstantInt::get(
+                        moduleInfo.getContext(),
+                        llvm::APInt(32, (uint64_t)(toID), false)));
+                    sbuilder.CreateCall(funcForKS, argsv);
+                    // reset fromID and toID
+                    fromID = toID = mid;
+                  } else {
+                    toID = mid;
+                  }
+                }
+                // Store last
+                argsv.clear();
+                argsv.push_back(llvm::ConstantInt::get(moduleInfo.getContext(),
+                                    llvm::APInt(32, (uint64_t)(fromID), false)));
+                argsv.push_back(llvm::ConstantInt::get(moduleInfo.getContext(),
+                                      llvm::APInt(32, (uint64_t)(toID), false)));
+                sbuilder.CreateCall(funcForKS, argsv);
+              }
+            }
+          }
+        }
+      }
+    }
   }
 }
 

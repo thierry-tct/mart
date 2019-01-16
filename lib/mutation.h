@@ -33,6 +33,7 @@ class Mutation {
   MutationScope mutationScope;
   std::string mutantIDSelectorName;
   std::string mutantIDSelectorName_Func;
+  std::string postMutationPointFuncName;
 
   // Tell wheter the mutation is to be used with KLEE-SEMu
   // If so, insert at mutation point a function call whose 2 arguments
@@ -99,10 +100,15 @@ public:
 private:
   bool getConfiguration(std::string &mutconfFile);
   void getanothermutantIDSelectorName();
+  void getanotherPostMutantPointFuncName();
   void getMutantsOfStmt(MatchStmtIR const &stmtIR, MutantsOfStmt &ret_mutants,
                         ModuleUserInfos const &moduleInfos);
+  llvm::Function *createKSFunc(llvm::Module &module, bool bodyOnly,
+                                        std::string ks_func_name);
   llvm::Function *createGlobalMutIDSelector_Func(llvm::Module &module,
                                                  bool bodyOnly = false);
+  llvm::Function *createPostMutationPointFunc(llvm::Module &module,
+                                                         bool bodyOnly);
   DumpMutFunc_t writeMutantsCallback;
   void getWMConditions(std::vector<llvm::Instruction *> &origUnsafes,
                        std::vector<llvm::Instruction *> &mutUnsafes,
@@ -124,6 +130,8 @@ private:
   llvm::AllocaInst *MyDemoteRegToStack(llvm::Instruction &I, bool VolatileLoads,
                                        llvm::Instruction *AllocaPoint);
   inline bool skipFunc(llvm::Function &Func);
+
+  void applyPostMutationPointForKSOnMetaModule(llvm::Module &module);
 
   void cleanFunctionSWmIDRange(llvm::Function &Func, MutantIDType mIDFrom,
                                MutantIDType mIDTo,
