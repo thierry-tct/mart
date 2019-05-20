@@ -42,6 +42,8 @@ if (MART_SEMU_GENMU)
 
 	#set(ENABLE_CFG ON)
 
+	#### Find LLVM INSTALLED
+	#include(${CMAKE_SOURCE_DIR}/cmake/find_llvm.cmake)
 	find_package(LLVM REQUIRED CONFIG)
 
 	message(STATUS "Found LLVM ${LLVM_PACKAGE_VERSION}")

@@ -4,6 +4,8 @@
 # NOTE: each operation is kind of symetric, meaning that when it has operands, all operands are of same type (arith or pointer)
 ##~~
 
+from __future__ import print_function
+
 import os, sys
 import re
 import json
@@ -346,7 +348,7 @@ def getSDL_ESELECTIVE_Distribution(projTopDirCList, imagefilename=None):
     chunk_val = 0
     for ind, proj in enumerate(projlist):
         if (ind % chunksize == 0):
-            print str(chunk_val)+'%'
+            print(str(chunk_val)+'%')
             chunk_val += 5
         mutjson = os.path.join(proj, "mutantsdata", "mutantsInfos.json")
         mlist, totmutnum = create_mconf.getClassMutants(mutjson, "SDL")
@@ -357,7 +359,7 @@ def getSDL_ESELECTIVE_Distribution(projTopDirCList, imagefilename=None):
         plt.boxplot([SDL, E_SELECTIVE], labels=["SDL", "E-SELCTIVE"])
         plt.ylabel("Percentage of Mutants Belonging to Class")
         plt.savefig(imagefilename+'.pdf', format='pdf')
-    print "\nDONE!"
+    print("\nDONE!")
     return {"SDL":SDL, "E-SELECTIVE": E_SELECTIVE}
 #~ def getSDL_ESELECTIVE_Distribution()
 #------------ END -------------#
@@ -411,7 +413,7 @@ def processMR (matchOp, matchOprds, repOp, replOprds, tmpStrsMap):
     # matchOp(matchOprds[0], matchOprds[1],..) or matchOp is key in tmpStrsMap
     # ['NAME, repOp(replOprds[0],..)', ...] is the value in tmpStrsMap
     if not ( matchOp in globalDefs.RULES and repOp in globalDefs.RULES[matchOp]):
-        print "match op:", matchOp, "replace op:", repOp
+        print("match op:", matchOp, "replace op:", repOp)
         assert false, "wrong matchOp and replaceOp"
     key = matchOp
     if len(matchOprds) > 0:
@@ -487,7 +489,7 @@ def getAllPossibleMConf():
                         for ct in globalDefs.CASEREMOVE_COUNTERS:
                             processMR (op, (), rep, (ct,), tmpStrsMap)
             else:
-                print "match op:", op
+                print("match op:", op)
                 assert False, "error: unreachable -- op has no oprd"
         else:  #the matcher has operands
             for repl in globalDefs.RULES[op]:
@@ -557,7 +559,7 @@ def main(args):
     mconfString = getAllPossibleMConf()
     with open(outfile, "w") as fp:
         fp.write(mconfString)
-    print "\n@ mutation config successfully written in file", outfile, "\n"
+    print("\n@ mutation config successfully written in file", outfile, "\n")
 #~ def main()
    
 globalDefs = GlobalDefs()

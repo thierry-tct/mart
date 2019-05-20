@@ -1,9 +1,11 @@
 
-#ifndef __MART_SEMU_GENMU_tools_tools - commondefs__
-#define __MART_SEMU_GENMU_tools_tools -commondefs__
+#ifndef __MART_SEMU_GENMU_tools_tools_commondefs__
+#define __MART_SEMU_GENMU_tools_tools_commondefs__
 
 #include <libgen.h> //dirname
 #include <string>
+
+#include "llvm/Support/FileSystem.h"
 
 static const std::string mutantsInfosFileName("mutantsInfos.json");
 static const std::string equivalentduplicate_mutantsInfosFileName("equidup-mutantsInfos.json");
@@ -31,13 +33,19 @@ void printVersion() {
 std::string getUsefulAbsPath(char *argv0) {
   std::string useful_conf_dir;
 
-  char *tmpStr = nullptr;
-  tmpStr = new char[1 + std::strlen(argv0)]; // Alocate tmpStr1
-  std::strcpy(tmpStr, argv0);
-  useful_conf_dir.assign(dirname(tmpStr)); // TODO: check this for install,
-                                           // where to put useful. (see klee's)
-  delete[] tmpStr;
-  tmpStr = nullptr; // del tmpStr1
+  if (true) {
+    char *tmpStr = nullptr;
+    tmpStr = new char[1 + std::strlen(argv0)]; // Alocate tmpStr1
+    std::strcpy(tmpStr, argv0);
+    useful_conf_dir.assign(dirname(tmpStr)); 
+    delete[] tmpStr;
+    tmpStr = nullptr; // del tmpStr1
+  } else {
+    void *MainExecAddr = (void *)(intptr_t)getRunTimeLibraryPath;
+    useful_conf_dir = llvm::sys::fs::getMainExecutable(argv0, MainExecAddr);
+    assert(!useful_conf_dir.empty() && "Failed to get xecutable abspath!")
+    llvm::sys::path::remove_filename(useful_conf_dir);
+  }
 
   useful_conf_dir = useful_conf_dir + "/" + usefulFolderName + "/";
   return useful_conf_dir;

@@ -10,6 +10,8 @@
 
 4. Provides an API for new mutation operations by extending the base class for mutation operators and registering the operation.
 
+---
+
 ## Requirements
 - Linux (Tested on Ubuntu 14.04 and 16.04)
 - LLVM >= 3.4
@@ -25,6 +27,7 @@ Note: Mart uses [JsonBox](https://github.com/anhero/JsonBox) and [dg](https://gi
     sudo apt-get install gcc-4.9 g++-4.9
     which g++ || sudo ln -s /usr/bin/g++-4.9 /usr/bin/g++
     ```
+---
 
 ## Build
 1. Compile LLVM from source: (example of llvm-3.7.1)
@@ -61,9 +64,9 @@ git clone https://github.com/thierry-tct/mart.git mart/src
 cd mart && mkdir build && cd build
 
 cmake \
- -DLLVM_SRC_PATH=../../llvm-3.7.1/src \
- -DLLVM_BUILD_PATH=../../llvm-3.7.1/build \
- -DLLVM_DIR=../../llvm-3.7.1/build/share/llvm/cmake \
+ -DLLVM_SRC_PATH=readlink -f /home/mart/llvm-3.7.1/src \
+ -DLLVM_BUILD_PATH=/home/mart/llvm-3.7.1/build) \
+ -DLLVM_DIR=/home/mart/llvm-3.7.1/build/share/llvm/cmake \
   ../src
 ```
 * make:
@@ -72,8 +75,40 @@ compile using make while in the _build_ folder.
 make CollectMutOpHeaders
 make
 ```
+---
 
-# TODO
+## Usage
+Checkout the usage demo video [here](https://youtu.be/V2Hvi_iqiVE).
+### Compile your code into LLVM bitcode (.bc) file
+You may use [wllvm](https://github.com/travitch/whole-program-llvm) for large C/C++ projects. 
+Compile with `debug` flag enable (`-g` option for C/C++ compilers gcc and clang) and without optimization to have mutants closer to source code mutants.
+
+### Generate the mutants
+Use Mart through command line. The usage format is the following:
+```bash
+<path to mart build dir>/tools/mart [OPTIONS] <bitcode file to mutate>
+```
+
+View the help on usage with the command:
+```bash
+<path to mart build dir>/tools/mart --help
+```
+### Mutation Generation Configuration
+Mutant generation configuration consist in 2 configurations: 
+1. **Code locations to mutates (mutation scope):**
+This specifies the source files and functions to mutate.
+This is done using the option: `-mutant-scope <path/to/mutant scope file>`
+2. **Mutation operators to apply:**
+This specifies the mutation operator to apply. Mart's way of specifying mutants is flexible. For example, the user has control on the constant to replace when replacing an expression with a constant value.
+This is done using the option: `-mutant-config <path./to/mutant config file>`
+**_Note_**:_If mutants operators configuration is not specified, the default configuration of 816 transformation rule is used. That default configuration file is located in `<path to build dir>/tools/useful/mconf-scope/default_allmax.mconf`_
+
+Find the details about the format and language to specify the configuration [here](docs/mutation_configuration.md). 
+
+---
+
+## TODO
+- ADD Docker File and Create Docker image (use klee docker image)
 - Fix auto creation of AUTOGEN headers ".inc"
 - Fix compiling third-parties/dg (CMake file when pull), should point to right version
 - Give build option to enable mutant selection
