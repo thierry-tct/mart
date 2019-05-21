@@ -1,6 +1,6 @@
 ## I. Specifying the mutation scope (source files and functions to mutate)
 The scope configuration file is a JSON file where the source files and functions to mutate can be specified in two list. The template is the following:
-```json
+```
 {
     "Source-Files": [<function1>, <function2>,...],
     "Functions": [<src_file1>, <src_file2>,...]
@@ -36,8 +36,9 @@ The currently Supported _Fragment Elements_ are listed bellow.
 
 ### 2. Fragment Elements
 The following table gives information about the currently Supported Fragment Elements (The Fragment Element names are case insensitive).
+
 | **Fragment Element** | **Description** |**Matching Fragment**|**Replacing Fragment**| **Fragment Argument**|
-| ------------- |:-------------:| ------------- |:-------------:| ------------- |
+| --- | ---| --- | --- | --- |
 |  @  | Any Scalar Expression|:heavy_check_mark:|:x:| :heavy_check_mark: |
 |  C  | Any Constant|:heavy_check_mark:|:x:| :heavy_check_mark: |
 |  V  | Any Scalar Variable|:heavy_check_mark:|:x:| :heavy_check_mark: |
@@ -71,15 +72,15 @@ The following table gives information about the currently Supported Fragment Ele
 |  AND  | Logical conjunction|:heavy_check_mark:|:heavy_check_mark:| :x: |
 |  OR  | Logical or: 2 args (left expr, right expr))|:heavy_check_mark:|:heavy_check_mark:| :x: |
 |  ASSIGN  | variable assignement: 2 args (var, expr)|:heavy_check_mark:|:heavy_check_mark:| :x: |
-|  PADD  | Pointer addition operation with integer: 2 args (address, integer)|:heavy_check_mark:|:heavy_check_mark:| :x: |
-|  PSUB  | Address-int substraction operation: 2 args (Address, int)|:heavy_check_mark:|:heavy_check_mark:| :x: |
-|  PLEFTDEC  |Pointer variable left decrement: 1 arg (pointer variable)|:heavy_check_mark:|:heavy_check_mark:| :x: |
-|  PLEFTINC  |Pointer variable left increment: 1 arg (pointer variable) |:heavy_check_mark:|:heavy_check_mark:| :x: |
+|  PADD  | Address addition operation with integer: 2 args (address, integer)|:heavy_check_mark:|:heavy_check_mark:| :x: |
+|  PSUB  | Address substraction operation with integer: 2 args (address, integer)|:heavy_check_mark:|:heavy_check_mark:| :x: |
+|  PLEFTDEC  | Pointer variable left decrement: 1 arg (pointer variable)|:heavy_check_mark:|:heavy_check_mark:| :x: |
+|  PLEFTINC  | Pointer variable left increment: 1 arg (pointer variable) |:heavy_check_mark:|:heavy_check_mark:| :x: |
 |  PRIGHTDEC  | Pointer variable right decrement: 1 arg (pointer variable) |:heavy_check_mark:|:heavy_check_mark:| :x: |
 |  PRIGHTINC  | Pointer variable right increment: 1 arg (pointer variable) |:heavy_check_mark:|:heavy_check_mark:| :x: |
-|  PEQ  |Address relational equal operation: 2 args (left addr, right addr) |:heavy_check_mark:|:heavy_check_mark:| :x: |
+|  PEQ  | Address relational equal operation: 2 args (left addr, right addr) |:heavy_check_mark:|:heavy_check_mark:| :x: |
 |  PNEQ  | Address relational not equal operation|:heavy_check_mark:|:heavy_check_mark:| :x: |
-|  PGE  |Address relational greater or equal operation: 2 args (left addr, right addr)  |:heavy_check_mark:|:heavy_check_mark:| :x: |
+|  PGE  | Address relational greater or equal operation: 2 args (left addr, right addr)  |:heavy_check_mark:|:heavy_check_mark:| :x: |
 |  PGT  | Address relational greater than operation: 2 args (left addr, right addr) |:heavy_check_mark:|:heavy_check_mark:| :x: |
 |  PLE  |Address relational less or equal operation: 2 args (left addr, right addr)  |:heavy_check_mark:|:heavy_check_mark:| :x: |
 |  PLT  | Address relational less than operation|:heavy_check_mark:|:heavy_check_mark:| :x: |
