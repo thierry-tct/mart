@@ -35,7 +35,7 @@ In this example we have 3 mutation operators:
 The currently Supported _Fragment Elements_ are listed bellow.
 
 ### 2. Fragment Elements
-The following table gives information about the currently Supported Fragment Elements.
+The following table gives information about the currently Supported Fragment Elements (The Fragment Element names are case insensitive).
 | **Fragment Element** | **Description** |**Matching Fragment**|**Replacing Fragment**| **Fragment Argument**|
 | ------------- |:-------------:| ------------- |:-------------:| ------------- |
 |  @  | Any Scalar Expression|:heavy_check_mark:|:x:| :heavy_check_mark: |
@@ -43,68 +43,68 @@ The following table gives information about the currently Supported Fragment Ele
 |  V  | Any Scalar Variable|:heavy_check_mark:|:x:| :heavy_check_mark: |
 |  A  | Any Address|:heavy_check_mark:|:x:| :heavy_check_mark: |
 |  P  | Any Pointer Variable|:heavy_check_mark:|:x:| :heavy_check_mark: |
-|  ABS  | Absolute value of the argument (single argument) |:heavy_check_mark:|:x:| :heavy_check_mark: |
-|  ADD  | Sum of two values |:heavy_check_mark:|:x:| :heavy_check_mark: |
-|  AND  | Logical conjunction|:heavy_check_mark:|:x:| :heavy_check_mark: |
-|  ASSIGN  | variable assignement: 2 args (var, expr)|:heavy_check_mark:|:x:| :heavy_check_mark: |
-|  BITAND  | Bit level _and_ :2 args|:heavy_check_mark:|:x:| :heavy_check_mark: |
-|  BITNOT  | bit level _not_ :1 arg|:heavy_check_mark:|:x:| :heavy_check_mark: |
-|  BITOR  | bit level _or_ :2 args|:heavy_check_mark:|:x:| :heavy_check_mark: |
-|  BITSHL  | bit level _shift left_ :2 args (val, shift)|:heavy_check_mark:|:x:| :heavy_check_mark: |
-|  BITSHR  | bit level _shift right_: 2 args (val, shift)|:heavy_check_mark:|:x:| :heavy_check_mark: |
-|  BITXOR  | bit level _xor_: 2 args (val, shift)|:heavy_check_mark:|:x:| :heavy_check_mark: |
-|  CALL  | function call: 1 arg (callee)|:heavy_check_mark:|:x:| :heavy_check_mark: |
-|  CONSTVAL  |specific constant value: 1 arg (const val)|:heavy_check_mark:|:x:| :heavy_check_mark: |
-|  DELSTMT  | remove statement: no args|:heavy_check_mark:|:x:| :heavy_check_mark: |
-|  DIV  | Scalar division: 2 args (numerator, denominator)|:heavy_check_mark:|:x:| :heavy_check_mark: |
-|  EQ  | relational equal: 2 args (left expr, right expr)|:heavy_check_mark:|:x:| :heavy_check_mark: |
-|  GE  | relational greater or equal: 2 args (left expr, right expr)|:heavy_check_mark:|:x:| :heavy_check_mark: |
-|  GT  | relational greater than: 2 args (left expr, right expr)|:heavy_check_mark:|:x:| :heavy_check_mark: |
-|  LE  | relational less or equal: 2 args (left expr, right expr)| |:heavy_check_mark:|:x:| :heavy_check_mark: |
-|  LEFTDEC  | Scalar left hand decrement: 1 arg (var)|:heavy_check_mark:|:x:| :heavy_check_mark: |
-|  LEFTINC  | Scalar left hand increment: 1 arg (var) |:heavy_check_mark:|:x:| :heavy_check_mark: |
-|  LT  | relational less than: 2 args (left expr, right expr)|:heavy_check_mark:|:x:| :heavy_check_mark: |
-|  MOD  | scalar modulo operation: 2 args (left expr, right expr)|:heavy_check_mark:|:x:| :heavy_check_mark: |
-|  MUL  | scalar multiplication: 2 args|:heavy_check_mark:|:x:| :heavy_check_mark: |
-|  NEG  | Scalar rithmetic negation|:heavy_check_mark:|:x:| :heavy_check_mark: |
-|  NEQ  | relational not equal: 2 args (left expr, right expr) |:heavy_check_mark:|:x:| :heavy_check_mark: |
-|  NEWCALLEE  | Set new callee of function call: 1 arg (new callee)|:heavy_check_mark:|:x:| :heavy_check_mark: |
-|  OPERAND  | return an operand of an expression: 1 arg (operand class) |:heavy_check_mark:|:x:| :heavy_check_mark: |
-|  OR  | Logical or: 2 args (left expr, right expr))|:heavy_check_mark:|:x:| :heavy_check_mark: |
-|  PADD  | Pointer addition operation with integer: 2 args (address, integer)|:heavy_check_mark:|:x:| :heavy_check_mark: |
-|  PADD_DEREF  | |:heavy_check_mark:|:x:| :heavy_check_mark: |
-|  PDEREF_ADD  | |:heavy_check_mark:|:x:| :heavy_check_mark: |
-|  PDEREF_LEFTDEC  | |:heavy_check_mark:|:x:| :heavy_check_mark: |
-|  PDEREF_LEFTINC  | |:heavy_check_mark:|:x:| :heavy_check_mark: |
-|  PDEREF_RIGHTDEC  | |:heavy_check_mark:|:x:| :heavy_check_mark: |
-|  PDEREF_RIGHTINC  | |:heavy_check_mark:|:x:| :heavy_check_mark: |
-|  PDEREF_SUB  | |:heavy_check_mark:|:x:| :heavy_check_mark: |
-|  PEQ  | |:heavy_check_mark:|:x:| :heavy_check_mark: |
-|  PGE  | |:heavy_check_mark:|:x:| :heavy_check_mark: |
-|  PGT  | |:heavy_check_mark:|:x:| :heavy_check_mark: |
-|  PLE  | |:heavy_check_mark:|:x:| :heavy_check_mark: |
-|  PLEFTDEC  | |:heavy_check_mark:|:x:| :heavy_check_mark: |
-|  PLEFTDEC_DEREF  | |:heavy_check_mark:|:x:| :heavy_check_mark: |
-|  PLEFTINC  | |:heavy_check_mark:|:x:| :heavy_check_mark: |
-|  PLEFTINC_DEREF  | |:heavy_check_mark:|:x:| :heavy_check_mark: |
-|  PLT  | |:heavy_check_mark:|:x:| :heavy_check_mark: |
-|  PNEQ  | |:heavy_check_mark:|:x:| :heavy_check_mark: |
-|  PRIGHTDEC  | |:heavy_check_mark:|:x:| :heavy_check_mark: |
-|  PRIGHTDEC_DEREF  | |:heavy_check_mark:|:x:| :heavy_check_mark: |
-|  PRIGHTINC  | |:heavy_check_mark:|:x:| :heavy_check_mark: |
-|  PRIGHTINC_DEREF  | |:heavy_check_mark:|:x:| :heavy_check_mark: |
-|  PSUB  | |:heavy_check_mark:|:x:| :heavy_check_mark: |
-|  PSUB_DEREF  | |:heavy_check_mark:|:x:| :heavy_check_mark: |
-|  REMOVECASES  | |:heavy_check_mark:|:x:| :heavy_check_mark: |
-|  RETURN_BREAK_CONTINUE  | |:heavy_check_mark:|:x:| :heavy_check_mark: |
-|  RIGHTDEC  | |:heavy_check_mark:|:x:| :heavy_check_mark: |
-|  RIGHTINC  | |:heavy_check_mark:|:x:| :heavy_check_mark: |
-|  SHUFFLEARGS  | |:heavy_check_mark:|:x:| :heavy_check_mark: |
-|  SHUFFLECASESDESTS  | |:heavy_check_mark:|:x:| :heavy_check_mark: |
-|  STMT  | |:heavy_check_mark:|:x:| :heavy_check_mark: |
-|  SUB  | |:heavy_check_mark:|:x:| :heavy_check_mark: |
-|  SWITCH  | |:heavy_check_mark:|:x:| :heavy_check_mark: |
-|  TRAPSTMT  | |:heavy_check_mark:|:x:| :heavy_check_mark: |
+|  CONSTVAL  |specific constant value: 1 arg (const val)|:x:|:heavy_check_mark:| :heavy_check_mark: |
+|  OPERAND  | return an operand of an expression: 1 arg (operand class) |:x:|:heavy_check_mark:| :x: |
+|  ABS  | Absolute value of the argument (single argument) |:x:|:heavy_check_mark:| :x: |
+|  NEG  | Scalar arithmetic negation|:heavy_check_mark:|:heavy_check_mark:| :x: |
+|  ADD  | Sum of two values |:heavy_check_mark:|:heavy_check_mark:| :x: |
+|  SUB  | Scalar substraction: 2 args (left value, right value)|:heavy_check_mark:|:heavy_check_mark:| :x: |
+|  MUL  | scalar multiplication: 2 args|:heavy_check_mark:|:heavy_check_mark:| :x: |
+|  DIV  | Scalar division: 2 args (numerator, denominator)|:heavy_check_mark:|:heavy_check_mark:| :x: |
+|  MOD  | scalar modulo operation: 2 args (left expr, right expr)|:heavy_check_mark:|:heavy_check_mark:| :x: |
+|  BITAND  | Bit level _and_ :2 args|:heavy_check_mark:|:heavy_check_mark:| :x: |
+|  BITNOT  | bit level _not_ :1 arg|:heavy_check_mark:|:heavy_check_mark:| :x: |
+|  BITOR  | bit level _or_ :2 args|:heavy_check_mark:|:heavy_check_mark:| :x: |
+|  BITSHL  | bit level _shift left_ :2 args (val, shift)|:heavy_check_mark:|:heavy_check_mark:| :x: |
+|  BITSHR  | bit level _shift right_: 2 args (val, shift)|:heavy_check_mark:|:heavy_check_mark:| :x: |
+|  BITXOR  | bit level _xor_: 2 args (val, shift)|:heavy_check_mark:|:heavy_check_mark:| :x: |
+|  LEFTDEC  | Scalar left hand decrement: 1 arg (var)|:heavy_check_mark:|:heavy_check_mark:| :x: |
+|  LEFTINC  | Scalar left hand increment: 1 arg (var) |:heavy_check_mark:|:heavy_check_mark:| :x: |
+|  RIGHTDEC  | Scalar variable right decrement: 1 arg (var))|:heavy_check_mark:|:heavy_check_mark:| :x: |
+|  RIGHTINC  | Scalar variable right decrement: 1 arg (var))|:heavy_check_mark:|:heavy_check_mark:| :x: |
+|  EQ  | relational equal: 2 args (left expr, right expr)|:heavy_check_mark:|:heavy_check_mark:| :x: |
+|  NEQ  | relational not equal: 2 args (left expr, right expr) |:heavy_check_mark:|:heavy_check_mark:| :x: |
+|  GE  | relational greater or equal: 2 args (left expr, right expr)|:heavy_check_mark:|:heavy_check_mark:| :x: |
+|  GT  | relational greater than: 2 args (left expr, right expr)|:heavy_check_mark:|:heavy_check_mark:| :x: |
+|  LE  | relational less or equal: 2 args (left expr, right expr)|:heavy_check_mark:|:heavy_check_mark:| :x: |
+|  LT  | relational less than: 2 args (left expr, right expr)|:heavy_check_mark:|:heavy_check_mark:| :x: |
+|  AND  | Logical conjunction|:heavy_check_mark:|:heavy_check_mark:| :x: |
+|  OR  | Logical or: 2 args (left expr, right expr))|:heavy_check_mark:|:heavy_check_mark:| :x: |
+|  ASSIGN  | variable assignement: 2 args (var, expr)|:heavy_check_mark:|:heavy_check_mark:| :x: |
+|  PADD  | Pointer addition operation with integer: 2 args (address, integer)|:heavy_check_mark:|:heavy_check_mark:| :x: |
+|  PSUB  | Address-int substraction operation: 2 args (Address, int)|:heavy_check_mark:|:heavy_check_mark:| :x: |
+|  PLEFTDEC  |Pointer variable left decrement: 1 arg (pointer variable)|:heavy_check_mark:|:heavy_check_mark:| :x: |
+|  PLEFTINC  |Pointer variable left increment: 1 arg (pointer variable) |:heavy_check_mark:|:heavy_check_mark:| :x: |
+|  PRIGHTDEC  | Pointer variable right decrement: 1 arg (pointer variable) |:heavy_check_mark:|:heavy_check_mark:| :x: |
+|  PRIGHTINC  | Pointer variable right increment: 1 arg (pointer variable) |:heavy_check_mark:|:heavy_check_mark:| :x: |
+|  PEQ  |Address relational equal operation: 2 args (left addr, right addr) |:heavy_check_mark:|:heavy_check_mark:| :x: |
+|  PNEQ  | Address relational not equal operation|:heavy_check_mark:|:heavy_check_mark:| :x: |
+|  PGE  |Address relational greater or equal operation: 2 args (left addr, right addr)  |:heavy_check_mark:|:heavy_check_mark:| :x: |
+|  PGT  | Address relational greater than operation: 2 args (left addr, right addr) |:heavy_check_mark:|:heavy_check_mark:| :x: |
+|  PLE  |Address relational less or equal operation: 2 args (left addr, right addr)  |:heavy_check_mark:|:heavy_check_mark:| :x: |
+|  PLT  | Address relational less than operation|:heavy_check_mark:|:heavy_check_mark:| :x: |
+|  PADD_DEREF  | Pointer-int addition followerd by dereference.e.g. *(p+3): 2 args (addess, int) |:heavy_check_mark:|:heavy_check_mark:| :x: |
+|  PSUB_DEREF  | Address-int substraction followed by dereference.e.g. *(p-3): 2 args (Address, int)|:heavy_check_mark:|:heavy_check_mark:| :x: |
+|  PDEREF_ADD  | Pointer dereference followed by addition.e.g. (*p)+2: 2 args (address, number)|:heavy_check_mark:|:heavy_check_mark:| :x: |
+|  PDEREF_SUB  |Pointer dereference followed by substraction.e.g. (*p)-2: 2 args (address, number) |:heavy_check_mark:|:heavy_check_mark:| :x: |
+|  PLEFTDEC_DEREF  | Pointer variable left decrement followed by dereference.e.g. *(--p): 1 args (pointer variable)    |:heavy_check_mark:|:heavy_check_mark:| :x: |
+|  PLEFTINC_DEREF  | Pointer variable left increment followed by dereference.e.g. *(--p): 1 args (pointer variable)    |:heavy_check_mark:|:heavy_check_mark:| :x: |
+|  PRIGHTDEC_DEREF  | Pointer variable right decrement followed by dereference.e.g. *(p--): 1 args (pointer variable)    |:heavy_check_mark:|:heavy_check_mark:| :x: |
+|  PRIGHTINC_DEREF  | Pointer variable right increment followed by dereference.e.g. *(p++): 1 args (pointer variable)    |:heavy_check_mark:|:heavy_check_mark:| :x: |
+|  PDEREF_LEFTDEC  |Pointer dereference followed by left decrement.e.g. --(*p): 1 args (pointer variable) |:heavy_check_mark:|:heavy_check_mark:| :x: |
+|  PDEREF_LEFTINC  |Pointer dereference followed by left increment.e.g. ++(*p): 1 args (pointer variable)  |:heavy_check_mark:|:heavy_check_mark:| :x: |
+|  PDEREF_RIGHTDEC  |Pointer dereference followed by right decrement.e.g. (*p)--: 1 args (pointer variable)   |:heavy_check_mark:|:heavy_check_mark:| :x: |
+|  PDEREF_RIGHTINC  |Pointer dereference followed by right increment.e.g. (*p)++: 1 args (pointer variable)    |:heavy_check_mark:|:heavy_check_mark:| :x: |
+|  CALL  | function call: 1 arg (callee)|:heavy_check_mark:|:x:| :x: |
+|  NEWCALLEE  | Set new callee of function call: 1 arg (new callee)|:x:|:heavy_check_mark:| :x: |
+|  SHUFFLEARGS  | Shuffle the arguments of a function call: 1 arg (number of args to shuffle)|:x:|:heavy_check_mark:| :x: |
+|  SWITCH  | Match the a statement: no arg|:heavy_check_mark:|:x:| :x: |
+|  SHUFFLECASESDESTS  | Shuffle the destination BBs of a _switch_: 1 arg (number of destination BB to shuffle)|:x:|:heavy_check_mark:| :x: |
+|  REMOVECASES  | Remove a specific number of cases for switch instruction randomly: 1 args (number of cases to remove)|:x:|:heavy_check_mark:| :x: |
+|  RETURN_BREAK_CONTINUE  | match return, break or continue: no arg|:heavy_check_mark:|:x:| :x: |
+|  STMT  | Match any statement|:heavy_check_mark:|:x:| :x: |
+|  DELSTMT  | remove statement: no args|:x:|:heavy_check_mark:| :x: |
+|  TRAPSTMT  | a trap statement (artificial failure): no arg|:x:|:heavy_check_mark:| :x: |
 
 ### 3. Programmatically Generate Mutants Operators Configuration
 In order to programmatically create the mutant operators configuration file, there is a helper python script, located in `<path to build dir>/tools/useful/create_mconf.py`, that implement a class named `GlobalDefs`.
