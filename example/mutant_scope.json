@@ -1,0 +1,4 @@
+{
+    "Source-Files": ["sample.c"],
+    "Functions": ["max"]
+}

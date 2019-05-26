@@ -23,7 +23,7 @@ __*Note*__: The argument (`@, C, V, A, P`) for the `Compatible Replacing Fragmen
 Following is an example of mutation operators configuration:
 ```
 ADD(@1,@2) --> Mutop1.1, SUB(@1, @2); Mutop1.2, SUB(@2, @1); Mutop1.3 TRAPSTMT;
-LEFTINF(V) --> Mutop2.1, RIGHTDEC(V); Mutop2.2, ASSIGN(V, CONSTVAL(0))
+LEFTINC(V) --> Mutop2.1, RIGHTDEC(V); Mutop2.2, ASSIGN(V, CONSTVAL(0))
 ```
 In this example we have 3 mutation operators:
 - _Mutop1.1_: Replace Sum of two expressions by Their Difference.

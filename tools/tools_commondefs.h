@@ -6,6 +6,7 @@
 #include <string>
 
 #include "llvm/Support/FileSystem.h"
+#include "llvm/ADT/SmallString.h"
 
 static const std::string mutantsInfosFileName("mutantsInfos.json");
 static const std::string equivalentduplicate_mutantsInfosFileName("equidup-mutantsInfos.json");
@@ -41,10 +42,11 @@ std::string getUsefulAbsPath(char *argv0) {
     delete[] tmpStr;
     tmpStr = nullptr; // del tmpStr1
   } else {
-    void *MainExecAddr = (void *)(intptr_t)getRunTimeLibraryPath;
-    useful_conf_dir = llvm::sys::fs::getMainExecutable(argv0, MainExecAddr);
-    assert(!useful_conf_dir.empty() && "Failed to get xecutable abspath!")
-    llvm::sys::path::remove_filename(useful_conf_dir);
+    void *MainExecAddr = (void *)(intptr_t)getUsefulAbsPath;
+    llvm::SmallString rootpath(llvm::sys::fs::getMainExecutable(argv0, MainExecAddr));
+    assert(!rootpath.empty() && "Failed to get xecutable abspath!")
+    llvm::sys::path::remove_filename(rootpath);
+    useful_conf_dir = rootpath.str();
   }
 
   useful_conf_dir = useful_conf_dir + "/" + usefulFolderName + "/";

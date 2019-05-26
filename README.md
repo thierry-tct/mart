@@ -4,11 +4,9 @@
 
 1. Generate mutants according to user specification (type of mutation and section of the source code) for any programming language.)
 
-2. Can approximate redundant mutants using data dependency in order to improve the cost and effectiveness of mutatiion testing.
+2. Can approximate redundant mutants using data dependency in order to improve the cost and effectiveness of mutatiion testing ([mutant selection](https://arxiv.org/abs/1803.07901)).
 
-3. Optimize mutant execution by filtering mutants with no impact of the output for each test case.
-
-4. Provides an API for new mutation operations by extending the base class for mutation operators and registering the operation.
+3. Provides an API for new mutation operations by extending the base class for mutation operators and registering the operation.
 
 ---
 
@@ -64,8 +62,8 @@ git clone https://github.com/thierry-tct/mart.git mart/src
 cd mart && mkdir build && cd build
 
 cmake \
- -DLLVM_SRC_PATH=readlink -f /home/mart/llvm-3.7.1/src \
- -DLLVM_BUILD_PATH=/home/mart/llvm-3.7.1/build) \
+ -DLLVM_SRC_PATH=/home/mart/llvm-3.7.1/src \
+ -DLLVM_BUILD_PATH=/home/mart/llvm-3.7.1/build \
  -DLLVM_DIR=/home/mart/llvm-3.7.1/build/share/llvm/cmake \
   ../src
 ```
