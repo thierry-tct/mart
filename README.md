@@ -28,6 +28,31 @@ Note: Mart uses [JsonBox](https://github.com/anhero/JsonBox) and [dg](https://gi
 ---
 
 ## Build
+### From Docker
+Use [docker](https://docs.docker.com) image to run _Mart_.
+#### Get the image Ready
+Pull the docker image or build the docker image locally
+1. Pulling the image (TODO: image will be uploaded soon)
+```
+docker pull thierry-tct/mart
+```
+
+2. Building the image locally
+```
+git clone --recursive https://github.com/thierry-tct/mart.git mart/src
+docker build --tag thierry-tct/mart mart/src
+```
+#### RunDocker container
+run docker container for demo
+```
+docker run --rm thierry-tct/mart
+```
+or interactively
+```
+docker run -it thierry-tct/mart /bin/bash
+```
+
+### From Source 
 1. Compile LLVM from source: (example of llvm-3.7.1)
 ``` bash
 svn co http://llvm.org/svn/llvm-project/llvm/tags/RELEASE_371/final llvm-3.7.1/src
@@ -45,6 +70,10 @@ cmake ../src && make -j16
 
 2. Compile MART form source (using cmake version >= 3.4.3):
 * Clone repository with git clone. (```--recursive``` to clone the submodules dg and JsonBox)
+```
+git clone --recursive https://github.com/thierry-tct/mart.git src
+```
+
 * configure setting LLVM variables: 
 ```bash
 mkdir build && cd build
