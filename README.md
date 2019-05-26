@@ -34,22 +34,22 @@ Use [docker](https://docs.docker.com) image to run _Mart_.
 Pull the docker image or build the docker image locally
 1. Pulling the image (TODO: image will be uploaded soon)
 ```
-docker pull thierry-tct/mart
+docker pull thierrytct/mart
 ```
 
 2. Building the image locally
 ```
 git clone --recursive https://github.com/thierry-tct/mart.git mart/src
-docker build --tag thierry-tct/mart mart/src
+docker build --tag thierrytct/mart mart/src
 ```
 #### RunDocker container
 run docker container for demo
 ```
-docker run --rm thierry-tct/mart
+docker run --rm thierrytct/mart
 ```
 or interactively
 ```
-docker run -it thierry-tct/mart /bin/bash
+docker run -it thierrytct/mart /bin/bash
 ```
 
 ### From Source 
@@ -135,7 +135,6 @@ Find the details about the format and language to specify the configuration [her
 ---
 
 ## TODO
-- ADD Docker File and Create Docker image (use klee docker image)
 - Fix auto creation of AUTOGEN headers ".inc"
 - Fix compiling third-parties/dg (CMake file when pull), should point to right version
 - Give build option to enable mutant selection
