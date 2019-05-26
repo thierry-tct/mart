@@ -18,5 +18,7 @@ RUN cd /bin/mart/build && cmake /tmp/mart/src \
  && make CollectMutOpHeaders && make
 ENV PATH="/tmp/mart/build/tools:${PATH}"
 
-CMD ["mart", "--help"]
+COPY ./example /tmp
+
+CMD ["/bin/bash", "/tmp/example/run_example.sh"]
 
