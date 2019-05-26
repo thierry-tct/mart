@@ -49,7 +49,7 @@ docker run --rm thierrytct/mart
 ```
 or interactively
 ```
-docker run -it thierrytct/mart /bin/bash
+docker run --rm -it thierrytct/mart /bin/bash
 ```
 
 ### From Source 
