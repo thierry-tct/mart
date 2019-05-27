@@ -7,6 +7,10 @@
 
 #include "llvm/Support/FileSystem.h"
 #include "llvm/ADT/SmallString.h"
+#include "llvm/Support/Path.h"
+
+#define STRINGIFY2(X) #X
+#define STRINGIFY(X) STRINGIFY2(X)
 
 static const std::string mutantsInfosFileName("mutantsInfos.json");
 static const std::string equivalentduplicate_mutantsInfosFileName("equidup-mutantsInfos.json");
@@ -27,14 +31,14 @@ void printVersion() {
   llvm::outs() << "\nLLVM (http://llvm.org/):\n";
   llvm::outs() << "\tLLVM version " << LLVM_VERSION_MAJOR << "."
                << LLVM_VERSION_MINOR << "." << LLVM_VERSION_PATCH << "\n";
-  llvm::outs() << "\tLLVM tools dir: " << LLVM_TOOLS_BINARY_DIR << "\n";
+  llvm::outs() << "\tLLVM tools dir: " << STRINGIFY(LLVM_TOOLS_BINARY_DIR) << "\n";
   llvm::outs() << "\n";
 }
 
 std::string getUsefulAbsPath(char *argv0) {
   std::string useful_conf_dir;
 
-  if (true) {
+  if (false) {
     char *tmpStr = nullptr;
     tmpStr = new char[1 + std::strlen(argv0)]; // Alocate tmpStr1
     std::strcpy(tmpStr, argv0);
@@ -43,8 +47,8 @@ std::string getUsefulAbsPath(char *argv0) {
     tmpStr = nullptr; // del tmpStr1
   } else {
     void *MainExecAddr = (void *)(intptr_t)getUsefulAbsPath;
-    llvm::SmallString rootpath(llvm::sys::fs::getMainExecutable(argv0, MainExecAddr));
-    assert(!rootpath.empty() && "Failed to get xecutable abspath!")
+    llvm::SmallString<512> rootpath(llvm::sys::fs::getMainExecutable(argv0, MainExecAddr));
+    assert(!rootpath.empty() && "Failed to get xecutable abspath!");
     llvm::sys::path::remove_filename(rootpath);
     useful_conf_dir = rootpath.str();
   }

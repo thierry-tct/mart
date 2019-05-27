@@ -1,11 +1,12 @@
 FROM thierrytct/llvm:3.8.1
-mkdir -p /tmp/mart/build /tmp/mart/src
+#RUN mkdir -p /tmp/mart/build /tmp/mart/src
 
 #git clone https://github.com/thierry-tct/mart.git /tmp/mart/src
 COPY . /tmp/mart/src
 
-RUN cd /bin/mart/build && cmake /tmp/mart/src \
- && make CollectMutOpHeaders && make
+RUN mkdir -p /tmp/mart/build && cd /tmp/mart/build \
+ && cmake -DMART_MUTANT_SELECTION=on /tmp/mart/src \
+ && make CollectMutOpHeaders && make 2>&1 | grep error
 ENV PATH="/tmp/mart/build/tools:${PATH}"
 
 COPY ./example /tmp

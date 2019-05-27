@@ -1,4 +1,5 @@
-cmake_minimum_required(VERSION 3.4.3)
+#cmake_minimum_required(VERSION 3.4.3)
+cmake_minimum_required(VERSION 3.0.0)
 project(KLEE-SEMu-GenMu)
 
 #if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")

@@ -592,8 +592,9 @@ mutantsDir+"//"+std::to_string(mid)+"//"+outFile+".bc"))
     llvm::errs() << "## Child process: compiler\n";
     execl("/bin/bash", "bash",
           (compileMutsScript + "/useful/CompileAllMuts.sh").c_str(),
-          LLVM_TOOLS_BINARY_DIR, outputDir.c_str(), tmpFuncModuleFolder.c_str(),
-          keepMutantsBCs ? "no" : "yes", extraLinkingFlags.c_str(), (char *)NULL);
+          STRINGIFY(LLVM_TOOLS_BINARY_DIR), outputDir.c_str(), 
+          tmpFuncModuleFolder.c_str(), keepMutantsBCs ? "no" : "yes", 
+          extraLinkingFlags.c_str(), (char *)NULL);
     llvm::errs() << "\n:( ERRORS: Mutants Compile script failed (probably not "
                     "enough memory)!!!"
                  << "!\n\n";
