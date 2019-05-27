@@ -1,2 +1,2 @@
-GT(@1,@2) --> Mutop1.1, SUB(@1, @2); Mutop1.2, EQ(@2, @1); Mutop1.3 TRAPSTMT;
-ASSIGN(V1,@2) --> Mutop2.1, RIGHTDEC(V1); Mutop2.2, ASSIGN(V1, CONSTVAL(0))
+GT(@1,@2) --> Mutop1.1, SUB(@1, @2); Mutop1.2, EQ(@2, @1); Mutop1.3, TRAPSTMT;
+ASSIGN(V1,@2) --> Mutop2.1, RIGHTDEC(V1); Mutop2.2, ASSIGN(V1, 0);

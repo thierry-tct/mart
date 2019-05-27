@@ -559,12 +559,12 @@ mutantsDir+"//"+std::to_string(mid)+"//"+outFile+".bc"))
   // curClockTime = clock();
   time_t timer = time(NULL); // clock_t do not measure time when calling a
                              // script
-  tmpStr = new char[1 + std::strlen(argv[0])]; // Alocate tmpStr3
-  std::strcpy(tmpStr, argv[0]);
-  std::string compileMutsScript(
-      dirname(tmpStr)); // dirname change the contain of its parameter
-  delete[] tmpStr;
-  tmpStr = nullptr; // del tmpStr3
+  //tmpStr = new char[1 + std::strlen(argv[0])]; // Alocate tmpStr3
+  //std::strcpy(tmpStr, argv[0]);
+  //std::string compileMutsScript(
+  //    dirname(tmpStr)); // dirname change the contain of its parameter
+  //delete[] tmpStr;
+  //tmpStr = nullptr; // del tmpStr3
   // llvm::errs() << ("bash " + compileMutsScript+"/useful/CompileAllMuts.sh
   // "+outputDir+" "+tmpFuncModuleFolder+" yes").c_str() <<"\n";
   /*******/
@@ -590,8 +590,9 @@ mutantsDir+"//"+std::to_string(mid)+"//"+outFile+".bc"))
   }
   if (my_pid == 0) {
     llvm::errs() << "## Child process: compiler\n";
+    std::string compileMutsScript(useful_conf_dir + "/CompileAllMuts.sh");
     execl("/bin/bash", "bash",
-          (compileMutsScript + "/useful/CompileAllMuts.sh").c_str(),
+          compileMutsScript.c_str(),
           STRINGIFY(LLVM_TOOLS_BINARY_DIR), outputDir.c_str(), 
           tmpFuncModuleFolder.c_str(), keepMutantsBCs ? "no" : "yes", 
           extraLinkingFlags.c_str(), (char *)NULL);
