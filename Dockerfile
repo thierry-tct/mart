@@ -6,7 +6,7 @@ COPY . /tmp/mart/src
 
 RUN mkdir -p /tmp/mart/build && cd /tmp/mart/build \
  && cmake -DMART_MUTANT_SELECTION=on /tmp/mart/src \
- && make CollectMutOpHeaders && make 2>&1 | grep error
+ && make CollectMutOpHeaders && make 
 ENV PATH="/tmp/mart/build/tools:${PATH}"
 
 COPY ./example /tmp
