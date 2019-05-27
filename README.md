@@ -32,7 +32,7 @@ Note: Mart uses [JsonBox](https://github.com/anhero/JsonBox) and [dg](https://gi
 Use [docker](https://docs.docker.com) image to run _Mart_.
 #### Get the image Ready
 Pull the docker image or build the docker image locally
-1. Pulling the image (TODO: image will be uploaded soon)
+1. Pulling the image 
 ```
 docker pull thierrytct/mart
 ```
