@@ -23,7 +23,7 @@ __*Note*__: The argument (`@, C, V, A, P`) for the `Compatible Replacing Fragmen
 Following is an example of mutation operators configuration:
 ```
 ADD(@1,@2) --> Mutop1.1, SUB(@1, @2); Mutop1.2, SUB(@2, @1); Mutop1.3 TRAPSTMT;
-LEFTINC(V) --> Mutop2.1, RIGHTDEC(V); Mutop2.2, ASSIGN(V, CONSTVAL(0))
+LEFTINC(V) --> Mutop2.1, RIGHTDEC(V); Mutop2.2, ASSIGN(V, 0)
 ```
 In this example we have 3 mutation operators:
 - _Mutop1.1_: Replace Sum of two expressions by Their Difference.
@@ -44,7 +44,7 @@ The following table gives information about the currently Supported Fragment Ele
 |  V  | Any Scalar Variable|:heavy_check_mark:|:x:| :heavy_check_mark: |
 |  A  | Any Address|:heavy_check_mark:|:x:| :heavy_check_mark: |
 |  P  | Any Pointer Variable|:heavy_check_mark:|:x:| :heavy_check_mark: |
-|  CONSTVAL  |specific constant value: 1 arg (const val)|:x:|:heavy_check_mark:| :heavy_check_mark: |
+|  CONSTVAL  |specific constant value: 1 arg (const val)|:x:|:heavy_check_mark:| :x: |
 |  OPERAND  | return an operand of an expression: 1 arg (operand class) |:x:|:heavy_check_mark:| :x: |
 |  ABS  | Absolute value of the argument (single argument) |:x:|:heavy_check_mark:| :x: |
 |  NEG  | Scalar arithmetic negation|:heavy_check_mark:|:heavy_check_mark:| :x: |
