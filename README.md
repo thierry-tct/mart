@@ -2,12 +2,13 @@
 
 ```MART``` is a framework for multi-programming language mutation testing based on the [LLVM compiler infrastructure](http://llvm.org/). It enables the application of mutation testing on newly created languages and for programming languages lacking robust mutation tools. Currently, the MART (_LLVM Mutation Artisant_) framework:
 
-1. Generate mutants according to user specification (type of mutation and section of the source code) for any programming language.)
+1. Generate mutants according to [user specification](docs/mutation_configuration.md) (type of mutation and section of the source code) for any programming language supporting compilation to LLVM.)
 
 2. Can approximate redundant mutants using data dependency in order to improve the cost and effectiveness of mutatiion testing ([mutant selection](https://arxiv.org/abs/1803.07901)).
 
 3. Provides an API for new mutation operations by extending the base class for mutation operators and registering the operation.
 
+4. Run from [Docker](https://docs.docker.com).
 ---
 
 ## Requirements
