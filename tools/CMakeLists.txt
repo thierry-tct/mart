@@ -52,7 +52,7 @@ if (MART_SEMU_GENMU)
     endif (MART_MUTANT_SELECTION)
 		
     if (LLVM_BUILD_PATH)
-        set(LLVM_BUILD_PATH_BIN ${LLVM_BUILD_PATH}/bin})
+        set(LLVM_BUILD_PATH_BIN ${LLVM_BUILD_PATH}/bin)
     else ()
         set(LLVM_BUILD_PATH_BIN ${LLVM_TOOLS_BINARY_DIR})
     endif (LLVM_BUILD_PATH)
