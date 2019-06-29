@@ -10,6 +10,10 @@
 
 4. Run from [Docker](https://docs.docker.com).
 ---
+_Please use the following reference to cite this tool_
+
+Thierry Titcheu Chekam, Mike Papadakis, and Yves Le Traon. 2019. Mart: A Mutant Generation Tool for LLVM. In Proceedings of the 27th ACM Joint European Software Engineering Conference and Symposium on the Foundations of Software Engineering (ESEC/FSE ’19), August 26–30, 2019, Tallinn, Estonia. ACM, New York, NY, USA, 5 pages. https://doi.org/10.1145/3338906.3341180
+---
 
 ## Requirements
 - Linux (Tested on Ubuntu 14.04 and 16.04)
