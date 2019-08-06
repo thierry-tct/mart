@@ -13,7 +13,7 @@
 #include <llvm/Support/SourceMgr.h>
 #include <llvm/Support/raw_ostream.h>
 //#include <llvm/Support/raw_os_ostream.h>
-#include "llvm/Support/FileSystem.h" //for F_None
+#include "llvm/Support/FileSystem.h" // for F_None
 
 #include "llvm/Support/MemoryBuffer.h"
 
