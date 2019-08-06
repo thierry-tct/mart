@@ -61,7 +61,7 @@ then
         $llc -O0 -filetype=obj -o ${m%.bc}.o $m || error_exit "Failed to compile mutant $m to object"
     done
     
-    sed -i'' 's|.bc|.o|g' "$tmpFuncModuleFolder/mapinfo"
+    sed -i'' 's|\.bc|.o|g' "$tmpFuncModuleFolder/mapinfo"
     while read in
     do 
         x_path=`printf "$in" | cut -d' ' -f1`
