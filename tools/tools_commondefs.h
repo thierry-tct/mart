@@ -1,6 +1,6 @@
 
-#ifndef __MART_SEMU_GENMU_tools_tools_commondefs__
-#define __MART_SEMU_GENMU_tools_tools_commondefs__
+#ifndef __MART_GENMU_tools_tools_commondefs__
+#define __MART_GENMU_tools_tools_commondefs__
 
 #include <libgen.h> //dirname
 #include <string>
@@ -20,7 +20,7 @@ static const char *preTCEMetaIRFileSuffix = ".preTCE.MetaMu.bc";
 static const char *commonIRSuffix = ".bc";
 static const char *metaMuIRFileSuffix = ".MetaMu.bc";
 static const char *usefulFolderName = "useful";
-#ifdef MART_SEMU_GENMU_OBJECTFILE
+#ifdef MART_GENMU_OBJECTFILE
 static const char *metaMuObjFileSuffix = ".MetaMu.o";
 #endif
 
@@ -31,7 +31,8 @@ void printVersion() {
   llvm::outs() << "\nLLVM (http://llvm.org/):\n";
   llvm::outs() << "\tLLVM version " << LLVM_VERSION_MAJOR << "."
                << LLVM_VERSION_MINOR << "." << LLVM_VERSION_PATCH << "\n";
-  llvm::outs() << "\tLLVM tools dir: " << STRINGIFY(LLVM_TOOLS_BINARY_DIR) << "\n";
+  //llvm::outs() << "\tLLVM tools dir: " << STRINGIFY(LLVM_TOOLS_BINARY_DIR) << "\n";
+  llvm::outs() << "\tLLVM tools dir: " << (LLVM_TOOLS_BINARY_DIR) << "\n";
   llvm::outs() << "\n";
 }
 

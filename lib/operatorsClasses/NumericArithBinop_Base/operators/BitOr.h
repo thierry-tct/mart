@@ -1,5 +1,5 @@
-#ifndef __MART_SEMU_GENMU_operatorClasses__BitOr__
-#define __MART_SEMU_GENMU_operatorClasses__BitOr__
+#ifndef __MART_GENMU_operatorClasses__BitOr__
+#define __MART_GENMU_operatorClasses__BitOr__
 
 /**
  * -==== BitOr.h
@@ -41,4 +41,4 @@ public:
 
 } // namespace mart
 
-#endif //__MART_SEMU_GENMU_operatorClasses__BitOr__
+#endif //__MART_GENMU_operatorClasses__BitOr__

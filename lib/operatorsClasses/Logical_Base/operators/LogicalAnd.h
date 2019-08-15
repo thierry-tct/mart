@@ -1,5 +1,5 @@
-#ifndef __MART_SEMU_GENMU_operatorClasses__LogicalAnd__
-#define __MART_SEMU_GENMU_operatorClasses__LogicalAnd__
+#ifndef __MART_GENMU_operatorClasses__LogicalAnd__
+#define __MART_GENMU_operatorClasses__LogicalAnd__
 
 /**
  * -==== LogicalAnd.h
@@ -29,4 +29,4 @@ class LogicalAnd : public Logical_Base {
 };
 }
 
-#endif //__MART_SEMU_GENMU_operatorClasses__LogicalAnd__
+#endif //__MART_GENMU_operatorClasses__LogicalAnd__

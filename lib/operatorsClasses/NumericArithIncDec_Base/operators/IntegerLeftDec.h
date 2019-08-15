@@ -1,5 +1,5 @@
-#ifndef __MART_SEMU_GENMU_operatorClasses__IntegerLeftDec__
-#define __MART_SEMU_GENMU_operatorClasses__IntegerLeftDec__
+#ifndef __MART_GENMU_operatorClasses__IntegerLeftDec__
+#define __MART_GENMU_operatorClasses__IntegerLeftDec__
 
 /**
  * -==== IntegerLeftDec.h
@@ -117,4 +117,4 @@ public:
 
 } // namespace mart
 
-#endif //__MART_SEMU_GENMU_operatorClasses__IntegerLeftDec__
+#endif //__MART_GENMU_operatorClasses__IntegerLeftDec__

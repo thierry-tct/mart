@@ -58,11 +58,13 @@ test -f $ks_GenMu || error_exit "Mutation tool non existent"
 
 llc=llc-3.4
 
+ks_tool=rev_umes
+
 cflags=""
 if [ $forKLEE = true ]
 then
-    export LD_LIBRARY_PATH=/media/thierry/TestMutants/KLEE/klee-semu/build/Release+Debug+Asserts/lib/:${LD_LIBRARY_PATH:-""}
-    cflags="-L /media/thierry/TestMutants/KLEE/klee-semu/build/Release+Debug+Asserts/lib/ -lkleeRuntest"
+    export LD_LIBRARY_PATH=/media/thierry/TestMutants/KLEE/klee-$ks_tool/build/Release+Debug+Asserts/lib/:${LD_LIBRARY_PATH:-""}
+    cflags="-L /media/thierry/TestMutants/KLEE/klee-$ks_tool/build/Release+Debug+Asserts/lib/ -lkleeRuntest"
 fi
 # #~
 
@@ -79,7 +81,7 @@ done
 
 
 ##################################################
-########### KLEE-SEMu part #######################
+########### KLEE-ks_tool part #######################
 ##################################################
 
 removeDupTests()
@@ -103,22 +105,22 @@ removeDupTests()
     cd $curDir
 }
 
-statSemu=mart-out-0/semu.ksstat
+stat_ks_tool=mart-out-0/$ks_tool
 statKlee=mart-out-0/klee.ksstat
 
-Semu=/media/thierry/TestMutants/KLEE/klee-semu/build/bin/klee-semu
-klee=/media/thierry/TestMutants/KLEE/klee-semu/build/bin/klee
+full_ks_tool=/media/thierry/TestMutants/KLEE/klee-$ks_tool/build/bin/klee-$ks_tool
+klee=/media/thierry/TestMutants/KLEE/klee-$ks_tool/build/bin/klee
 ktest_tool=$(dirname $klee)/ktest-tool
 
-$Semu --libc=uclibc --posix-runtime --allow-external-sym-calls -search bfs mart-out-0/MetaMu_$(basename $inputBC) 2>&1 || error_exit "SEMu failed"
-mv mart-out-0/klee-out-0 mart-out-0/klee-semu-out || error_exit "Failed to store semu output"
+$full_ks_tool --libc=uclibc --posix-runtime --allow-external-sym-calls -search bfs mart-out-0/MetaMu_$(basename $inputBC) 2>&1 || error_exit "$ks_tool failed"
+mv mart-out-0/klee-out-0 mart-out-0/klee-$ks_tool-out || error_exit "Failed to store $ks_tool output"
 $klee --libc=uclibc --posix-runtime --allow-external-sym-calls -search bfs $inputBC 2>&1 || error_exit "KLEE failed"
 
-echo "Num Gen Tests: "$(find mart-out-0/klee-semu-out -type f -name '*.ktest' | wc -l) > $statSemu
-removeDupTests mart-out-0/klee-semu-out
-echo "Num different Tests: "$(find mart-out-0/klee-semu-out -type f -name '*.ktest' | wc -l) >> $statSemu
-printf "\nMut/Test $(find mart-out-0/klee-semu-out -type f -name '*.ktest' | tr '\n' ' ')\n" >> $statSemu
-semuTests=$(find mart-out-0/klee-semu-out -type f -name '*.ktest' | tr '\n' ' ')
+echo "Num Gen Tests: "$(find mart-out-0/klee-$ks_tool-out -type f -name '*.ktest' | wc -l) > $stat_ks_tool
+removeDupTests mart-out-0/klee-$ks_tool-out
+echo "Num different Tests: "$(find mart-out-0/klee-$ks_tool-out -type f -name '*.ktest' | wc -l) >> $stat_ks_tool
+printf "\nMut/Test $(find mart-out-0/klee-$ks_tool-out -type f -name '*.ktest' | tr '\n' ' ')\n" >> $stat_ks_tool
+ks_toolTests=$(find mart-out-0/klee-$ks_tool-out -type f -name '*.ktest' | tr '\n' ' ')
 
 echo "Num Gen Tests: "$(find klee-out-0 -type f -name '*.ktest' | wc -l) > $statKlee
 removeDupTests klee-out-0
@@ -126,9 +128,9 @@ echo "Num different Tests: "$(find klee-out-0 -type f -name '*.ktest' | wc -l) >
 printf "\nMut/Test $(find klee-out-0 -type f -name '*.ktest' | tr '\n' ' ')\n" >> $statKlee
 kleeTests=$(find klee-out-0 -type f -name '*.ktest' | tr '\n' ' ')
 
-# Replay mutants with semu and klee
+# Replay mutants with $ks_tool and klee
 # Original first
-for tc in $semuTests $kleeTests
+for tc in $ks_toolTests $kleeTests
 do
     exe0=$(find ./mart-out-0/mutants/0/ -type f | grep -v ".bc$")
     KTEST_FILE=$tc $exe0 > $tc.mut0
@@ -138,7 +140,7 @@ done
 #mutants
 for m in `ls mart-out-0/mutants | grep -v "^0$" | sort -h`
 do
-    for tc in $semuTests $kleeTests
+    for tc in $ks_toolTests $kleeTests
     do
         rm -f $tc.muti
         exei=$(find ./mart-out-0/mutants/$m/ -type f | grep -v ".bc$")
@@ -147,16 +149,16 @@ do
     done
     #collect data
     
-    echo -n "$m" >> $statSemu
-    for tc in $semuTests
+    echo -n "$m" >> $stat_ks_tool
+    for tc in $ks_toolTests
     do
         if diff -q $tc.mut0 $tc.muti$m > /dev/null; then
-            echo -n " 0" >> $statSemu
+            echo -n " 0" >> $stat_ks_tool
         else
-            echo -n " 1" >> $statSemu
+            echo -n " 1" >> $stat_ks_tool
         fi
     done
-    echo >> $statSemu
+    echo >> $stat_ks_tool
     
     echo -n "$m" >> $statKlee
     for tc in $kleeTests

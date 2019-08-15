@@ -1,5 +1,5 @@
-#ifndef __MART_SEMU_GENMU_operatorClasses__DerefRightDec__
-#define __MART_SEMU_GENMU_operatorClasses__DerefRightDec__
+#ifndef __MART_GENMU_operatorClasses__DerefRightDec__
+#define __MART_GENMU_operatorClasses__DerefRightDec__
 
 /**
  * -==== DerefRightDec.h
@@ -62,4 +62,4 @@ public:
 
 } // namespace mart
 
-#endif //__MART_SEMU_GENMU_operatorClasses__DerefRightDec__
+#endif //__MART_GENMU_operatorClasses__DerefRightDec__

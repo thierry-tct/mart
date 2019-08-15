@@ -1,5 +1,5 @@
-#ifndef __MART_SEMU_GENMU_operatorClasses__FPAbs__
-#define __MART_SEMU_GENMU_operatorClasses__FPAbs__
+#ifndef __MART_GENMU_operatorClasses__FPAbs__
+#define __MART_GENMU_operatorClasses__FPAbs__
 
 /**
  * -==== FPAbs.h
@@ -44,4 +44,4 @@ class FPAbs : public ReplaceOnly_Base {
 
 } // namespace mart
 
-#endif //__MART_SEMU_GENMU_operatorClasses__FPAbs__
+#endif //__MART_GENMU_operatorClasses__FPAbs__

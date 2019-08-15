@@ -1,5 +1,5 @@
-#ifndef __MART_SEMU_GENMU_operatorClasses__PointerAdd__
-#define __MART_SEMU_GENMU_operatorClasses__PointerAdd__
+#ifndef __MART_GENMU_operatorClasses__PointerAdd__
+#define __MART_GENMU_operatorClasses__PointerAdd__
 
 /**
  * -==== PointerAdd.h
@@ -57,4 +57,4 @@ public:
 
 } // namespace mart
 
-#endif //__MART_SEMU_GENMU_operatorClasses__PointerAdd__
+#endif //__MART_GENMU_operatorClasses__PointerAdd__

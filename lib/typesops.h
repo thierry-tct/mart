@@ -9,8 +9,8 @@
  * \brief     Define the classes and types used by mutation process
  */
 
-#ifndef __MART_SEMU_GENMU_typesops__
-#define __MART_SEMU_GENMU_typesops__
+#ifndef __MART_GENMU_typesops__
+#define __MART_GENMU_typesops__
 
 #include <set>
 #include <sstream>
@@ -1469,4 +1469,4 @@ public:
 
 } // namespace mart
 
-#endif //__MART_SEMU_GENMU_typesops__
+#endif //__MART_GENMU_typesops__

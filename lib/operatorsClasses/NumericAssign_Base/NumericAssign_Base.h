@@ -1,5 +1,5 @@
-#ifndef __MART_SEMU_GENMU_operatorClasses__NumericAssign_Base__
-#define __MART_SEMU_GENMU_operatorClasses__NumericAssign_Base__
+#ifndef __MART_GENMU_operatorClasses__NumericAssign_Base__
+#define __MART_GENMU_operatorClasses__NumericAssign_Base__
 
 /**
  * -==== NumericAssign_Base.h
@@ -165,4 +165,4 @@ public:
 
 } // namespace mart
 
-#endif //__MART_SEMU_GENMU_operatorClasses__NumericAssign_Base__
+#endif //__MART_GENMU_operatorClasses__NumericAssign_Base__

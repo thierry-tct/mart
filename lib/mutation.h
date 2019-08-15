@@ -10,8 +10,8 @@
  * mutation
  */
 
-#ifndef __MART_SEMU_GENMU_mutation__
-#define __MART_SEMU_GENMU_mutation__
+#ifndef __MART_GENMU_mutation__
+#define __MART_GENMU_mutation__
 
 #include <string>
 #include <vector>
@@ -35,7 +35,7 @@ class Mutation {
   std::string mutantIDSelectorName_Func;
   std::string postMutationPointFuncName;
 
-  // Tell wheter the mutation is to be used with KLEE-SEMu
+  // Tell wheter the mutation is to be used with KS
   // If so, insert at mutation point a function call whose 2 arguments
   // are respectively the minID and MaxID of mutants at that point (mutant IDs
   // are seuentially attributed)
@@ -159,4 +159,4 @@ private:
 
 } // namespace mart
 
-#endif //__MART_SEMU_GENMU_mutation__
+#endif //__MART_GENMU_mutation__

@@ -1,5 +1,5 @@
-#ifndef __MART_SEMU_GENMU_operatorClasses__IntegerLeftInc__
-#define __MART_SEMU_GENMU_operatorClasses__IntegerLeftInc__
+#ifndef __MART_GENMU_operatorClasses__IntegerLeftInc__
+#define __MART_GENMU_operatorClasses__IntegerLeftInc__
 
 /**
  * -==== IntegerLeftInc.h
@@ -117,4 +117,4 @@ public:
 
 } // namespace mart
 
-#endif //__MART_SEMU_GENMU_operatorClasses__IntegerLeftInc__
+#endif //__MART_GENMU_operatorClasses__IntegerLeftInc__

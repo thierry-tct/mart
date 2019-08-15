@@ -1,4 +1,4 @@
-if (MART_SEMU_GENMU)
+if (MART_GENMU)
 	set(LLVM_LINK_COMPONENTS core engine asmparser bitreader support)
 
 	execute_process(COMMAND git rev-parse --short=8 HEAD OUTPUT_VARIABLE GITVERSION)
@@ -7,7 +7,7 @@ if (MART_SEMU_GENMU)
 
     # Mutation
 	add_executable(mart Mart.cpp)
-	target_link_libraries(mart KLEE-SEMu-GenMu)
+	target_link_libraries(mart MART_GenMu)
 
 	install(TARGETS mart
 		RUNTIME DESTINATION bin)
@@ -75,6 +75,6 @@ if (MART_SEMU_GENMU)
              DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/useful/wmlog-driver.bc ${CMAKE_CURRENT_BINARY_DIR}/useful/CompileAllMuts.sh ${CMAKE_CURRENT_BINARY_DIR}/useful/create_mconf.py ${CMAKE_CURRENT_BINARY_DIR}/useful/mconf-scope/default_allmax.mconf 
             )
             
-endif (MART_SEMU_GENMU)
+endif (MART_GENMU)
 
 include_directories('../lib')

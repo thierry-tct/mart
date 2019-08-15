@@ -1,5 +1,5 @@
-#ifndef __MART_SEMU_GENMU_operatorClasses__PAddDerefPtr__
-#define __MART_SEMU_GENMU_operatorClasses__PAddDerefPtr__
+#ifndef __MART_GENMU_operatorClasses__PAddDerefPtr__
+#define __MART_GENMU_operatorClasses__PAddDerefPtr__
 
 /**
  * -==== PAddDerefPtr.h
@@ -64,4 +64,4 @@ public:
 
 } // namespace mart
 
-#endif //__MART_SEMU_GENMU_operatorClasses__PAddDerefPtr__
+#endif //__MART_GENMU_operatorClasses__PAddDerefPtr__

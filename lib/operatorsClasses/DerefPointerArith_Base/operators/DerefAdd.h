@@ -1,5 +1,5 @@
-#ifndef __MART_SEMU_GENMU_operatorClasses__DerefAdd__
-#define __MART_SEMU_GENMU_operatorClasses__DerefAdd__
+#ifndef __MART_GENMU_operatorClasses__DerefAdd__
+#define __MART_GENMU_operatorClasses__DerefAdd__
 
 /**
  * -==== DerefAdd.h
@@ -77,4 +77,4 @@ public:
 }; // class DerefAdd
 
 } // namespace mart
-#endif //__MART_SEMU_GENMU_operatorClasses__DerefAdd__
+#endif //__MART_GENMU_operatorClasses__DerefAdd__

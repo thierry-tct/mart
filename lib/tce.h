@@ -9,8 +9,8 @@
  * \brief     Define the class TCE which is used to call optimizer and code diff
  */
 
-#ifndef __MART_SEMU_GENMU_tce__
-#define __MART_SEMU_GENMU_tce__
+#ifndef __MART_GENMU_tce__
+#define __MART_GENMU_tce__
 
 #include <unordered_map>
 #include <vector>
@@ -136,4 +136,4 @@ public:
 
 } // namespace mart
 
-#endif //__MART_SEMU_GENMU_tce__
+#endif //__MART_GENMU_tce__

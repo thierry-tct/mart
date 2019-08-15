@@ -1,5 +1,5 @@
-#ifndef __MART_SEMU_GENMU_operatorClasses__IntegerSub__
-#define __MART_SEMU_GENMU_operatorClasses__IntegerSub__
+#ifndef __MART_GENMU_operatorClasses__IntegerSub__
+#define __MART_GENMU_operatorClasses__IntegerSub__
 
 /**
  * -==== IntegerSub.h
@@ -40,4 +40,4 @@ public:
 
 } // namespace mart
 
-#endif //__MART_SEMU_GENMU_operatorClasses__IntegerSub__
+#endif //__MART_GENMU_operatorClasses__IntegerSub__

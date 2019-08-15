@@ -1,5 +1,5 @@
-#ifndef __MART_SEMU_GENMU_operatorClasses__SignedIntegerDiv__
-#define __MART_SEMU_GENMU_operatorClasses__SignedIntegerDiv__
+#ifndef __MART_GENMU_operatorClasses__SignedIntegerDiv__
+#define __MART_GENMU_operatorClasses__SignedIntegerDiv__
 
 /**
  * -==== SignedIntegerDiv.h
@@ -40,4 +40,4 @@ public:
 
 } // namespace mart
 
-#endif //__MART_SEMU_GENMU_operatorClasses__SignedIntegerDiv__
+#endif //__MART_GENMU_operatorClasses__SignedIntegerDiv__

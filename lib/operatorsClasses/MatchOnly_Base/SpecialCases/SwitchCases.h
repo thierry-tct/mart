@@ -1,5 +1,5 @@
-#ifndef __MART_SEMU_GENMU_operatorClasses__SwitchCases__
-#define __MART_SEMU_GENMU_operatorClasses__SwitchCases__
+#ifndef __MART_GENMU_operatorClasses__SwitchCases__
+#define __MART_GENMU_operatorClasses__SwitchCases__
 
 /**
  * -==== SwitchCases.h
@@ -215,4 +215,4 @@ public:
 
 } // namespace mart
 
-#endif //__MART_SEMU_GENMU_operatorClasses__SwitchCases__
+#endif //__MART_GENMU_operatorClasses__SwitchCases__

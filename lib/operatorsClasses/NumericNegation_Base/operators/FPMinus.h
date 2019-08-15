@@ -1,5 +1,5 @@
-#ifndef __MART_SEMU_GENMU_operatorClasses__FPMinus__
-#define __MART_SEMU_GENMU_operatorClasses__FPMinus__
+#ifndef __MART_GENMU_operatorClasses__FPMinus__
+#define __MART_GENMU_operatorClasses__FPMinus__
 
 /**
  * -==== FPMinus.h
@@ -51,4 +51,4 @@ public:
 
 } // namespace mart
 
-#endif //__MART_SEMU_GENMU_operatorClasses__FPMinus__
+#endif //__MART_GENMU_operatorClasses__FPMinus__

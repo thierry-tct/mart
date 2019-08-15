@@ -1,5 +1,5 @@
-#ifndef __MART_SEMU_GENMU_operatorClasses__RemoveCases__
-#define __MART_SEMU_GENMU_operatorClasses__RemoveCases__
+#ifndef __MART_GENMU_operatorClasses__RemoveCases__
+#define __MART_GENMU_operatorClasses__RemoveCases__
 
 /**
  * -==== RemoveCases.h
@@ -34,4 +34,4 @@ class RemoveCases : public ReplaceOnly_Base {
 
 } // namespace mart
 
-#endif //__MART_SEMU_GENMU_operatorClasses__RemoveCases__
+#endif //__MART_GENMU_operatorClasses__RemoveCases__

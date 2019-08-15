@@ -335,9 +335,9 @@ llvm::cl::opt<std::string> extraLinkingFlags(
   /// will fit in memory
   bool isTCEFunctionMode = true;
 
-#ifdef MART_SEMU_GENMU_OBJECTFILE
+#ifdef MART_GENMU_OBJECTFILE
   bool dumpMetaObj = false;
-#endif //#ifdef MART_SEMU_GENMU_OBJECTFILE
+#endif //#ifdef MART_GENMU_OBJECTFILE
 
   std::string useful_conf_dir = getUsefulAbsPath(argv[0]);
 
@@ -538,7 +538,7 @@ mutantsDir+"//"+std::to_string(mid)+"//"+outFile+".bc"))
     }
 }*/
 
-#ifdef MART_SEMU_GENMU_OBJECTFILE
+#ifdef MART_GENMU_OBJECTFILE
   if (dumpMetaObj) {
 #if (LLVM_VERSION_MAJOR <= 3) && (LLVM_VERSION_MINOR < 5)
     std::unique_ptr<llvm::Module> forObjModule(llvm::CloneModule(moduleM));
@@ -551,7 +551,7 @@ mutantsDir+"//"+std::to_string(mid)+"//"+outFile+".bc"))
                                                           metaMuObjFileSuffix))
       assert(false && "Failed to output meta-mutatant object file");
   }
-#endif //#ifdef MART_SEMU_GENMU_OBJECTFILE
+#endif //#ifdef MART_GENMU_OBJECTFILE
   // llvm::errs() << "@After Mutation->TCE\n"; moduleM->dump(); llvm::errs() <<
   // "\n";
 
@@ -593,7 +593,8 @@ mutantsDir+"//"+std::to_string(mid)+"//"+outFile+".bc"))
     std::string compileMutsScript(useful_conf_dir + "/CompileAllMuts.sh");
     execl("/bin/bash", "bash",
           compileMutsScript.c_str(),
-          STRINGIFY(LLVM_TOOLS_BINARY_DIR), outputDir.c_str(), 
+          //STRINGIFY(LLVM_TOOLS_BINARY_DIR), outputDir.c_str(), 
+          (LLVM_TOOLS_BINARY_DIR), outputDir.c_str(), 
           tmpFuncModuleFolder.c_str(), keepMutantsBCs ? "no" : "yes", 
           extraLinkingFlags.c_str(), (char *)NULL);
     llvm::errs() << "\n:( ERRORS: Mutants Compile script failed (probably not "

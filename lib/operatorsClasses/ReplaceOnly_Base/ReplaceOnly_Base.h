@@ -1,5 +1,5 @@
-#ifndef __MART_SEMU_GENMU_operatorClasses__ReplaceOnly_Base__
-#define __MART_SEMU_GENMU_operatorClasses__ReplaceOnly_Base__
+#ifndef __MART_GENMU_operatorClasses__ReplaceOnly_Base__
+#define __MART_GENMU_operatorClasses__ReplaceOnly_Base__
 
 /**
  * -==== ReplaceOnly_Base.h
@@ -63,4 +63,4 @@ class ReplaceOnly_Base : public GenericMuOpBase {
 
 } // namespace mart
 
-#endif //__MART_SEMU_GENMU_operatorClasses__ReplaceOnly_Base__
+#endif //__MART_GENMU_operatorClasses__ReplaceOnly_Base__

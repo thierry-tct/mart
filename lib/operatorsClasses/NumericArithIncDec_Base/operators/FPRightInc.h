@@ -1,5 +1,5 @@
-#ifndef __MART_SEMU_GENMU_operatorClasses__FPRightInc__
-#define __MART_SEMU_GENMU_operatorClasses__FPRightInc__
+#ifndef __MART_GENMU_operatorClasses__FPRightInc__
+#define __MART_GENMU_operatorClasses__FPRightInc__
 
 /**
  * -==== FPRightInc.h
@@ -108,4 +108,4 @@ public:
 
 } // namespace mart
 
-#endif //__MART_SEMU_GENMU_operatorClasses__FPRightInc__
+#endif //__MART_GENMU_operatorClasses__FPRightInc__

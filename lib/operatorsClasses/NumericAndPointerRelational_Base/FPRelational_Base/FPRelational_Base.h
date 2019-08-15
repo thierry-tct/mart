@@ -1,5 +1,5 @@
-#ifndef __MART_SEMU_GENMU_operatorClasses__FPRelational_Base__
-#define __MART_SEMU_GENMU_operatorClasses__FPRelational_Base__
+#ifndef __MART_GENMU_operatorClasses__FPRelational_Base__
+#define __MART_GENMU_operatorClasses__FPRelational_Base__
 
 /**
  * -==== FPRelational_Base.h
@@ -64,4 +64,4 @@ public:
 
 } // namespace mart
 
-#endif //__MART_SEMU_GENMU_operatorClasses__FPRelational_Base__
+#endif //__MART_GENMU_operatorClasses__FPRelational_Base__

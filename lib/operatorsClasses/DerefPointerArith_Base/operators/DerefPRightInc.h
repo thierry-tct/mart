@@ -1,5 +1,5 @@
-#ifndef __MART_SEMU_GENMU_operatorClasses__DerefPRightInc__
-#define __MART_SEMU_GENMU_operatorClasses__DerefPRightInc__
+#ifndef __MART_GENMU_operatorClasses__DerefPRightInc__
+#define __MART_GENMU_operatorClasses__DerefPRightInc__
 
 /**
  * -==== DerefPRightInc.h
@@ -55,4 +55,4 @@ public:
 
 } // namespace mart
 
-#endif //__MART_SEMU_GENMU_operatorClasses__DerefPRightInc__
+#endif //__MART_GENMU_operatorClasses__DerefPRightInc__

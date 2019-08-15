@@ -1,5 +1,5 @@
-#ifndef __MART_SEMU_GENMU_operatorClasses__IntegerAbs__
-#define __MART_SEMU_GENMU_operatorClasses__IntegerAbs__
+#ifndef __MART_GENMU_operatorClasses__IntegerAbs__
+#define __MART_GENMU_operatorClasses__IntegerAbs__
 
 /**
  * -==== IntegerAbs.h
@@ -43,4 +43,4 @@ class IntegerAbs : public ReplaceOnly_Base {
 
 } // namespace mart
 
-#endif //__MART_SEMU_GENMU_operatorClasses__IntegerAbs__
+#endif //__MART_GENMU_operatorClasses__IntegerAbs__

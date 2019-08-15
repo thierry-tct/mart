@@ -1,5 +1,5 @@
-#ifndef __MART_SEMU_GENMU_operatorClasses__OFPGreaterOrEqual__
-#define __MART_SEMU_GENMU_operatorClasses__OFPGreaterOrEqual__
+#ifndef __MART_GENMU_operatorClasses__OFPGreaterOrEqual__
+#define __MART_GENMU_operatorClasses__OFPGreaterOrEqual__
 
 /**
  * -==== OFPGreaterOrEqual.h
@@ -36,4 +36,4 @@ protected:
 
 } // namespace mart
 
-#endif //__MART_SEMU_GENMU_operatorClasses__OFPGreaterOrEqual__
+#endif //__MART_GENMU_operatorClasses__OFPGreaterOrEqual__

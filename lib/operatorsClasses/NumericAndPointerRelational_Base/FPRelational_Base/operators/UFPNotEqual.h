@@ -1,5 +1,5 @@
-#ifndef __MART_SEMU_GENMU_operatorClasses__UFPNotEqual__
-#define __MART_SEMU_GENMU_operatorClasses__UFPNotEqual__
+#ifndef __MART_GENMU_operatorClasses__UFPNotEqual__
+#define __MART_GENMU_operatorClasses__UFPNotEqual__
 
 /**
  * -==== UFPNotEqual.h
@@ -36,4 +36,4 @@ protected:
 
 } // namespace mart
 
-#endif //__MART_SEMU_GENMU_operatorClasses__UFPNotEqual__
+#endif //__MART_GENMU_operatorClasses__UFPNotEqual__

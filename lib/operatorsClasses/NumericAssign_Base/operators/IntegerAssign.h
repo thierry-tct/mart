@@ -1,5 +1,5 @@
-#ifndef __MART_SEMU_GENMU_operatorClasses__IntegerAssign__
-#define __MART_SEMU_GENMU_operatorClasses__IntegerAssign__
+#ifndef __MART_GENMU_operatorClasses__IntegerAssign__
+#define __MART_GENMU_operatorClasses__IntegerAssign__
 
 /**
  * -==== IntegerAssign.h
@@ -28,4 +28,4 @@ protected:
 
 } // namespace mart
 
-#endif //__MART_SEMU_GENMU_operatorClasses__IntegerAssign__
+#endif //__MART_GENMU_operatorClasses__IntegerAssign__

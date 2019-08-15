@@ -1,5 +1,5 @@
-#ifndef __MART_SEMU_GENMU_operatorClasses__KeepOneOperand__
-#define __MART_SEMU_GENMU_operatorClasses__KeepOneOperand__
+#ifndef __MART_GENMU_operatorClasses__KeepOneOperand__
+#define __MART_GENMU_operatorClasses__KeepOneOperand__
 
 /**
  * -==== KeepOneOperand.h
@@ -31,4 +31,4 @@ class KeepOneOperand : public ReplaceOnly_Base {
 
 } // namespace mart
 
-#endif //__MART_SEMU_GENMU_operatorClasses__KeepOneOperand__
+#endif //__MART_GENMU_operatorClasses__KeepOneOperand__

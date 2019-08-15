@@ -1,5 +1,5 @@
-#ifndef __MART_SEMU_GENMU_operatorClasses__PointerRightDec__
-#define __MART_SEMU_GENMU_operatorClasses__PointerRightDec__
+#ifndef __MART_GENMU_operatorClasses__PointerRightDec__
+#define __MART_GENMU_operatorClasses__PointerRightDec__
 
 /**
  * -==== PointerRightDec.h
@@ -82,4 +82,4 @@ public:
 
 } // namespace mart
 
-#endif //__MART_SEMU_GENMU_operatorClasses__PointerRightDec__
+#endif //__MART_GENMU_operatorClasses__PointerRightDec__

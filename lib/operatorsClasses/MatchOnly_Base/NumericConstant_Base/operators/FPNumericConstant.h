@@ -1,5 +1,5 @@
-#ifndef __MART_SEMU_GENMU_operatorClasses__FPNumericConstant__
-#define __MART_SEMU_GENMU_operatorClasses__FPNumericConstant__
+#ifndef __MART_GENMU_operatorClasses__FPNumericConstant__
+#define __MART_GENMU_operatorClasses__FPNumericConstant__
 
 /**
  * -==== FPNumericConstant.h
@@ -42,4 +42,4 @@ protected:
 
 } // namespace mart
 
-#endif //__MART_SEMU_GENMU_operatorClasses__FPNumericConstant__
+#endif //__MART_GENMU_operatorClasses__FPNumericConstant__

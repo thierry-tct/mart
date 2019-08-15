@@ -1,5 +1,5 @@
-#ifndef __MART_SEMU_GENMU_operatorClasses__MemoryAddressValue__
-#define __MART_SEMU_GENMU_operatorClasses__MemoryAddressValue__
+#ifndef __MART_GENMU_operatorClasses__MemoryAddressValue__
+#define __MART_GENMU_operatorClasses__MemoryAddressValue__
 
 /**
  * -==== MemoryAddressValue.h
@@ -30,4 +30,4 @@ protected:
 
 } // namespace mart
 
-#endif //__MART_SEMU_GENMU_operatorClasses__MemoryAddressValue__
+#endif //__MART_GENMU_operatorClasses__MemoryAddressValue__

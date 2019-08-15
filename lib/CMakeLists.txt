@@ -1,4 +1,4 @@
-if (MART_SEMU_GENMU)
+if (MART_GENMU)
 
     include_directories( ${CMAKE_CURRENT_SOURCE_DIR}/operatorsClasses )
     #include_directories(${CMAKE_CURRENT_BINARY_DIR}/third-parties/FastBDT/include)
@@ -35,7 +35,7 @@ if (MART_SEMU_GENMU)
     target_link_libraries(UserMaps JsonBox)
    
     
-    add_library(KLEE-SEMu-GenMu SHARED
+    add_library(MART_GenMu SHARED
         mutation.cpp
         #usermaps.cpp
         #llvm-diff
@@ -44,7 +44,7 @@ if (MART_SEMU_GENMU)
         llvm-diff/DifferenceEngine.cpp
     )
 
-    target_link_libraries(KLEE-SEMu-GenMu UserMaps ${llvm_libs} JsonBox) #link with JsonBox
+    target_link_libraries(MART_GenMu UserMaps ${llvm_libs} JsonBox) #link with JsonBox
     
     if (MART_MUTANT_SELECTION)
         #Mutant Selection
@@ -64,7 +64,7 @@ if (MART_SEMU_GENMU)
                 LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR})
     endif (MART_MUTANT_SELECTION)
         
-    install(TARGETS KLEE-SEMu-GenMu
+    install(TARGETS MART_GenMu
             LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR})
 
     install(FILES
@@ -72,7 +72,7 @@ if (MART_SEMU_GENMU)
             typesops.h
             usermaps.h
             readwriteIR.h
-            DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/klee-semu-genmu/)
+            DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/mart/)
     
     #Add JsonBox build dir
     set(CMAKE_CXX_FLAGS__BACKUP ${CMAKE_CXX_FLAGS})
@@ -81,5 +81,5 @@ if (MART_SEMU_GENMU)
     set(CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS__BACKUP})
     
     
-endif (MART_SEMU_GENMU)
+endif (MART_GENMU)
 

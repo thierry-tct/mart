@@ -1,5 +1,5 @@
-#ifndef __MART_SEMU_GENMU_operatorClasses__IntegerMinus__
-#define __MART_SEMU_GENMU_operatorClasses__IntegerMinus__
+#ifndef __MART_GENMU_operatorClasses__IntegerMinus__
+#define __MART_GENMU_operatorClasses__IntegerMinus__
 
 /**
  * -==== IntegerMinus.h
@@ -51,4 +51,4 @@ public:
 
 } // namespace mart
 
-#endif //__MART_SEMU_GENMU_operatorClasses__IntegerMinus__
+#endif //__MART_GENMU_operatorClasses__IntegerMinus__

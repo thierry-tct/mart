@@ -1,5 +1,5 @@
-#ifndef __MART_SEMU_GENMU_operatorClasses__NumericArithIncDec_Base__
-#define __MART_SEMU_GENMU_operatorClasses__NumericArithIncDec_Base__
+#ifndef __MART_GENMU_operatorClasses__NumericArithIncDec_Base__
+#define __MART_GENMU_operatorClasses__NumericArithIncDec_Base__
 
 /**
  * -==== NumericArithIncDec_Base.h
@@ -141,4 +141,4 @@ public:
 
 } // namespace mart
 
-#endif //__MART_SEMU_GENMU_operatorClasses__NumericArithIncDec_Base__
+#endif //__MART_GENMU_operatorClasses__NumericArithIncDec_Base__

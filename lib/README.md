@@ -1,7 +1,7 @@
 # Libraries Directory
 
 ```llvm-diff``` is helpful to check wheter llvm code differ. 
-We made some change on the ```llvm-diff``` from ```llvm``` repo (see _KLEE_SEMu_GenMu_PRINTDIFF_).
+We made some change on the ```llvm-diff``` from ```llvm``` repo (see _MART_GenMu_PRINTDIFF_).
     - llvm-diff/DiffConsumer.cpp
     - llvm-diff/DiffLog.cpp
     - llvm-diff/DifferenceEngine.cpp

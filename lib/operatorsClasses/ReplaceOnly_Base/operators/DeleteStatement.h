@@ -1,5 +1,5 @@
-#ifndef __MART_SEMU_GENMU_operatorClasses__DeleteStatement__
-#define __MART_SEMU_GENMU_operatorClasses__DeleteStatement__
+#ifndef __MART_GENMU_operatorClasses__DeleteStatement__
+#define __MART_GENMU_operatorClasses__DeleteStatement__
 
 /**
  * -==== DeleteStatement.h
@@ -34,4 +34,4 @@ class DeleteStatement : public ReplaceOnly_Base {
 
 } // namespace mart
 
-#endif //__MART_SEMU_GENMU_operatorClasses__DeleteStatement__
+#endif //__MART_GENMU_operatorClasses__DeleteStatement__

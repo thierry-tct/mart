@@ -1,5 +1,5 @@
-#ifndef __MART_SEMU_GENMU_operatorClasses__IntegerRelational_Base__
-#define __MART_SEMU_GENMU_operatorClasses__IntegerRelational_Base__
+#ifndef __MART_GENMU_operatorClasses__IntegerRelational_Base__
+#define __MART_GENMU_operatorClasses__IntegerRelational_Base__
 
 /**
  * -==== IntegerRelational_Base.h
@@ -57,4 +57,4 @@ public:
 
 } // namespace mart
 
-#endif //__MART_SEMU_GENMU_operatorClasses__IntegerRelational_Base__
+#endif //__MART_GENMU_operatorClasses__IntegerRelational_Base__

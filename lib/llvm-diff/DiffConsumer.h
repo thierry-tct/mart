@@ -79,7 +79,7 @@ namespace llvm {
 
   public:
     DiffConsumer(SmallVector<BasicBlock *, 2> *mdiffBBs=nullptr)
-#ifdef KLEE_SEMu_GenMu_PRINTDIFF
+#ifdef MART_GenMu_PRINTDIFF
       : out(errs()), Differences(false), Indent(0), mart_diffBBs(mdiffBBs) {}
 #else
       : out(nulls()), Differences(false), Indent(0), mart_diffBBs(mdiffBBs) {}

@@ -17,8 +17,8 @@
 //// install 'libcgraph6'
 //#include "cgraph.h"
 
-#ifndef __MART_SEMU_GENMU_mutantsSelection_MutantSelection__
-#define __MART_SEMU_GENMU_mutantsSelection_MutantSelection__
+#ifndef __MART_GENMU_mutantsSelection_MutantSelection__
+#define __MART_GENMU_mutantsSelection_MutantSelection__
 
 #include <unordered_set>
 
@@ -511,4 +511,4 @@ public:
 } // namespace selection
 } // namespace mart
 
-#endif //__MART_SEMU_GENMU_mutantsSelection_MutantSelection__
+#endif //__MART_GENMU_mutantsSelection_MutantSelection__

@@ -1,5 +1,5 @@
-#ifndef __MART_SEMU_GENMU_operatorClasses__FPRightDec__
-#define __MART_SEMU_GENMU_operatorClasses__FPRightDec__
+#ifndef __MART_GENMU_operatorClasses__FPRightDec__
+#define __MART_GENMU_operatorClasses__FPRightDec__
 
 /**
  * -==== FPRightDec.h
@@ -108,4 +108,4 @@ public:
 
 } // namespace mart
 
-#endif //__MART_SEMU_GENMU_operatorClasses__FPRightDec__
+#endif //__MART_GENMU_operatorClasses__FPRightDec__

@@ -1,5 +1,5 @@
-#ifndef __MART_SEMU_GENMU_operatorClasses__UIntegerGreaterOrEqual__
-#define __MART_SEMU_GENMU_operatorClasses__UIntegerGreaterOrEqual__
+#ifndef __MART_GENMU_operatorClasses__UIntegerGreaterOrEqual__
+#define __MART_GENMU_operatorClasses__UIntegerGreaterOrEqual__
 
 /**
  * -==== UIntegerGreaterOrEqual.h
@@ -31,4 +31,4 @@ protected:
 
 } // namespace mart
 
-#endif //__MART_SEMU_GENMU_operatorClasses__UIntegerGreaterOrEqual__
+#endif //__MART_GENMU_operatorClasses__UIntegerGreaterOrEqual__

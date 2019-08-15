@@ -1,5 +1,5 @@
-#ifndef __MART_SEMU_GENMU_operatorClasses__MemoryPointerVariable__
-#define __MART_SEMU_GENMU_operatorClasses__MemoryPointerVariable__
+#ifndef __MART_GENMU_operatorClasses__MemoryPointerVariable__
+#define __MART_GENMU_operatorClasses__MemoryPointerVariable__
 
 /**
  * -==== MemoryPointerVariable.h
@@ -32,4 +32,4 @@ protected:
 
 } // namespace mart
 
-#endif //__MART_SEMU_GENMU_operatorClasses__MemoryPointerVariable__
+#endif //__MART_GENMU_operatorClasses__MemoryPointerVariable__

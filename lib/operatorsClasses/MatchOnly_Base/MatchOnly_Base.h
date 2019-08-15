@@ -1,5 +1,5 @@
-#ifndef __MART_SEMU_GENMU_operatorClasses__MatchOnly_Base__
-#define __MART_SEMU_GENMU_operatorClasses__MatchOnly_Base__
+#ifndef __MART_GENMU_operatorClasses__MatchOnly_Base__
+#define __MART_GENMU_operatorClasses__MatchOnly_Base__
 
 /**
  * -==== MatchOnly_Base.h
@@ -32,4 +32,4 @@ class MatchOnly_Base : public GenericMuOpBase {
 
 } // namespace mart
 
-#endif //__MART_SEMU_GENMU_operatorClasses__MatchOnly_Base__
+#endif //__MART_GENMU_operatorClasses__MatchOnly_Base__

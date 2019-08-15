@@ -1,5 +1,5 @@
-#ifndef __MART_SEMU_GENMU_operatorClasses__FPMod__
-#define __MART_SEMU_GENMU_operatorClasses__FPMod__
+#ifndef __MART_GENMU_operatorClasses__FPMod__
+#define __MART_GENMU_operatorClasses__FPMod__
 
 /**
  * -==== FPMod.h
@@ -40,4 +40,4 @@ public:
 
 } // namespace mart
 
-#endif //__MART_SEMU_GENMU_operatorClasses__FPMod__
+#endif //__MART_GENMU_operatorClasses__FPMod__

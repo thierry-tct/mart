@@ -1,5 +1,5 @@
-#ifndef __MART_SEMU_GENMU_operatorClasses__UnsignedIntegerMod__
-#define __MART_SEMU_GENMU_operatorClasses__UnsignedIntegerMod__
+#ifndef __MART_GENMU_operatorClasses__UnsignedIntegerMod__
+#define __MART_GENMU_operatorClasses__UnsignedIntegerMod__
 
 /**
  * -==== UnsignedIntegerMod.h
@@ -41,4 +41,4 @@ public:
 
 } // namespace mart
 
-#endif //__MART_SEMU_GENMU_operatorClasses__UnsignedIntegerMod__
+#endif //__MART_GENMU_operatorClasses__UnsignedIntegerMod__

@@ -1,5 +1,5 @@
-#ifndef __MART_SEMU_GENMU_operatorClasses__ReturnBreakContinue__
-#define __MART_SEMU_GENMU_operatorClasses__ReturnBreakContinue__
+#ifndef __MART_GENMU_operatorClasses__ReturnBreakContinue__
+#define __MART_GENMU_operatorClasses__ReturnBreakContinue__
 
 /**
  * -==== ReturnBreakContinue.h
@@ -224,4 +224,4 @@ public:
 
 } // namespace mart
 
-#endif //__MART_SEMU_GENMU_operatorClasses__ReturnBreakContinue__
+#endif //__MART_GENMU_operatorClasses__ReturnBreakContinue__

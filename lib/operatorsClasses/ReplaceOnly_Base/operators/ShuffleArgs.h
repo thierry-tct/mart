@@ -1,5 +1,5 @@
-#ifndef __MART_SEMU_GENMU_operatorClasses__ShuffleArgs__
-#define __MART_SEMU_GENMU_operatorClasses__ShuffleArgs__
+#ifndef __MART_GENMU_operatorClasses__ShuffleArgs__
+#define __MART_GENMU_operatorClasses__ShuffleArgs__
 
 /**
  * -==== ShuffleArgs.h
@@ -33,4 +33,4 @@ class ShuffleArgs : public ReplaceOnly_Base {
 
 } // namespace mart
 
-#endif //__MART_SEMU_GENMU_operatorClasses__ShuffleArgs__
+#endif //__MART_GENMU_operatorClasses__ShuffleArgs__

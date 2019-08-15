@@ -1,5 +1,5 @@
-#ifndef __MART_SEMU_GENMU_operatorClasses__TrapStatement__
-#define __MART_SEMU_GENMU_operatorClasses__TrapStatement__
+#ifndef __MART_GENMU_operatorClasses__TrapStatement__
+#define __MART_GENMU_operatorClasses__TrapStatement__
 
 /**
  * -==== TrapStatement.h
@@ -34,4 +34,4 @@ class TrapStatement : public ReplaceOnly_Base {
 
 } // namespace mart
 
-#endif //__MART_SEMU_GENMU_operatorClasses__TrapStatement__
+#endif //__MART_GENMU_operatorClasses__TrapStatement__

@@ -1,5 +1,5 @@
-#ifndef __MART_SEMU_GENMU_operatorClasses__PointerRightInc__
-#define __MART_SEMU_GENMU_operatorClasses__PointerRightInc__
+#ifndef __MART_GENMU_operatorClasses__PointerRightInc__
+#define __MART_GENMU_operatorClasses__PointerRightInc__
 
 /**
  * -==== PointerRightInc.h
@@ -82,4 +82,4 @@ public:
 
 } // namespace mart
 
-#endif //__MART_SEMU_GENMU_operatorClasses__PointerRightInc__
+#endif //__MART_GENMU_operatorClasses__PointerRightInc__

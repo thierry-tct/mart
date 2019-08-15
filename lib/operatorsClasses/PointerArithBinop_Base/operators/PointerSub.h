@@ -1,5 +1,5 @@
-#ifndef __MART_SEMU_GENMU_operatorClasses__PointerSub__
-#define __MART_SEMU_GENMU_operatorClasses__PointerSub__
+#ifndef __MART_GENMU_operatorClasses__PointerSub__
+#define __MART_GENMU_operatorClasses__PointerSub__
 
 /**
  * -==== PointerSub.h
@@ -57,4 +57,4 @@ public:
 
 } // namespace mart
 
-#endif //__MART_SEMU_GENMU_operatorClasses__PointerSub__
+#endif //__MART_GENMU_operatorClasses__PointerSub__

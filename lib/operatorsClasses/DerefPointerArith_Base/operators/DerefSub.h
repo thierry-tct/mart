@@ -1,5 +1,5 @@
-#ifndef __MART_SEMU_GENMU_operatorClasses__DerefSub__
-#define __MART_SEMU_GENMU_operatorClasses__DerefSub__
+#ifndef __MART_GENMU_operatorClasses__DerefSub__
+#define __MART_GENMU_operatorClasses__DerefSub__
 
 /**
  * -==== DerefSub.h
@@ -78,4 +78,4 @@ public:
 
 } // namespace mart
 
-#endif //__MART_SEMU_GENMU_operatorClasses__DerefSub__
+#endif //__MART_GENMU_operatorClasses__DerefSub__

@@ -1,5 +1,5 @@
-#ifndef __MART_SEMU_GENMU_operatorClasses__BitNot__
-#define __MART_SEMU_GENMU_operatorClasses__BitNot__
+#ifndef __MART_GENMU_operatorClasses__BitNot__
+#define __MART_GENMU_operatorClasses__BitNot__
 
 /**
  * -==== BitNot.h
@@ -66,4 +66,4 @@ public:
 
 } // namespace mart
 
-#endif //__MART_SEMU_GENMU_operatorClasses__BitNot__
+#endif //__MART_GENMU_operatorClasses__BitNot__

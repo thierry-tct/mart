@@ -1,5 +1,5 @@
-#ifndef __MART_SEMU_GENMU_operatorClasses__FPNumericExpression__
-#define __MART_SEMU_GENMU_operatorClasses__FPNumericExpression__
+#ifndef __MART_GENMU_operatorClasses__FPNumericExpression__
+#define __MART_GENMU_operatorClasses__FPNumericExpression__
 
 /**
  * -==== FPNumericExpression.h
@@ -36,4 +36,4 @@ protected:
 
 } // namespace mart
 
-#endif //__MART_SEMU_GENMU_operatorClasses__FPNumericExpression__
+#endif //__MART_GENMU_operatorClasses__FPNumericExpression__

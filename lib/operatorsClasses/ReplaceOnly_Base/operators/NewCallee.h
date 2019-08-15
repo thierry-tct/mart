@@ -1,5 +1,5 @@
-#ifndef __MART_SEMU_GENMU_operatorClasses__NewCallee__
-#define __MART_SEMU_GENMU_operatorClasses__NewCallee__
+#ifndef __MART_GENMU_operatorClasses__NewCallee__
+#define __MART_GENMU_operatorClasses__NewCallee__
 
 /**
  * -==== NewCallee.h
@@ -34,4 +34,4 @@ class NewCallee : public ReplaceOnly_Base {
 
 } // namespace mart
 
-#endif //__MART_SEMU_GENMU_operatorClasses__NewCallee__
+#endif //__MART_GENMU_operatorClasses__NewCallee__

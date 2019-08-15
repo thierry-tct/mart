@@ -1,5 +1,5 @@
-#ifndef __MART_SEMU_GENMU_operatorClasses__PRightIncDerefInt__
-#define __MART_SEMU_GENMU_operatorClasses__PRightIncDerefInt__
+#ifndef __MART_GENMU_operatorClasses__PRightIncDerefInt__
+#define __MART_GENMU_operatorClasses__PRightIncDerefInt__
 
 /**
  * -==== PRightIncDerefInt.h
@@ -62,4 +62,4 @@ public:
 
 } // namespace mart
 
-#endif //__MART_SEMU_GENMU_operatorClasses__PRightIncDerefInt__
+#endif //__MART_GENMU_operatorClasses__PRightIncDerefInt__

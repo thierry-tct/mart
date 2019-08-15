@@ -1,5 +1,5 @@
 
-if (MART_SEMU_GENMU)
+if (MART_GENMU)
 	#set(LLVM_LINK_COMPONENTS core engine asmparser bitreader support)
 
 	#execute_process(COMMAND git rev-parse --short=8 HEAD OUTPUT_VARIABLE GITVERSION)
@@ -7,7 +7,7 @@ if (MART_SEMU_GENMU)
 	#add_definitions(-DGIT_VERSION="${GITVERSION}")
 
 	#add_executable(mart MART.cpp)
-	#target_link_libraries(mart KLEE-SEMu-GenMu)
+	#target_link_libraries(mart MART_GenMu)
 
 	#install(TARGETS mart
 	#	RUNTIME DESTINATION bin)
@@ -23,6 +23,6 @@ if (MART_SEMU_GENMU)
                  DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/ks_mutation.sh
                 )
                 
-endif (MART_SEMU_GENMU)
+endif (MART_GENMU)
 
 #include_directories('../lib')

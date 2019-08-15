@@ -196,21 +196,21 @@ void DiffConsumer::logd(const DiffLogBuilder &Log) {
     switch (Log.getLineKind(I)) {
     case DC_match:
       out << "  ";
-#ifdef KLEE_SEMu_GenMu_PRINTDIFF
+#ifdef MART_GenMu_PRINTDIFF
       Log.getLeft(I)->dump();
 #endif
       //printValue(Log.getLeft(I), true);
       break;
     case DC_left:
       out << "< ";
-#ifdef KLEE_SEMu_GenMu_PRINTDIFF
+#ifdef MART_GenMu_PRINTDIFF
       Log.getLeft(I)->dump();
 #endif
       //printValue(Log.getLeft(I), true);
       break;
     case DC_right:
       out << "> ";
-#ifdef KLEE_SEMu_GenMu_PRINTDIFF
+#ifdef MART_GenMu_PRINTDIFF
       Log.getRight(I)->dump();
 #endif
       //printValue(Log.getRight(I), false);

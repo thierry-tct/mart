@@ -1,5 +1,5 @@
-#ifndef __MART_SEMU_GENMU_operatorClasses__FPLeftDec__
-#define __MART_SEMU_GENMU_operatorClasses__FPLeftDec__
+#ifndef __MART_GENMU_operatorClasses__FPLeftDec__
+#define __MART_GENMU_operatorClasses__FPLeftDec__
 
 /**
  * -==== FPLeftDec.h
@@ -120,4 +120,4 @@ public:
 
 } // namespace mart
 
-#endif //__MART_SEMU_GENMU_operatorClasses__FPLeftDec__
+#endif //__MART_GENMU_operatorClasses__FPLeftDec__

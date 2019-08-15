@@ -1,6 +1,6 @@
 #cmake_minimum_required(VERSION 3.4.3)
 cmake_minimum_required(VERSION 3.0.0)
-project(KLEE-SEMu-GenMu)
+project(MART_GenMu)
 
 #if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
     ### require at least gcc 4.8
@@ -19,7 +19,7 @@ include_directories( ${CMAKE_CURRENT_SOURCE_DIR}/include )
 set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_STANDARD_REQUIRED on)
 
-OPTION(MART_SEMU_GENMU "Support for Mutant Generation" ON)
+OPTION(MART_GENMU "Support for Mutant Generation" ON)
 
 #OPTION(MART_MUTANT_SELECTION "Support for Mutant Selection" ON)
 if (MART_MUTANT_SELECTION)
@@ -29,13 +29,13 @@ else()
 endif()
 
 #Set this to ON for generation of mutants object file (note that this will increase the executable size:  4MB VS 400MB)
-OPTION(MART_SEMU_GENMU_OBJECTFILE "Support for object file generation" OFF) 
+OPTION(MART_GENMU_OBJECTFILE "Support for object file generation" OFF) 
 
 message(STATUS "Build type: ${CMAKE_BUILD_TYPE}")
 
 message(STATUS "Compiler: ${CMAKE_CXX_COMPILER_ID} ${CMAKE_CXX_COMPILER_VERSION}")
 
-if (MART_SEMU_GENMU)
+if (MART_GENMU)
 	# for llvm dg we need cfg and postdom edges
 	#if (NOT ENABLE_CFG)
 	#	message(STATUS "Enabling CFG edges due to llvm dg")
@@ -93,16 +93,16 @@ if (MART_SEMU_GENMU)
 	add_definitions(${LLVM_DEFINITIONS})
 
 ####
-    if(MART_SEMU_GENMU_OBJECTFILE)
-        add_definitions(-DMART_SEMU_GENMU_OBJECTFILE)
+    if(MART_GENMU_OBJECTFILE)
+        add_definitions(-DMART_GENMU_OBJECTFILE)
         set(KS_COMPONENTS_BY_VERSION llvm_libs all)
-        message(STATUS "MART_SEMU_GENMU_OBJECTFILE is ON") 
+        message(STATUS "MART_GENMU_OBJECTFILE is ON") 
     else()
-        remove_definitions(-DMART_SEMU_GENMU_OBJECTFILE)
+        remove_definitions(-DMART_GENMU_OBJECTFILE)
         set(KS_COMPONENTS_BY_VERSION llvm_libs support core transformutils ipo
 		                             irreader bitwriter analysis asmparser linker)
-	    message(STATUS "MART_SEMU_GENMU_OBJECTFILE is OFF")
-	endif(MART_SEMU_GENMU_OBJECTFILE)
+	    message(STATUS "MART_GENMU_OBJECTFILE is OFF")
+	endif(MART_GENMU_OBJECTFILE)
 ##
 	           
 	if (NOT ${LLVM_PACKAGE_VERSION} VERSION_LESS "3.5")
@@ -112,7 +112,7 @@ if (MART_SEMU_GENMU)
 	endif()
 
 	add_definitions(-DHAVE_LLVM)
-endif(MART_SEMU_GENMU)
+endif(MART_GENMU)
 
 #if (ENABLE_CFG)
 #	add_definitions(-DENABLE_CFG)

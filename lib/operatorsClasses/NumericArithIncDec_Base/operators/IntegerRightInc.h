@@ -1,5 +1,5 @@
-#ifndef __MART_SEMU_GENMU_operatorClasses__IntegerRightInc__
-#define __MART_SEMU_GENMU_operatorClasses__IntegerRightInc__
+#ifndef __MART_GENMU_operatorClasses__IntegerRightInc__
+#define __MART_GENMU_operatorClasses__IntegerRightInc__
 
 /**
  * -==== IntegerRightInc.h
@@ -107,4 +107,4 @@ public:
 
 } // namespace mart
 
-#endif //__MART_SEMU_GENMU_operatorClasses__IntegerRightInc__
+#endif //__MART_GENMU_operatorClasses__IntegerRightInc__

@@ -12,8 +12,8 @@
  * class object
  */
 
-#ifndef __MART_SEMU_GENMU_usermaps__
-#define __MART_SEMU_GENMU_usermaps__
+#ifndef __MART_GENMU_usermaps__
+#define __MART_GENMU_usermaps__
 
 //#include "typesops.h"
 #include <map>
@@ -224,4 +224,4 @@ public:
 
 } // namespace mart
 
-#endif //__MART_SEMU_GENMU_usermaps__
+#endif //__MART_GENMU_usermaps__

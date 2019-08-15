@@ -1,5 +1,5 @@
-#ifndef __MART_SEMU_GENMU_operatorClasses__BitShiftLeft__
-#define __MART_SEMU_GENMU_operatorClasses__BitShiftLeft__
+#ifndef __MART_GENMU_operatorClasses__BitShiftLeft__
+#define __MART_GENMU_operatorClasses__BitShiftLeft__
 
 /**
  * -==== BitShiftLeft.h
@@ -40,4 +40,4 @@ public:
 
 } // namespace mart
 
-#endif //__MART_SEMU_GENMU_operatorClasses__BitShiftLeft__
+#endif //__MART_GENMU_operatorClasses__BitShiftLeft__

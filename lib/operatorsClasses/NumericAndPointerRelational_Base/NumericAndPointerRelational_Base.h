@@ -1,5 +1,5 @@
-#ifndef __MART_SEMU_GENMU_operatorClasses__NumericAndPointerRelational_Base__
-#define __MART_SEMU_GENMU_operatorClasses__NumericAndPointerRelational_Base__
+#ifndef __MART_GENMU_operatorClasses__NumericAndPointerRelational_Base__
+#define __MART_GENMU_operatorClasses__NumericAndPointerRelational_Base__
 
 /**
  * -==== NumericAndPointerRelational_Base.h
@@ -230,4 +230,4 @@ protected:
 
 } // namespace mart
 
-#endif //__MART_SEMU_GENMU_operatorClasses__NumericAndPointerRelational_Base__
+#endif //__MART_GENMU_operatorClasses__NumericAndPointerRelational_Base__

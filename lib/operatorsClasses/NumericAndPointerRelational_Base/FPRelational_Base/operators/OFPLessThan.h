@@ -1,5 +1,5 @@
-#ifndef __MART_SEMU_GENMU_operatorClasses__OFPLessThan__
-#define __MART_SEMU_GENMU_operatorClasses__OFPLessThan__
+#ifndef __MART_GENMU_operatorClasses__OFPLessThan__
+#define __MART_GENMU_operatorClasses__OFPLessThan__
 
 /**
  * -==== OFPLessThan.h
@@ -36,4 +36,4 @@ protected:
 
 } // namespace mart
 
-#endif //__MART_SEMU_GENMU_operatorClasses__OFPLessThan__
+#endif //__MART_GENMU_operatorClasses__OFPLessThan__

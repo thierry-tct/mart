@@ -1,5 +1,5 @@
-#ifndef __MART_SEMU_GENMU_operatorClasses__NumericConstant_Base__
-#define __MART_SEMU_GENMU_operatorClasses__NumericConstant_Base__
+#ifndef __MART_GENMU_operatorClasses__NumericConstant_Base__
+#define __MART_GENMU_operatorClasses__NumericConstant_Base__
 
 /**
  * -==== NumericConstant_Base.h
@@ -140,4 +140,4 @@ public:
 
 } // namespace mart
 
-#endif //__MART_SEMU_GENMU_operatorClasses__NumericConstant_Base__
+#endif //__MART_GENMU_operatorClasses__NumericConstant_Base__

@@ -911,7 +911,7 @@ bool Mutation::doMutate() {
       moduleInfo.getContext(), llvm::APInt(32, 0, false)));
 
   // XXX: Insert definition of the function whose call argument will tell
-  // KLEE-SEMU which mutants to fork
+  // KS which mutants to fork
   if (forKLEESEMu) {
     funcForKLEESEMu = createGlobalMutIDSelector_Func(module);
   }
@@ -1459,7 +1459,7 @@ bool Mutation::doMutate() {
               llvm::IRBuilder<> sbuilder(lkt);
 
               // XXX: Insert definition of the function whose call argument will
-              // tell KLEE-SEMU which mutants to fork (done elsewhere)
+              // tell KS which mutants to fork (done elsewhere)
               if (forKLEESEMu) {
                 std::vector<llvm::Value *> argsv;
                 argsv.push_back(llvm::ConstantInt::get(
@@ -2047,10 +2047,10 @@ void Mutation::computeMutantCoverage(std::unique_ptr<llvm::Module> &metaModule,
       continue;
     
     // remove all mutants, keep oly original
-    cleanFunctionToMut(Func, 0/*original mutantID*/, mutantIDSelGlob, funcForKS, false/*verify*/, false/*remove semu func calls*/);
+    cleanFunctionToMut(Func, 0/*original mutantID*/, mutantIDSelGlob, funcForKS, false/*verify*/, false/*remove ks func calls*/);
   }
 
-  // make klee Semu function call cov log function
+  // make KS function call cov log function
   funcForKS->deleteBody();
   llvm::BasicBlock *block =
       llvm::BasicBlock::Create(metaModule->getContext(), "entry", funcForKS);
@@ -2686,7 +2686,7 @@ void Mutation::doTCE(std::unique_ptr<llvm::Module> &modWMLog, std::unique_ptr<ll
         unsigned tmpHMID =
             dup_eq_processor.mutFunctions.size() - 1; // initial highestMutID
         dup_eq_processor.mutModules.resize(tmpHMID + 1, nullptr);
-        // set clonedOrig to have KLEE SEMU function as declaration, not definition
+        // set clonedOrig to have KS function as declaration, not definition
         if (forKLEESEMu) {
           llvm::Function *funcForKS = clonedOrig->getFunction(mutantIDSelectorName_Func);
           funcForKS->deleteBody();

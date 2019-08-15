@@ -1,5 +1,5 @@
-#ifndef __MART_SEMU_GENMU_operatorClasses__ShuffleCaseDestinations__
-#define __MART_SEMU_GENMU_operatorClasses__ShuffleCaseDestinations__
+#ifndef __MART_GENMU_operatorClasses__ShuffleCaseDestinations__
+#define __MART_GENMU_operatorClasses__ShuffleCaseDestinations__
 
 /**
  * -==== ShuffleCaseDestinations.h
@@ -34,4 +34,4 @@ class ShuffleCaseDestinations : public ReplaceOnly_Base {
 
 } // namespace mart
 
-#endif //__MART_SEMU_GENMU_operatorClasses__ShuffleCaseDestinations__
+#endif //__MART_GENMU_operatorClasses__ShuffleCaseDestinations__

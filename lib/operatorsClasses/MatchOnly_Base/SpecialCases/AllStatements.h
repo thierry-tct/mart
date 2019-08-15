@@ -1,5 +1,5 @@
-#ifndef __MART_SEMU_GENMU_operatorClasses__AllStatements__
-#define __MART_SEMU_GENMU_operatorClasses__AllStatements__
+#ifndef __MART_GENMU_operatorClasses__AllStatements__
+#define __MART_GENMU_operatorClasses__AllStatements__
 
 /**
  * -==== AllStatements.h
@@ -43,4 +43,4 @@ public:
 
 } // namespace mart
 
-#endif //__MART_SEMU_GENMU_operatorClasses__AllStatements__
+#endif //__MART_GENMU_operatorClasses__AllStatements__

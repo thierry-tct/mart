@@ -1,5 +1,5 @@
-#ifndef __MART_SEMU_GENMU_operatorClasses__ConstantValueOf__
-#define __MART_SEMU_GENMU_operatorClasses__ConstantValueOf__
+#ifndef __MART_GENMU_operatorClasses__ConstantValueOf__
+#define __MART_GENMU_operatorClasses__ConstantValueOf__
 
 /**
  * -==== ConstantValueOf.h
@@ -31,4 +31,4 @@ class ConstantValueOf : public ReplaceOnly_Base {
 
 } // namespace mart
 
-#endif //__MART_SEMU_GENMU_operatorClasses__ConstantValueOf__
+#endif //__MART_GENMU_operatorClasses__ConstantValueOf__

@@ -1,5 +1,5 @@
-#ifndef __MART_SEMU_GENMU_operatorClasses__SIntegerLessThan__
-#define __MART_SEMU_GENMU_operatorClasses__SIntegerLessThan__
+#ifndef __MART_GENMU_operatorClasses__SIntegerLessThan__
+#define __MART_GENMU_operatorClasses__SIntegerLessThan__
 
 /**
  * -==== SIntegerLessThan.h
@@ -31,4 +31,4 @@ protected:
 
 } // namespace mart
 
-#endif //__MART_SEMU_GENMU_operatorClasses__SIntegerLessThan__
+#endif //__MART_GENMU_operatorClasses__SIntegerLessThan__
