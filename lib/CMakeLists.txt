@@ -18,7 +18,7 @@ if (MART_GENMU)
     
     add_custom_target(
                  CollectMutOpHeaders ALL
-                 DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/AUTOGEN_mutation_op_headers.h.inc
+                 DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/operatorsClasses/updateHeaderList.sh ${CMAKE_CURRENT_SOURCE_DIR}/AUTOGEN_mutation_op_headers.h.inc
                  COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/operatorsClasses/updateHeaderList.sh ${CMAKE_CURRENT_SOURCE_DIR}/AUTOGEN_mutation_op_headers.h.inc
                  WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/
                 )

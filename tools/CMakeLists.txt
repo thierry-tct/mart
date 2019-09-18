@@ -47,7 +47,7 @@ if (MART_GENMU)
 
         add_custom_target(
                  CopySelectionModels ALL
-                 DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/useful/mconf-scope/default_allmax.mconf ${CMAKE_CURRENT_BINARY_DIR}/useful/trained-models/default-trained.model ${CMAKE_CURRENT_BINARY_DIR}/useful/trained-models/default-trained.model.infos.json ${CMAKE_CURRENT_BINARY_DIR}/useful/trained-models/issta2017.model ${CMAKE_CURRENT_BINARY_DIR}/useful/trained-models/issta2017.model.infos.json ${CMAKE_CURRENT_BINARY_DIR}/useful/trained-models/mutant-type-only.model ${CMAKE_CURRENT_BINARY_DIR}/useful/trained-models/mutant-type-only.model.infos.json ${CMAKE_CURRENT_BINARY_DIR}/useful/trained-models/defect-prediction.model ${CMAKE_CURRENT_BINARY_DIR}/useful/trained-models/defect-prediction.model.infos.json ${CMAKE_CURRENT_BINARY_DIR}/useful/trained-models/equivalent-mutants.model ${CMAKE_CURRENT_BINARY_DIR}/useful/trained-models/equivalent-mutants.model.infos.json
+                 DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/useful/mconf-scope/default_allmax.mconf ${CMAKE_CURRENT_BINARY_DIR}/useful/trained-models/default-trained.model ${CMAKE_CURRENT_BINARY_DIR}/useful/trained-models/default-trained.model.infos.json ${CMAKE_CURRENT_BINARY_DIR}/useful/trained-models/issta2017.model ${CMAKE_CURRENT_BINARY_DIR}/useful/trained-models/issta2017.model.infos.json ${CMAKE_CURRENT_BINARY_DIR}/useful/trained-models/mutant-type-only.model ${CMAKE_CURRENT_BINARY_DIR}/useful/trained-models/mutant-type-only.model.infos.json ${CMAKE_CURRENT_BINARY_DIR}/useful/trained-models/defect-prediction.model ${CMAKE_CURRENT_BINARY_DIR}/useful/trained-models/defect-prediction.model.infos.json ${CMAKE_CURRENT_BINARY_DIR}/useful/trained-models/equivalent-mutants.model ${CMAKE_CURRENT_BINARY_DIR}/useful/trained-models/equivalent-mutants.model.infos.json 
                 )
     endif (MART_MUTANT_SELECTION)
 		
@@ -58,11 +58,12 @@ if (MART_GENMU)
     endif (LLVM_BUILD_PATH)
 
     # WM Log Driver
-    add_custom_command ( OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/useful/wmlog-driver.bc ${CMAKE_CURRENT_BINARY_DIR}/useful/CompileAllMuts.sh  ${CMAKE_CURRENT_BINARY_DIR}/useful/create_mconf.py ${CMAKE_CURRENT_BINARY_DIR}/useful/mconf-scope/default_allmax.mconf 
+    add_custom_command ( OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/useful/wmlog-driver.bc ${CMAKE_CURRENT_BINARY_DIR}/useful/metamutant_selector.bc ${CMAKE_CURRENT_BINARY_DIR}/useful/CompileAllMuts.sh  ${CMAKE_CURRENT_BINARY_DIR}/useful/create_mconf.py ${CMAKE_CURRENT_BINARY_DIR}/useful/mconf-scope/default_allmax.mconf 
              POST_BUILD 
-             DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/useful/wmlog-driver.c ${CMAKE_CURRENT_SOURCE_DIR}/useful/CompileAllMuts.sh ${CMAKE_CURRENT_SOURCE_DIR}/useful/create_mconf.py 
+             DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/useful/wmlog-driver.c ${CMAKE_CURRENT_SOURCE_DIR}/useful/metamutant_selector.c ${CMAKE_CURRENT_SOURCE_DIR}/useful/CompileAllMuts.sh ${CMAKE_CURRENT_SOURCE_DIR}/useful/create_mconf.py 
              COMMAND mkdir -p ${CMAKE_CURRENT_BINARY_DIR}/useful/mconf-scope
              COMMAND ${LLVM_BUILD_PATH_BIN}/clang -c -emit-llvm ${CMAKE_CURRENT_SOURCE_DIR}/useful/wmlog-driver.c -o  ${CMAKE_CURRENT_BINARY_DIR}/useful/wmlog-driver.bc
+             COMMAND ${LLVM_BUILD_PATH_BIN}/clang -c -emit-llvm ${CMAKE_CURRENT_SOURCE_DIR}/useful/metamutant_selector.c -o  ${CMAKE_CURRENT_BINARY_DIR}/useful/metamutant_selector.bc
              COMMAND cp -f ${CMAKE_CURRENT_SOURCE_DIR}/useful/CompileAllMuts.sh ${CMAKE_CURRENT_BINARY_DIR}/useful/CompileAllMuts.sh
              
              COMMAND cp -f ${CMAKE_CURRENT_SOURCE_DIR}/useful/create_mconf.py ${CMAKE_CURRENT_BINARY_DIR}/useful/create_mconf.py
@@ -72,7 +73,7 @@ if (MART_GENMU)
 
     add_custom_target(
              Compilewmlogdriver ALL
-             DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/useful/wmlog-driver.bc ${CMAKE_CURRENT_BINARY_DIR}/useful/CompileAllMuts.sh ${CMAKE_CURRENT_BINARY_DIR}/useful/create_mconf.py ${CMAKE_CURRENT_BINARY_DIR}/useful/mconf-scope/default_allmax.mconf 
+             DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/useful/wmlog-driver.bc ${CMAKE_CURRENT_BINARY_DIR}/useful/metamutant_selector.bc ${CMAKE_CURRENT_BINARY_DIR}/useful/CompileAllMuts.sh ${CMAKE_CURRENT_BINARY_DIR}/useful/create_mconf.py ${CMAKE_CURRENT_BINARY_DIR}/useful/mconf-scope/default_allmax.mconf 
             )
             
 endif (MART_GENMU)

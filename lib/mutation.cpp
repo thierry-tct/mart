@@ -1761,7 +1761,7 @@ void Mutation::computeWeakMutation(std::unique_ptr<llvm::Module> &cmodule,
 
   assert(!cmodule->getFunction(wmLogFuncName) && "Name clash for weak mutation "
                                                  "log function Name, please "
-                                                 "change it from you program");
+                                                 "change it from your program");
   assert(!cmodule->getFunction(wmFFlushFuncName) &&
          "Name clash for weak mutation FFlush function Name, please change it "
          "from you program");
@@ -2260,8 +2260,9 @@ struct DuplicateEquivalentProcessor {
   }
 }; //~ struct DuplicateEquivalentProcessor
 
-void Mutation::doTCE(std::unique_ptr<llvm::Module> &modWMLog, std::unique_ptr<llvm::Module> &modCovLog, bool writeMuts,
-                     bool isTCEFunctionMode) {
+void Mutation::doTCE(std::unique_ptr<llvm::Module> &optMetaMu, std::unique_ptr<llvm::Module> &modWMLog, 
+                    std::unique_ptr<llvm::Module> &modCovLog, bool writeMuts,
+                    bool isTCEFunctionMode) {
   assert(currentMetaMutantModule && "Running TCE before mutation");
   llvm::Module &module = *currentMetaMutantModule;
 
@@ -2719,6 +2720,9 @@ void Mutation::doTCE(std::unique_ptr<llvm::Module> &modWMLog, std::unique_ptr<ll
     }
   }
 
+  optMetaMu.reset(ReadWriteIRObj::cloneModuleAndRelease(&module));
+  dup_eq_processor.tce.optimize(*(optMetaMu.get()), modModeOptLevel);
+
   // XXX create the final version of the meta-mutant file
   if (forKLEESEMu) {
     // add the function to check mutant join (post mutation point instruction)
@@ -2759,6 +2763,41 @@ void Mutation::doTCE(std::unique_ptr<llvm::Module> &modWMLog, std::unique_ptr<ll
     for (auto *mm : dup_eq_processor.mutModules)
       delete mm;
   }
+}
+
+/**
+ * \brief transform non optimized meta-mutant module into weak mutation module.
+ * @param cmodule is the meta mutant module. @note: it will be transformed into
+ * WM module, so clone module before this call
+ */
+void Mutation::linkMetamoduleWithMutantSelection(
+                            std::unique_ptr<llvm::Module> &optMetaMu,
+                            std::unique_ptr<llvm::Module> &mutantSelectorMod) {
+
+  assert(!optMetaMu->getFunction(metamutantSelectorFuncname) && 
+                                                "Name clash for mutant selector"
+                                                "function Name, please "
+                                                "change it from your program");
+
+  /// Link optMetaMu with the corresponding driver module (actually only need c
+  /// module)
+#if (LLVM_VERSION_MAJOR <= 3) && (LLVM_VERSION_MINOR < 8)
+  llvm::Linker linker(optMetaMu.get());
+  std::string ErrorMsg;
+  if (linker.linkInModule(mutantSelectorMod.get(), &ErrorMsg)) {
+    llvm::errs()
+        << "Failed to link meta mutant module with mutant selector module"
+        << ErrorMsg << "\n";
+    assert(false);
+  }
+  mutantSelectorMod.reset(nullptr);
+#else
+  llvm::Linker linker(*optMetaMu);
+  if (linker.linkInModule(std::move(mutantSelectorMod))) {
+    assert(false &&
+           "Failed to link meta mutant module with mutant selector module");
+  }
+#endif
 }
 
 /**
@@ -3195,8 +3234,7 @@ unsigned Mutation::getHighestMutantID(llvm::Module const *module) {
          "Unmutated module passed to TCE");
   return llvm::dyn_cast<llvm::ConstantInt>(
              mutantIDSelectorGlobal->getInitializer())
-             ->getZExtValue() -
-         1;
+             ->getZExtValue() - 1;
 }
 
 void Mutation::loadMutantInfos(std::string filename) {

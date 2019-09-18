@@ -307,6 +307,9 @@ llvm::cl::opt<std::string> extraLinkingFlags(
   llvm::cl::opt<bool> disableDumpMetaIRbc(
       "no-Meta",
       llvm::cl::desc("Disable dumping Meta Module after applying TCE"));
+  llvm::cl::opt<bool> disableDumpOptimalMetaIRbc(
+      "no-Opt-Meta",
+      llvm::cl::desc("Disable dumping Optimal Meta Module after applying TCE (to run directely)"));
   llvm::cl::opt<bool> dumpMutants(
       "write-mutants", llvm::cl::desc("Enable writing mutant files"));
   llvm::cl::opt<bool> disabledWeakMutation(
@@ -330,6 +333,7 @@ llvm::cl::opt<std::string> extraLinkingFlags(
   clock_t curClockTime;
 
   const char *wmLogFuncinputIRfileName = "wmlog-driver.bc";
+  const char *metamutant_selector_inputIRfileName = "metamutant_selector.bc";
 
   /// \brief set this to false if the module is small enough, that all mutants
   /// will fit in memory
@@ -349,7 +353,8 @@ llvm::cl::opt<std::string> extraLinkingFlags(
   assert(!inputIRfile.empty() && "Error: No input llvm IR file passed!");
 
   llvm::Module *moduleM;
-  std::unique_ptr<llvm::Module> modWMLog(nullptr), modCovLog(nullptr), _M;
+  std::unique_ptr<llvm::Module> metamutant_sel(nullptr), modWMLog(nullptr), 
+                                modCovLog(nullptr), optMetaMu(nullptr), _M;
 
   // Read IR into moduleM
   /// llvm::LLVMContext context;
@@ -357,6 +362,14 @@ llvm::cl::opt<std::string> extraLinkingFlags(
     return 1;
   moduleM = _M.get();
   // ~
+
+  /// MetaMutantSelector
+  std::string metamutant_selector_inputIRfile(useful_conf_dir +
+                                    metamutant_selector_inputIRfileName);
+  // get the module containing the metamutant selector. 
+  // to be linked with meta module
+  if (!ReadWriteIRObj::readIR(metamutant_selector_inputIRfile, metamutant_sel))
+    return 1;
 
   /// Weak mutation
   if (!disabledWeakMutation) {
@@ -487,7 +500,7 @@ llvm::cl::opt<std::string> extraLinkingFlags(
                   "mutants IRs (with initially "
                << mut.getHighestMutantID() << " mutants)...\n";
   curClockTime = clock();
-  mut.doTCE(modWMLog, modCovLog, dumpMutants, isTCEFunctionMode);
+  mut.doTCE(optMetaMu, modWMLog, modCovLog, dumpMutants, isTCEFunctionMode);
   llvm::outs() << "Mart@Progress: Removing TCE Duplicates  & WM & writing "
                   "mutants IRs took: "
                << (float)(clock() - curClockTime) / CLOCKS_PER_SEC
@@ -506,6 +519,15 @@ llvm::cl::opt<std::string> extraLinkingFlags(
                                               metaMuIRFileSuffix))
       assert(false && "Failed to output post-TCE meta-mutatant IR file");
   }
+
+  //@ Print post-TCE optimized meta-mutant (just to run)
+  if (!disableDumpOptimalMetaIRbc) {
+    mut.linkMetamoduleWithMutantSelection(optMetaMu, metamutant_sel);
+    if (!ReadWriteIRObj::writeIR(optMetaMu.get(), outputDir + "/" + outFile +
+                                              optimizedMetaMuIRFileSuffix))
+      assert(false && "Failed to output post-TCE meta-mutatant IR file");
+  }
+
 
 //@ print mutants
 /*if (dumpMutants)

@@ -19,6 +19,7 @@ static const char *covOutIRFileSuffix = ".COV.bc";
 static const char *preTCEMetaIRFileSuffix = ".preTCE.MetaMu.bc";
 static const char *commonIRSuffix = ".bc";
 static const char *metaMuIRFileSuffix = ".MetaMu.bc";
+static const char *optimizedMetaMuIRFileSuffix = ".OptMetaMu.bc";
 static const char *usefulFolderName = "useful";
 #ifdef MART_GENMU_OBJECTFILE
 static const char *metaMuObjFileSuffix = ".MetaMu.o";
