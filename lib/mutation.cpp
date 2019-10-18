@@ -1847,13 +1847,19 @@ void Mutation::computeWeakMutation(std::unique_ptr<llvm::Module> &cmodule,
               for (llvm::SwitchInst::CaseIt i = sw->case_begin(),
                                             e = sw->case_end();
                    i != e; ++i) {
+#if (LLVM_VERSION_MAJOR <= 4)
                 auto *mutIDConstInt = i.getCaseValue();
                 
-                // to be removed later
-                cases.push_back(mutIDConstInt); 
-
                 /// Now create the call to weak mutation log func.
                 auto *caseiBB = i.getCaseSuccessor(); // mutant
+#else
+                auto *mutIDConstInt = (*i).getCaseValue();
+                
+                /// Now create the call to weak mutation log func.
+                auto *caseiBB = (*i).getCaseSuccessor(); // mutant
+#endif
+                // to be removed later
+                cases.push_back(mutIDConstInt); 
 
                 /// Since each case of switch correspond to a mutant and 
                 /// each mutant has its own Basic Block, 
@@ -2603,7 +2609,11 @@ void Mutation::doTCE(std::unique_ptr<llvm::Module> &optMetaMu, std::unique_ptr<l
               for (llvm::SwitchInst::CaseIt i = sw->case_begin(),
                                             e = sw->case_end();
                    i != e; ++i) {
+#if (LLVM_VERSION_MAJOR <= 4)
                 uint64_t curcase = i.getCaseValue()->getZExtValue();
+#else
+                uint64_t curcase = (*i).getCaseValue()->getZExtValue();
+#endif
                 if (curcase > toMID)
                   toMID = curcase;
                 if (curcase < fromMID)
@@ -2615,15 +2625,27 @@ void Mutation::doTCE(std::unique_ptr<llvm::Module> &optMetaMu, std::unique_ptr<l
                         moduleInfo.getContext(),
                         llvm::APInt(32, (uint64_t)(i), false)));
                 if (dup_eq_processor.duplicateMap.count(i) == 0) {
+#if (LLVM_VERSION_MAJOR <= 4)
                   toBeRemovedBB.push_back(cit.getCaseSuccessor());
+#else
+                  toBeRemovedBB.push_back((*cit).getCaseSuccessor());
+#endif
                   sw->removeCase(cit);
                 } else {
                   auto new_mid = dup_eq_processor.duplicateMap.at(i).front();
+#if (LLVM_VERSION_MAJOR <= 4)
                   cit.setValue(llvm::ConstantInt::get(
                       moduleInfo.getContext(),
                       llvm::APInt(32, (uint64_t)(new_mid), false)));
                   cit.getCaseSuccessor()->setName(
                       std::string("MART.Mutant_Mut") + std::to_string(new_mid));
+#else
+                  (*cit).setValue(llvm::ConstantInt::get(
+                      moduleInfo.getContext(),
+                      llvm::APInt(32, (uint64_t)(new_mid), false)));
+                  (*cit).getCaseSuccessor()->setName(
+                      std::string("MART.Mutant_Mut") + std::to_string(new_mid));
+#endif
                 }
               }
             }
@@ -2836,11 +2858,18 @@ void Mutation::applyPostMutationPointForKSOnMetaModule(llvm::Module &module) {
               // Mutants
               for (auto csit = sw->case_begin(), cse = sw->case_end();
                    csit != cse; ++csit) {
+#if (LLVM_VERSION_MAJOR <= 4)
                 llvm::TerminatorInst* mutBBterm_i = 
                             llvm::dyn_cast<llvm::TerminatorInst>(
                                         csit.getCaseSuccessor()->getTerminator());
-                assert (mutBBterm_i && "malformed mutant BB");
                 uint64_t curcaseuint = csit.getCaseValue()->getZExtValue();
+#else
+                llvm::TerminatorInst* mutBBterm_i = 
+                            llvm::dyn_cast<llvm::TerminatorInst>(
+                                        (*csit).getCaseSuccessor()->getTerminator());
+                uint64_t curcaseuint = (*csit).getCaseValue()->getZExtValue();
+#endif
+                assert (mutBBterm_i && "malformed mutant BB");
                 for (auto sid = 0; sid < mutBBterm_i->getNumSuccessors(); ++sid) {
                   llvm::BasicBlock * pointBB = mutBBterm_i->getSuccessor(sid);
                   pointBB2mutantIDVect[pointBB].push_back(curcaseuint);
@@ -2918,7 +2947,11 @@ void Mutation::cleanFunctionSWmIDRange(llvm::Function &Func,
             tmpCaseVals.clear();
             for (auto csit = sw->case_begin(), cse = sw->case_end();
                  csit != cse; ++csit) {
+#if (LLVM_VERSION_MAJOR <= 4)
               llvm::ConstantInt *curcase = csit.getCaseValue();
+#else
+              llvm::ConstantInt *curcase = (*csit).getCaseValue();
+#endif
               uint64_t curcaseuint = curcase->getZExtValue();
               if (curcaseuint > mIDTo || curcaseuint < mIDFrom)
                 continue;
@@ -2929,7 +2962,11 @@ void Mutation::cleanFunctionSWmIDRange(llvm::Function &Func,
               // Make all PHI nodes that referred to BB now refer to Pred as
               // their
               // source...
+#if (LLVM_VERSION_MAJOR <= 4)
               llvm::BasicBlock *citSucc = sw->case_default().getCaseSuccessor();
+#else
+              llvm::BasicBlock *citSucc = (*(sw->case_default())).getCaseSuccessor();
+#endif
               llvm::BasicBlock *swBB = sw->getParent();
               citSucc->replaceAllUsesWith(swBB);
               // Move all definitions in the successor to the predecessor...
@@ -2941,7 +2978,11 @@ void Mutation::cleanFunctionSWmIDRange(llvm::Function &Func,
             } else {
               for (auto csv : tmpCaseVals) {
                 llvm::SwitchInst::CaseIt csit = sw->findCaseValue(csv);
+#if (LLVM_VERSION_MAJOR <= 4)
                 toBeRemovedBB.push_back(csit.getCaseSuccessor());
+#else
+                toBeRemovedBB.push_back((*csit).getCaseSuccessor());
+#endif
                 sw->removeCase(csit);
               }
             }
@@ -2987,17 +3028,35 @@ void Mutation::cleanFunctionToMut(llvm::Function &Func, MutantIDType mutantID,
             llvm::BasicBlock *swBB = sw->getParent();
             if (cit == sw->case_default()) {
               // Not the mutants (mutants is same as orig here)
+#if (LLVM_VERSION_MAJOR <= 4)
               citSucc = cit.getCaseSuccessor();
+#else
+              citSucc = (*cit).getCaseSuccessor();
+#endif
               for (auto csit = sw->case_begin(), cse = sw->case_end();
                    csit != cse; ++csit)
+#if (LLVM_VERSION_MAJOR <= 4)
                 if (csit.getCaseSuccessor() != citSucc)
                   toBeRemovedBB.push_back(csit.getCaseSuccessor());
+#else
+                if ((*csit).getCaseSuccessor() != citSucc)
+                  toBeRemovedBB.push_back((*csit).getCaseSuccessor());
+#endif
             } else { // mutants
+#if (LLVM_VERSION_MAJOR <= 4)
               citSucc = cit.getCaseSuccessor();
+#else
+              citSucc = (*cit).getCaseSuccessor();
+#endif
               for (auto csit = sw->case_begin(), cse = sw->case_end();
                    csit != cse; ++csit)
+#if (LLVM_VERSION_MAJOR <= 4)
                 if (csit.getCaseSuccessor() != citSucc)
                   toBeRemovedBB.push_back(csit.getCaseSuccessor());
+#else
+                if ((*csit).getCaseSuccessor() != citSucc)
+                  toBeRemovedBB.push_back((*csit).getCaseSuccessor());
+#endif
               if (sw->getDefaultDest() != citSucc)
                 toBeRemovedBB.push_back(sw->getDefaultDest());
             }
@@ -3059,7 +3118,11 @@ void Mutation::computeModuleBufsByFunc(
               for (llvm::SwitchInst::CaseIt cit = sw->case_begin(),
                                             ce = sw->case_end();
                    cit != ce; ++cit) {
+#if (LLVM_VERSION_MAJOR <= 4)
                 MutantIDType mid = cit.getCaseValue()->getZExtValue();
+#else
+                MutantIDType mid = (*cit).getCaseValue()->getZExtValue();
+#endif
                 if (funcMutByMutID[mid] == nullptr) {
                   funcMutByMutID[mid] = &Func;
                   funcMutated = true;

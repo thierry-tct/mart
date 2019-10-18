@@ -142,7 +142,12 @@ public:
     } else {
       DL = new llvm::DataLayout(curModule);
     }
+#if (LLVM_VERSION_MAJOR <= 3) && (LLVM_VERSION_MINOR < 9)
     curContext = &(llvm::getGlobalContext());
+#else
+    static llvm::LLVMContext getGlobalContext;
+    curContext = &getGlobalContext;
+#endif
   }
   inline void setUserMaps(UserMaps *umaps) { usermaps = umaps; }
 

@@ -6,8 +6,15 @@
 //#include <fstream>
 #include <system_error> //error_code
 
-#include <llvm/Bitcode/ReaderWriter.h>
 #include <llvm/IR/LLVMContext.h>
+
+#if (LLVM_VERSION_MAJOR <= 3) && (LLVM_VERSION_MINOR < 9)
+#include <llvm/Bitcode/ReaderWriter.h>
+#else
+#include <llvm/Bitcode/BitcodeWriter.h>
+#include <llvm/Bitcode/BitcodeReader.h>
+#endif
+
 #include <llvm/IR/Module.h>
 #include <llvm/IRReader/IRReader.h>
 #include <llvm/Support/SourceMgr.h>
@@ -71,8 +78,11 @@ public:
                                                 mBuf->getBufferIdentifier()),
                           SMD, llvm::getGlobalContext())
                 .release());
-#else
+#elif (LLVM_VERSION_MAJOR <= 3) && (LLVM_VERSION_MINOR < 9)
     return (llvm::parseIR(*mBuf, SMD, llvm::getGlobalContext()).release());
+#else
+    static llvm::LLVMContext getGlobalContext;
+    return (llvm::parseIR(*mBuf, SMD, getGlobalContext).release());
 #endif
   }
 
@@ -89,8 +99,11 @@ public:
     llvm::SMDiagnostic SMD;
 #if (LLVM_VERSION_MAJOR <= 3) && (LLVM_VERSION_MINOR < 5)
     module.reset(llvm::ParseIRFile(filename, SMD, llvm::getGlobalContext()));
-#else
+#elif (LLVM_VERSION_MAJOR <= 3) && (LLVM_VERSION_MINOR < 9)
     module = llvm::parseIRFile(filename, SMD, llvm::getGlobalContext());
+#else
+    static llvm::LLVMContext getGlobalContext;
+    module = llvm::parseIRFile(filename, SMD, getGlobalContext);
 #endif
 
     if (!module) {

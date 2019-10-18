@@ -102,6 +102,7 @@ cmake \
  -DLLVM_DIR=/home/mart/llvm-3.7.1/build/share/llvm/cmake \
   ../src
 ```
+`Note`: with llvm 6, the `LLVM_DIR` is set to `... build/lib/cmake/llvm` instead of `... build/share/llvm/cmake`.
 * make:
 compile using make while in the _build_ folder.
 ```

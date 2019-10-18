@@ -140,7 +140,12 @@ public:
         return;
 
       llvm::Type *retType = curFunc->getReturnType();
+#if (LLVM_VERSION_MAJOR <= 3) && (LLVM_VERSION_MINOR < 9)
       llvm::IRBuilder<> builder(llvm::getGlobalContext());
+#else
+      static llvm::LLVMContext getGlobalContext;
+      llvm::IRBuilder<> builder(getGlobalContext);
+#endif
       // Case of main (delete lead to ret 0 - integer)
       if (curFunc->getName().equals(MI.G_MAIN_FUNCTION_NAME)) {
         assert(retType->isIntegerTy() &&

@@ -32,7 +32,8 @@ then
     llc="$llvm_bin_dir/$llc"
 fi
 
-CC=gcc
+#CC=gcc
+CC="$llvm_bin_dir/clang"
 #########################
 
 test -d $Dir || error_exit "directory $Dir do not exist"
