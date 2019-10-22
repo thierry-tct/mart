@@ -237,7 +237,11 @@ void Mutation::preprocessVariablePhi(llvm::Module &module) {
               continue;
 
             llvm::AllocaInst *Slot = new llvm::AllocaInst(
-                alloc_arr_size->getType(), nullptr,
+                alloc_arr_size->getType(), 
+#if (LLVM_VERSION_MAJOR >= 5)
+                0, // Adress Space default value
+#endif
+                nullptr,
                 alloc_arr_size->getName() + ".reg2mem", AllocaInsertionPoint);
             llvm::Instruction *loadinsertpt;
 #if (LLVM_VERSION_MAJOR <= 3) && (LLVM_VERSION_MINOR < 8)
@@ -306,7 +310,11 @@ llvm::AllocaInst *Mutation::MYDemotePHIToStack(llvm::PHINode *P,
   // Create a stack slot to hold the value.
   llvm::AllocaInst *Slot;
   if (AllocaPoint) {
-    Slot = new llvm::AllocaInst(P->getType(), nullptr,
+    Slot = new llvm::AllocaInst(P->getType(), 
+#if (LLVM_VERSION_MAJOR >= 5)
+                                0, // Adress Space default value
+#endif
+                                nullptr,
                                 P->getName() + ".reg2mem", AllocaPoint);
   } else {
     /*llvm::Function *F = P->getParent()->getParent();
@@ -403,7 +411,11 @@ llvm::AllocaInst *Mutation::MyDemoteRegToStack(llvm::Instruction &I,
   if (!crossBBUsers.empty()) {
     // Create a stack slot to hold the value.
     if (AllocaPoint) {
-      Slot = new llvm::AllocaInst(I.getType(), nullptr,
+      Slot = new llvm::AllocaInst(I.getType(), 
+#if (LLVM_VERSION_MAJOR >= 5)
+                                  0, // Adress Space default value
+#endif
+                                  nullptr,
                                   I.getName() + ".reg2mem", AllocaPoint);
     } else {
       /*llvm::Function *F = I.getParent()->getParent();
@@ -1743,7 +1755,11 @@ void Mutation::getWMConditions(
     for (auto *cinst : subcond)
       if (llvm::isa<llvm::Instruction>(cinst)) {
         llvm::dyn_cast<llvm::User>(cinst)->dropAllReferences();
+#if (LLVM_VERSION_MAJOR < 5)
         delete cinst;
+#else
+        cinst->deleteValue();
+#endif
       }
   conditions.clear();
   conditions.push_back(std::vector<llvm::Value *>({llvm::ConstantInt::getTrue(
