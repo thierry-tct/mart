@@ -1,7 +1,10 @@
-ARG llvm_version=3.8.1
-ARG mart_location=/home/MART
+#ARG llvm_version=3.8.1
+ARG llvm_version=3.4.2
 
 FROM thierrytct/llvm:$llvm_version
+
+ARG mart_location=/home/MART
+
 RUN mkdir -p $mart_location/build $mart_location/mart/src
 
 #git clone https://github.com/thierry-tct/mart.git /tmp/mart/src
