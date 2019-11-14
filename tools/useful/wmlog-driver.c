@@ -5,6 +5,10 @@
 //#define MARTLLVM_WM_LOG_OUTPUT
 //__WM__OUTPUT__PATH_TO_PROGRAM__TEMPLATE.WM.covlabels
 
+/**
+    MART_WM_LOG_OUTPUT environment variable can be set to an optional output log file
+ **/
+
 #define str(x) #x
 #define xstr(x) str(x)
 
