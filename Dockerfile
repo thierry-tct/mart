@@ -14,7 +14,6 @@ COPY . $mart_location/src
 # fdupes needed for post compilation TCE
 RUN apt-get -y install fdupes \
  && mkdir -p $mart_location/build && cd $mart_location/build \
- && sed -i'' "s|/home/LLVM/llvm-$llvm_version/build_cmake/bin|$(dirname $(which clang))|g; s|/home/LLVM/llvm-$llvm_version/src/cmake/modules|/usr/local/share/llvm/cmake/|g" /usr/local/share/llvm/cmake/LLVMConfig.cmake \
  && cmake -DMART_MUTANT_SELECTION=on -DLLVM_DIR=/usr/local/share/llvm/cmake/ $mart_location/src \
  && make CollectMutOpHeaders && make 
 ENV PATH="$mart_location/build/tools:${PATH}"
@@ -23,3 +22,5 @@ COPY ./example $mart_location/example
 
 CMD ["$mart_location/bash", "$mart_location/example/run_example.sh"]
 
+
+# && sed -i'' "s|/home/LLVM/llvm-$llvm_version/build_cmake/bin|$(dirname $(which clang))|g; s|/home/LLVM/llvm-$llvm_version/src/cmake/modules|/usr/local/share/llvm/cmake/|g" /usr/local/share/llvm/cmake/LLVMConfig.cmake \
