@@ -1376,12 +1376,12 @@ public:
     JsonBox::Object outJSON;
     getJson(outJSON);
     JsonBox::Value vout(outJSON);
-    vout.writeToFile(filename, false, false);
+    vout.writeToFile(filename, true, false);
 
     outJSON.clear();
     getEqDupJson(outJSON);
     JsonBox::Value eqdupvout(outJSON);
-    eqdupvout.writeToFile(eqdupfilename, false, false);
+    eqdupvout.writeToFile(eqdupfilename, true, false);
   }
 
   void getJson(JsonBox::Object &outJ) const {
