@@ -1,8 +1,12 @@
 #! /usr/bin/python
 
-import sys, os
-useful_dir = os.path.abspath(os.path.join(os.path.dirname(os.path.dirname(__file__))))
-useful_dir = os.path.join(useful_dir, 'tools', 'useful')
+from __future__ import print_function
+
+import sys
+import os
+from pathlib import Path
+useful_dir = os.path.join(Path(__file__).parent.parent.parent, \
+                                                            'tools', 'useful')
 sys.path.insert(0, useful_dir)
 import create_mconf
 import pandas as pd
