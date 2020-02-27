@@ -62,7 +62,7 @@ def main():
         '-preprocessed-bc-file', prepro_bc,
         '-mutant-dep-cache',
         '-dump-features',
-        'no-selection',
+        '-no-selection',
     ])
 
     if os.system(mart_selection_cmd) != 0:
