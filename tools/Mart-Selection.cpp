@@ -249,8 +249,10 @@ int main(int argc, char **argv) {
       llvm::StringRef fpath = dit->path();
       if (fpath.endswith(commonIRSuffix)) {
         if (!fpath.endswith(wmOutIRFileSuffix) &&
+            !fpath.endswith(covOutIRFileSuffix) &&
             !fpath.endswith(preTCEMetaIRFileSuffix) &&
-            !fpath.endswith(metaMuIRFileSuffix)) {
+            !fpath.endswith(metaMuIRFileSuffix) &&
+            !fpath.endswith(optimizedMetaMuIRFileSuffix)) {
           assert(inputIRfile.empty() && "multiple preprocessed IRs in the "
                                         "specified topdir. Please specify one");
           inputIRfile.assign(martOutTopDir + "/" +
