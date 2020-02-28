@@ -9,7 +9,11 @@ useful_dir = os.path.join(Path(__file__).parent.parent.parent, \
                                                             'tools', 'useful')
 sys.path.insert(0, useful_dir)
 import create_mconf
-import pandas as pd
+try:
+    import pandas as pd
+except ImportError:
+    os.system('pip install pandas')
+    import pandas as pd
 import json
 try:
     import dask.dataframe as dd
@@ -57,7 +61,7 @@ def filterFeatures(features_list, feat_set):
     res_flist = []
     for f in features_list:
         if feat_set == NO_EXTRAMUTTYPES_FEAT:
-            if f.endswith("-astparent") or  f.endswith("-inctrldep") or  f.endswith("-indatadep") or  f.endswith("-outctrldep") or  f.endswith("-outdatadep") or f.endswith("-outdatadep") or f.endswith("-outdatadep$"):
+            if f.endswith("-astparent") or  f.endswith("-inctrldep") or  f.endswith("-indatadep") or  f.endswith("-outctrldep") or  f.endswith("-outdatadep") or f.endswith("-outdatadep") or f.endswith("-outdatadep$") or f.endswith("-Operand-DataTypeContext"):
                 continue
         elif feat_set == NO_CATEGORICAL_FEAT:
             if '-' in f and f not in ['HasLiteralChild-ChildContext', 'HasIdentifierChild-ChildContext', 'HasOperatorChild-ChildContext']:
@@ -94,7 +98,8 @@ def main_get_cat_matrices(feature_matix, out_cat_matrix, abstract_mtype_only=Fal
     df1 = df1.drop(list(set(raw_ordered_flist1) - set(ordered_flist1)), axis=1)
 
     # compute
-    df1 = df1.compute()
+    if Use_Dask:
+        df1 = df1.compute()
 
     MutantType = "mutanttype"
 
@@ -104,7 +109,7 @@ def main_get_cat_matrices(feature_matix, out_cat_matrix, abstract_mtype_only=Fal
         cat_feat1 = [x for x in ordered_flist1 if x.endswith('-Replacer') or x.endswith('-Matcher')]
     else:
         # get categorical features
-        cat_feat1 = ordered_flist1 - set(filterFeatures(ordered_flist1, NO_CATEGORICAL_FEAT))
+        cat_feat1 = set(ordered_flist1) - set(filterFeatures(ordered_flist1, NO_CATEGORICAL_FEAT))
 
     # transform matrices to have categorical values
     for objdf, df, cat_feat in [(objdf1, df1, cat_feat1)]:

@@ -11,11 +11,11 @@ RUN mkdir -p $mart_location/build $mart_location/mart/src
 #git clone https://github.com/thierry-tct/mart.git /tmp/mart/src
 COPY . $mart_location/src
 
-# fdupes needed for post compilation TCE
+# fdupes needed for post compilation TCE. XXX 'make gitversion' is needed for dg
 RUN apt-get -y install fdupes \
  && mkdir -p $mart_location/build && cd $mart_location/build \
  && cmake -DMART_MUTANT_SELECTION=on -DLLVM_DIR=/usr/local/share/llvm/cmake/ $mart_location/src \
- && make CollectMutOpHeaders && make 
+ && make CollectMutOpHeaders && make gitversion && make
 ENV PATH="$mart_location/build/tools:${PATH}"
 
 COPY ./example $mart_location/example

@@ -35,13 +35,22 @@
 #define ENABLE_CFG // needed by dg
 #endif
 // https://github.com/mchalupa/dg
-#include "../third-parties/dg/src/llvm/LLVMDependenceGraph.h"
-#include "../third-parties/dg/src/llvm/analysis/DefUse.h"
-#include "../third-parties/dg/src/llvm/analysis/PointsTo/PointsTo.h"
-#include "../third-parties/dg/src/llvm/analysis/ReachingDefinitions/ReachingDefinitions.h"
+//#include "../third-parties/dg/src/llvm/LLVMDependenceGraph.h"
+#include "../third-parties/dg/include/dg/llvm/LLVMDependenceGraph.h"
+//#include "../third-parties/dg/src/llvm/analysis/DefUse.h"
+#include "../third-parties/dg/lib/llvm/analysis/DefUse/DefUse.h"
+//#include "../third-parties/dg/src/llvm/analysis/PointsTo/PointsTo.h"
+#include "../third-parties/dg/include/dg/llvm/analysis/PointsTo/PointerAnalysis.h"
+//#include "../third-parties/dg/src/llvm/analysis/ReachingDefinitions/ReachingDefinitions.h"
+#include "../third-parties/dg/include/dg/llvm/analysis/ReachingDefinitions/ReachingDefinitions.h"
 
-#include "../third-parties/dg/src/analysis/PointsTo/PointsToFlowInsensitive.h"
-#include "../third-parties/dg/src/analysis/PointsTo/PointsToFlowSensitive.h"
+//#include "../third-parties/dg/src/analysis/PointsTo/PointsToFlowInsensitive.h"
+#include "../third-parties/dg/include/dg/analysis/PointsTo/PointerAnalysisFI.h"
+//#include "../third-parties/dg/src/analysis/PointsTo/PointsToFlowSensitive.h"
+#include "../third-parties/dg/include/dg/analysis/PointsTo/PointerAnalysisFS.h"
+
+#include "../third-parties/dg/include/dg/llvm/LLVMDependenceGraphBuilder.h"
+#include "../third-parties/dg/include/dg/llvm/analysis/PointsTo/LLVMPointerAnalysisOptions.h"
 
 using namespace mart;
 using namespace mart::selection;
@@ -380,12 +389,15 @@ bool MutantDependenceGraph::build(llvm::Module const &mod,
              predIt != predE; ++predIt)
           ++nPreds;
 
-        // remove count numbering if existing (after last dot)
-        auto bbtypenameend = llvm::StringRef::npos; // Last dot
-        if (bb->getName().back() == '.' || bb->getName().back() >= '0' ||
-            bb->getName().back() <= '9')
-          bbtypenameend = bb->getName().rfind('.');
-        std::string bbTypename = bb->getName().substr(0, bbtypenameend).str();
+        std::string bbTypename;
+        if (bb->getName().size() > 0) {
+          // remove count numbering if existing (after last dot)
+          auto bbtypenameend = llvm::StringRef::npos; // Last dot
+          if (bb->getName().back() == '.' || bb->getName().back() >= '0' ||
+              bb->getName().back() <= '9')
+            bbtypenameend = bb->getName().rfind('.');
+          bbTypename = bb->getName().substr(0, bbtypenameend).str();
+        }
 
         // Update the info for all the mutants for this popped basic block
         // XXX \ref CONSTRUCT SRC level STMTS
@@ -1684,23 +1696,27 @@ void MutantSelection::buildDependenceGraphs(std::string mutant_depend_filename,
   if (rerundg) {
     dg::CD_ALG cd_alg;
     if (isClassicCtrlDepAlgo)
-      cd_alg = dg::CLASSIC;
+      //cd_alg = dg::CLASSIC;
+      cd_alg = dg::CD_ALG::CLASSIC;
     else
-      cd_alg = dg::CONTROL_EXPRESSION;
+      cd_alg = dg::CD_ALG::CONTROL_EXPRESSION;
 
     // build IR DGraph
-    dg::LLVMDependenceGraph IRDGraph;
+    /*dg::LLVMDependenceGraph IRDGraph;
     dg::LLVMPointerAnalysis *PTA = new dg::LLVMPointerAnalysis(&subjectModule);
     if (isFlowSensitive)
-      PTA->run<dg::analysis::pta::PointsToFlowSensitive>();
+      //PTA->run<dg::analysis::pta::PointsToFlowSensitive>();
+      PTA->run<dg::analysis::pta::PointerAnalysisFS>();
     else
-      PTA->run<dg::analysis::pta::PointsToFlowInsensitive>();
+      //PTA->run<dg::analysis::pta::PointsToFlowInsensitive>();
+      PTA->run<dg::analysis::pta::PointerAnalysisFI>();
 
     assert(IRDGraph.build(&subjectModule, PTA) &&
            "Error: failed to build dg dependence graph");
     assert(PTA && "BUG: Need points-to analysis");
 
-    dg::analysis::rd::LLVMReachingDefinitions RDA(&subjectModule, PTA);
+    dg::analysis::LLVMReachingDefinitionsAnalysisOptions RDAOptions{};
+    dg::analysis::rd::LLVMReachingDefinitions RDA(&subjectModule, PTA, RDAOptions);
     RDA.run(); // compute reaching definitions
 
     dg::LLVMDefUseAnalysis DUA(&IRDGraph, &RDA, PTA);
@@ -1709,9 +1725,47 @@ void MutantSelection::buildDependenceGraphs(std::string mutant_depend_filename,
     delete PTA;
 
     IRDGraph.computeControlDependencies(cd_alg);
+    */
+
+    // Set options
+    bool threads = false;
+    const char *entry_func = "main";
+    const char *rda = "dataflow";
+    dg::llvmdg::LLVMDependenceGraphOptions options;
+    options.cdAlgorithm = cd_alg;
+    options.threads = threads; //true;
+    options.PTAOptions.threads = threads;
+    options.RDAOptions.threads = threads;
+    options.PTAOptions.entryFunction = entry_func;
+    options.RDAOptions.entryFunction = entry_func;
+
+    if (isFlowSensitive)
+        options.PTAOptions.analysisType
+            = dg::analysis::LLVMPointerAnalysisOptions::AnalysisType::fs;
+    else
+        options.PTAOptions.analysisType
+            = dg::analysis::LLVMPointerAnalysisOptions::AnalysisType::fi;
+
+    if (strcmp(rda, "dataflow") == 0) {
+        options.RDAOptions.analysisType
+                = dg::analysis::LLVMReachingDefinitionsAnalysisOptions::AnalysisType::dataflow;
+    } else if (strcmp(rda, "ssa") == 0) {
+        options.RDAOptions.analysisType
+                = dg::analysis::LLVMReachingDefinitionsAnalysisOptions::AnalysisType::ssa;
+    } else {
+        llvm::errs() << "Unknown reaching definitions analysis, try: dataflow, ssa\n";
+        assert(false);
+    }
+
+    // dg graph
+    dg::llvmdg::LLVMDependenceGraphBuilder dg_builder(&subjectModule, options);
+    
+    //dg::LLVMDependenceGraph IRDGraph = dg_builder.build();
+    auto IRDGraph = dg_builder.build();
 
     // Build mutant DGraph
-    mutantDGraph.build(subjectModule, &IRDGraph, mutantInfos,
+    //mutantDGraph.build(subjectModule, &IRDGraph, mutantInfos,
+    mutantDGraph.build(subjectModule, IRDGraph.release(), mutantInfos,
                        mutant_depend_filename, disable_selection);
   } else {
     // load from file

@@ -5,7 +5,9 @@ if (MART_GENMU)
     #include_directories( ${CMAKE_CURRENT_SOURCE_DIR}/third-parties )
 
     if (MART_MUTANT_SELECTION)
-        include_directories( ${CMAKE_CURRENT_SOURCE_DIR}/third-parties/dg/src )
+        # Replace all the CMAKE_SOURCE_DIR with PROJECT_SOURCE_DIR
+        execute_process(COMMAND find ${CMAKE_CURRENT_SOURCE_DIR}/third-parties/dg/ -type f -name CMakeLists.txt -exec sed -i"" "s|CMAKE_SOURCE_DIR|PROJECT_SOURCE_DIR|g" {} \;)
+        include_directories( ${CMAKE_CURRENT_SOURCE_DIR}/third-parties/dg/lib )
     endif (MART_MUTANT_SELECTION)
 
     #include_directories( ${CMAKE_CURRENT_SOURCE_DIR}/third-parties/random-forest/include)
@@ -48,18 +50,24 @@ if (MART_GENMU)
     
     if (MART_MUTANT_SELECTION)
         #Mutant Selection
+#        set(CMAKE_CXX_FLAGS__BACKUP ${CMAKE_CXX_FLAGS})
+#        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -lpthread -ldl")
         add_subdirectory(third-parties/dg)     #Add dg build dir
+#        set(CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS__BACKUP})
+        
         add_subdirectory(third-parties/FastBDT)     #Add FastBDT build dir
         #add_subdirectory(third-parties/random-forest)     #Add FastBDT build dir
         add_library(MutantSelection SHARED
             mutantsSelection/MutantSelection.cpp
         )
         target_include_directories( MutantSelection PRIVATE 
-                                    ${CMAKE_CURRENT_SOURCE_DIR}/third-parties/dg/src 
+                                    ${CMAKE_CURRENT_SOURCE_DIR}/third-parties/dg/include 
+                                    ${CMAKE_CURRENT_SOURCE_DIR}/third-parties/dg/lib 
                                     ${CMAKE_CURRENT_BINARY_DIR}/third-parties/FastBDT/include
                                     ${CMAKE_CURRENT_SOURCE_DIR}/third-parties/random-forest/include 
                                 )
-        target_link_libraries(MutantSelection UserMaps JsonBox LLVMdg FastBDT_shared) #LLVMpta PTA RD 
+        target_link_libraries(MutantSelection UserMaps JsonBox LLVMdg ${llvm_libs} FastBDT_shared) # pthread dl) #LLVMpta PTA RD 
+#       target_link_libraries(MutantSelection UserMaps JsonBox LLVMdg FastBDT_shared) #LLVMpta PTA RD 
         install(TARGETS MutantSelection
                 LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR})
     endif (MART_MUTANT_SELECTION)

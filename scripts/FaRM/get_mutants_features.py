@@ -2,6 +2,7 @@
 
 """
     Extracts features of mutants (features used in FaRM)
+    example: python script.FaRM/get_mutants_features.py mart-out-0 --save_raw --save_categories
 """
 
 from __future__ import print_function
@@ -11,7 +12,7 @@ import sys
 import argparse
 import shutil
 
-from getCatMatrices import main_get_cat_matrices
+from getCatMatrices import main_get_cat_matrices, loadJson, dumpJson
 
 def error_exit(string):
     print("GetMutantsFeatures@ERROR: {}".format(string))
@@ -31,7 +32,7 @@ def main():
     parser.add_argument("--save_raw", action='store_true', \
                                                     help="save raw features")
     parser.add_argument("--save_categories", action='store_true', \
-                                            help="save categorical features")
+                                            help="(not woring)save categorical features")
     parser.add_argument("--no_save_encoded", action='store_true', \
                                 help="do not save one hot encoded features")
     parser.add_argument("--mart_bin_dir", default='', \
@@ -51,6 +52,7 @@ def main():
             prepro_bc.append(f)
         elif len(f) < len_prepro_bc:
             prepro_bc = [f]
+            len_prepro_bc = len(f)
     if len(prepro_bc) != 1:
         error_exit("invalid number of preprocessed .bc; found {}".format(\
                                                                     prepro_bc))
@@ -73,12 +75,16 @@ def main():
                                                 mart_gen_mutant_features_file))
 
     if args.save_raw:
-        shutil.copy2(os.path.join(args.mart_out_dir, mart_selection_outdir, \
-                                                    mart_selection_cache), \
-                    os.path.join(args.mart_out_dir, mart_selection_outdir, \
+        mrflist = loadJson(os.path.join(args.mart_out_dir, mart_selection_outdir, \
+                                                    mart_selection_cache))
+        obj = {}
+        for i, rf in enumerate(mrflist):
+            obj[str(i+1)] = rf
+        dumpJson(obj, os.path.join(args.mart_out_dir, mart_selection_outdir, \
                                                             raw_features_file))
 
     if args.save_categories:
+        error_exit ("This feature has bug. To be fixed")
         cat_out_file = os.path.join(args.mart_out_dir, mart_selection_outdir, \
                                                     categories_features_file)
         _feature_matrix = os.path.join(args.mart_out_dir, \
