@@ -1,3 +1,5 @@
+# sudo docker build --no-cache -t thierrytct/mart:llvm-3.4.2 . && sudo docker push thierrytct/mart:llvm-3.4.2
+
 #ARG llvm_version=3.8.1
 ARG llvm_version=3.4.2
 
