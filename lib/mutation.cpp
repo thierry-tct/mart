@@ -2438,14 +2438,18 @@ void Mutation::doTCE(std::unique_ptr<llvm::Module> &optMetaMu, std::unique_ptr<l
         unsigned progressVLandmark = (maxIDOfFunc - id) * nextProgress / 100;
 
         vmap.clear();
-        workFStack.emplace(
 #if (LLVM_VERSION_MAJOR <= 3) && (LLVM_VERSION_MINOR < 9)
-            llvm::CloneFunction(clonedM->getFunction(subjFunctionName), vmap,
-                                true /*moduleLevelChanges*/),
+        llvm::Function *cloneFuncTmp = llvm::CloneFunction(
+                                clonedM->getFunction(subjFunctionName), vmap,
+                                true /*moduleLevelChanges*/);
 #else
-            llvm::CloneFunction(clonedM->getFunction(subjFunctionName), vmap),
+        llvm::Function *cloneFuncTmp = llvm::CloneFunction(
+                                clonedM->getFunction(subjFunctionName), vmap);
+        // Here CloneFunction automatically add to module so remove 
+        // FIXME: Make it better by chnaging code to have it adde here fine
+        cloneFuncTmp->removeFromParent();
 #endif
-            id, maxIDOfFunc);
+        workFStack.emplace(cloneFuncTmp, id, maxIDOfFunc);
 
         /// \brief Use binary approach(divide and conquer) to quickly obtain the
         /// module for each function. use DFS here to save memory (once seen
@@ -2498,6 +2502,9 @@ void Mutation::doTCE(std::unique_ptr<llvm::Module> &optMetaMu, std::unique_ptr<l
 #else
             llvm::Function *cloneFuncR = llvm::CloneFunction(
                 cloneFuncL, vmap);
+            // Here CloneFunction automatically add to module so remove 
+            // FIXME: Make it better by chnaging code to have it adde here fine
+            cloneFuncR->removeFromParent();
 #endif
 
             // remove from module and set back original name
