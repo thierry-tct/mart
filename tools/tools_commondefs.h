@@ -8,6 +8,7 @@
 #include "llvm/Support/FileSystem.h"
 #include "llvm/ADT/SmallString.h"
 #include "llvm/Support/Path.h"
+#include <llvm/Support/raw_ostream.h>
 
 #define STRINGIFY2(X) #X
 #define STRINGIFY(X) STRINGIFY2(X)
@@ -25,16 +26,21 @@ static const char *usefulFolderName = "useful";
 static const char *metaMuObjFileSuffix = ".MetaMu.o";
 #endif
 
+#if (LLVM_VERSION_MAJOR < 6)
 void printVersion() {
-  llvm::outs() << "\nMart (Framework for Multi-Programming Language Mutation "
+  llvm::raw_ostream &OS = llvm::outs();
+#else
+void printVersion(llvm::raw_ostream &OS) {
+#endif
+  OS << "\nMart (Framework for Multi-Programming Language Mutation "
                   "Testing based on LLVM)\n";
-  llvm::outs() << "\t" << TOOLNAME << " 1.0\n";
-  llvm::outs() << "\nLLVM (http://llvm.org/):\n";
-  llvm::outs() << "\tLLVM version " << LLVM_VERSION_MAJOR << "."
+  OS << "\t" << TOOLNAME << " 1.0\n";
+  OS << "\nLLVM (http://llvm.org/):\n";
+  OS << "\tLLVM version " << LLVM_VERSION_MAJOR << "."
                << LLVM_VERSION_MINOR << "." << LLVM_VERSION_PATCH << "\n";
-  //llvm::outs() << "\tLLVM tools dir: " << STRINGIFY(LLVM_TOOLS_BINARY_DIR) << "\n";
-  llvm::outs() << "\tLLVM tools dir: " << (LLVM_TOOLS_BINARY_DIR) << "\n";
-  llvm::outs() << "\n";
+  //OS << "\tLLVM tools dir: " << STRINGIFY(LLVM_TOOLS_BINARY_DIR) << "\n";
+  OS << "\tLLVM tools dir: " << (LLVM_TOOLS_BINARY_DIR) << "\n";
+  OS << "\n";
 }
 
 std::string getUsefulAbsPath(char *argv0) {

@@ -324,12 +324,20 @@ class FunctionDifferenceEngine {
 
       DenseMap<ConstantInt*,BasicBlock*> LCases;
       
+#if (LLVM_VERSION_MAJOR < 5)
       for (SwitchInst::CaseIt I = LI->case_begin(), E = LI->case_end();
            I != E; ++I)
+#else
+      for (auto I : LI->cases())
+#endif
         LCases[I.getCaseValue()] = I.getCaseSuccessor();
         
+#if (LLVM_VERSION_MAJOR < 5)
       for (SwitchInst::CaseIt I = RI->case_begin(), E = RI->case_end();
            I != E; ++I) {
+#else
+      for (auto I : RI->cases()) {
+#endif
         ConstantInt *CaseValue = I.getCaseValue();
         BasicBlock *LCase = LCases[CaseValue];
         if (LCase) {

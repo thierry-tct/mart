@@ -188,8 +188,13 @@ bool dumpMutantsCallback(Mutation *mutEng,
           } else {
             backedFuncsByMods.emplace(
                 formutsModule,
+#if (LLVM_VERSION_MAJOR <= 3) && (LLVM_VERSION_MINOR < 9)
                 llvm::CloneFunction(formutsModule->getFunction(funcName), vmap,
-                                    true /*moduleLevelChanges*/));
+                                    true /*moduleLevelChanges*/)
+#else
+                llvm::CloneFunction(formutsModule->getFunction(funcName), vmap)
+#endif
+            );
           }
         }
 

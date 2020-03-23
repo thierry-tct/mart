@@ -838,7 +838,11 @@ llvm::Function *Mutation::createKSFunc(llvm::Module &module, bool bodyOnly,
         ks_func_name,
         llvm::Type::getVoidTy(moduleInfo.getContext()),
         llvm::Type::getInt32Ty(moduleInfo.getContext()),
-        llvm::Type::getInt32Ty(moduleInfo.getContext()), NULL);
+        llvm::Type::getInt32Ty(moduleInfo.getContext())
+#if (LLVM_VERSION_MAJOR < 5)
+        , NULL
+#endif
+    );
     funcForKS = llvm::cast<llvm::Function>(c);
     if (!funcForKS) {
       llvm::errs() << "Failed to create function " << ks_func_name << "\n";
@@ -2435,8 +2439,12 @@ void Mutation::doTCE(std::unique_ptr<llvm::Module> &optMetaMu, std::unique_ptr<l
 
         vmap.clear();
         workFStack.emplace(
+#if (LLVM_VERSION_MAJOR <= 3) && (LLVM_VERSION_MINOR < 9)
             llvm::CloneFunction(clonedM->getFunction(subjFunctionName), vmap,
                                 true /*moduleLevelChanges*/),
+#else
+            llvm::CloneFunction(clonedM->getFunction(subjFunctionName), vmap),
+#endif
             id, maxIDOfFunc);
 
         /// \brief Use binary approach(divide and conquer) to quickly obtain the
@@ -2484,8 +2492,13 @@ void Mutation::doTCE(std::unique_ptr<llvm::Module> &optMetaMu, std::unique_ptr<l
 
             // Clone
             vmap.clear();
+#if (LLVM_VERSION_MAJOR <= 3) && (LLVM_VERSION_MINOR < 9)
             llvm::Function *cloneFuncR = llvm::CloneFunction(
                 cloneFuncL, vmap, true /*moduleLevelChanges*/);
+#else
+            llvm::Function *cloneFuncR = llvm::CloneFunction(
+                cloneFuncL, vmap);
+#endif
 
             // remove from module and set back original name
             cloneFuncL->removeFromParent();
