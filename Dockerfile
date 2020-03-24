@@ -17,7 +17,7 @@ COPY . $mart_location/src
 RUN apt-get -y install fdupes \
  && mkdir -p $mart_location/build && cd $mart_location/build \
  && cmake -DMART_MUTANT_SELECTION=on -DLLVM_DIR=/usr/local/share/llvm/cmake/ $mart_location/src \
- && make CollectMutOpHeaders && make gitversion && make
+ && make CollectMutOpHeaders && { make gitversion || echo "No gitversion need"; } && make
 ENV PATH="$mart_location/build/tools:${PATH}"
 
 COPY ./example $mart_location/example
