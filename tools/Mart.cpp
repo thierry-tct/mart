@@ -38,6 +38,7 @@ using namespace mart;
 static std::string outputDir("mart-out-");
 static const std::string mutantsFolder("mutants.out");
 static const std::string generalInfo("info");
+static const std::string readmefile("README.md");
 static std::stringstream loginfo;
 static std::string outFile;
 static const std::string tmpFuncModuleFolder("tmp-func-module-dir.tmp");
@@ -665,6 +666,44 @@ mutantsDir+"//"+std::to_string(mid)+"//"+outFile+".bc"))
   } else {
     llvm::errs() << "Unable to create info file:"
                  << outputDir + "/" + generalInfo << "\n\n";
+    assert(false);
+  }
+
+  xxx.clear();
+  xxx.open(outputDir + "/" + readmefile);
+  if (xxx.is_open()) {
+    int ind = 1;
+    xxx << "## Informations obout the output directory.\n";
+    xxx << "```\nMutant IDs are integers greater or equal to 1.\n```\n";
+    xxx << ind++ << ". `" << generalInfo << "` file: contain general "
+        << "information about the mutant generation run, such as the "
+        << "generation time, the number of mutant prior TCE in memory "
+        << "redundant mutants removal.\n";
+    xxx << ind++ << ". `" << (outFile + commonIRSuffix) << "` file: "
+        << "Is the bitcode file that is mutated. it is the input IR file "
+        << "after preprocessing to ease mutation (e.g. removing phi nodes).\n";
+    if (!disableDumpMutantInfos)
+      xxx << ind++ << ". `" << mutantsInfosFileName << "` file: contains "
+          << "the description "
+          << "remaining after in memory TCE redundant mutants removal.\n";
+    if (dumpMutants) {
+      xxx << ind++ << ". `mutants` folder: contain the separate mutant "
+          << "folder. Each folder is named wih an integer representing "
+          << "the corresponding mutant ID. Executable files for the "
+          << " corresponding mutant is located in the mutant ID folder.\n";
+      xxx << ind++ << ". `fdupes_duplicates.json` file: contain mutant ID "
+          << "mapping of mutants after on disk TCE (occuring when separate )"
+          << "mutants are dumped. Each key is the ID of the mutant kept and "
+          << "the value is the list of mutants duplicate to the key, and that "
+          << "were removed from on disk TCE. Note that the key that is '0' "
+          << "correspond to the original program.\n";
+    }
+    // TODO: pre-TCE metamu, WM, MCOV, MetaMU OPT (.bc)
+    // TODO: executable of the .bc
+    xxx.close();
+  } else {
+    llvm::errs() << "Unable to create readme file:"
+                 << outputDir + "/" + readmefile << "\n\n";
     assert(false);
   }
 
