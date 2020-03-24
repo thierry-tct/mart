@@ -114,6 +114,10 @@ make
 ## Usage
 Checkout the usage demo video [here](https://youtu.be/V2Hvi_iqiVE).
 ### Compile your code into LLVM bitcode (.bc) file
+Use `clang` to build the C language program (<SourceFile>.c) into LLVM bitcode (<BitCode>.c) with a command of the form:
+``` bash
+clang -c -emit-llvm -g <SourceFile>.c -o <BitFile>.bc
+```
 You may use [wllvm](https://github.com/travitch/whole-program-llvm) for large C/C++ projects. 
 Compile with `debug` flag enable (`-g` option for C/C++ compilers gcc and clang) and without optimization to have mutants closer to source code mutants.
 
