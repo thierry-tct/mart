@@ -674,7 +674,9 @@ mutantsDir+"//"+std::to_string(mid)+"//"+outFile+".bc"))
   if (xxx.is_open()) {
     int ind = 1;
     xxx << "## Informations obout the output directory.\n";
-    xxx << "```\nMutant IDs are integers greater or equal to 1.\n```\n";
+    xxx << "```\nMutant IDs are integers greater or equal to 1. "
+        << "For every bitcode (.bc), a corresponding native executable "
+        << "is also generated.\n```\n";
     xxx << ind++ << ". `" << generalInfo << "` file: contain general "
         << "information about the mutant generation run, such as the "
         << "generation time, the number of mutant prior TCE in memory "
@@ -686,8 +688,42 @@ mutantsDir+"//"+std::to_string(mid)+"//"+outFile+".bc"))
       xxx << ind++ << ". `" << mutantsInfosFileName << "` file: contains "
           << "the description "
           << "remaining after in memory TCE redundant mutants removal.\n";
+    if (!disabledWeakMutation)
+      xxx << ind++ << ". `" << (outFile + wmOutIRFileSuffix) << "` file: "
+          << "representing the weak mutation labeled version of the program, "
+          << "used to measure Weak Mutation. Specify the log file to print "
+          << "the weakly killed mutant' IDs after a test execution by setting "
+          << "the environment variable 'MART_WM_LOG_OUTPUT' to it. By default, "
+          << "The lof file used is 'mart.defaultFileName.WM.covlabels', "
+          << "located in the directory from where the program is called.\n";
+    if (!disabledMutantCoverage)
+      xxx << ind++ << ". `" << (outFile + covOutIRFileSuffix) << "` file: "
+          << "representing the mutant coverage labeled version of the program, "
+          << "used to measure Mutant statement coverage. "
+          << "Specify the log file to print "
+          << "the covered mutant' IDs after a test execution by setting "
+          << "the environment variable 'MART_WM_LOG_OUTPUT' to it. By default, "
+          << "The lof file used is 'mart.defaultFileName.WM.covlabels', "
+          << "located in the directory from where the program is called.\n";
+    if (!dumpPreTCEMeta)
+      xxx << ind++ << ". `" << (outFile + preTCEMetaIRFileSuffix)
+          << "` file: is the raw meta-mutants program before in-memory TCE's"
+          << "redundant mutats removal.\n";
+    if (!disableDumpMetaIRbc)
+      xxx << ind++ << ". `" << (outFile + metaMuIRFileSuffix) 
+          << "` file: is the  raw meta-mutants program after in-memory TCE's"
+          << "redundant mutats removal (only contain mutants after"
+          << "in-memory TCE).\n";
+    if (!disableDumpOptimalMetaIRbc)
+      xxx << ind++ << ". `" << (outFile + optimizedMetaMuIRFileSuffix) 
+          << "` file: is the optimized meta-mutant after in-memory TCE's"
+          << "redundant mutats removal. The difference with the RAW "
+          << "meta-mutant is that it can be used directly to execute mutants "
+          << "by setting the environment variable 'MART_SELECTED_MUTANT_ID' "
+          << "to the mutant ID.\n";
     if (dumpMutants) {
-      xxx << ind++ << ". `mutants` folder: contain the separate mutant "
+      xxx << ind++ << ". `" << mutantsFolder << "` folder: contain the "
+          << "separate mutant "
           << "folder. Each folder is named wih an integer representing "
           << "the corresponding mutant ID. Executable files for the "
           << " corresponding mutant is located in the mutant ID folder.\n";
@@ -698,8 +734,6 @@ mutantsDir+"//"+std::to_string(mid)+"//"+outFile+".bc"))
           << "were removed from on disk TCE. Note that the key that is '0' "
           << "correspond to the original program.\n";
     }
-    // TODO: pre-TCE metamu, WM, MCOV, MetaMU OPT (.bc)
-    // TODO: executable of the .bc
     xxx.close();
   } else {
     llvm::errs() << "Unable to create readme file:"

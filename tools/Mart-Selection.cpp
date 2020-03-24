@@ -38,6 +38,7 @@ using namespace mart::selection;
 
 static const std::string selectionFolder("Selection.out");
 static const std::string generalInfo("info");
+static const std::string readmefile("README.md");
 static const std::string defaultFeaturesFilename("mutants-features.csv");
 static const std::string defaultStmtFeaturesFilename("stmts-features.csv");
 static const std::string
@@ -668,5 +669,47 @@ int main(int argc, char **argv) {
       assert(false);
     }
   }
+
+  std::ofstream xxx(outDir + "/" + readmefile);
+  if (xxx.is_open()) {
+    int ind = 1;
+    xxx << "## Informations obout the output directory.\n";
+    xxx << "```\nMutant IDs are integers greater or equal to 1.\n```\n";
+    if (!disable_selection) {
+      xxx << ind++ << ". `" << generalInfo << "` file: contain general "
+          << "information about the mutant selection run.\n";
+      xxx << ind++ << ". `<selction technique>Selection.json file: contains " 
+          << "a map where the keys are the repetition IDs and the values "
+          << "are the ordered list of mutant, based on the selection "
+          << "technique, for that corresponding repetition.\n";
+    }
+    if (dumpMutantsFeaturesToCSV) {
+      xxx << ind++ << ". `" << defaultFeaturesFilename << "` file:"
+          << "Contains the mutants features of all mutants from the mutants "
+          << "info json file. features row 'i' repesent the features of mutant "
+          << "with id 'i'.\n";
+      xxx << ind++ << ". `" << defaultStmtFeaturesFilename << "` file:"
+          << "Contains the statements features of all executable statements.\n";
+      xxx << ind++ << ". `scoresForSmartSelection.json`, "
+          << "`scoresForEquivalentMutantsDetection.json`, "
+          << "`scoresForSubsumingMutantsDetection` and "
+          << "`scoresForHardtokillMutantsDetection.json` files: respectively "
+          << " contain the prediction value (positive prediction probability) "
+          << "For FaRM fo predict fault revealing, equivalent, subsuming and "
+          << "hard-to-kill mutants. The contain is a map with a single key, "
+          << "whose value is the list of predicted values. Predicted value at "
+          << "index '0' is for mutant ID '1', ..., at index 'i' is for "
+          << "mutant ID 'i+1'.\n";
+    }
+    xxx.close();
+  } else {
+    llvm::errs() << "Unable to create readme file:"
+                 << outDir + "/" + readmefile << "\n\n";
+    assert(false);
+  }
+
+  llvm::outs() << "@Mart-Selection: Selection Done. Output Directory is "
+               << "'" << outDir << "'.\n";
+
   return 0;
 }
