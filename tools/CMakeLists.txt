@@ -13,7 +13,7 @@ if (MART_GENMU)
     
     # Utils
 	add_executable(mart-utils Mart-Utils.cpp)
-	target_link_libraries(mart-utils MART_Utils)
+	target_link_libraries(mart-utils MART_GenMu)
 	install(TARGETS mart-utils
 		RUNTIME DESTINATION bin)
 

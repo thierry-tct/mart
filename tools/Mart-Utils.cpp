@@ -74,7 +74,6 @@ int main(int argc, char **argv) {
 
   llvm::cl::ParseCommandLineOptions(argc, argv, "Mart Mutantion");
 
-  std::string mutantInfoJsonfile
   time_t totalRunTime = time(NULL);
 
   /// Load both BC modules
@@ -126,6 +125,7 @@ int main(int argc, char **argv) {
   cand_mut_ids.insert(0);
   
   /// test and create Output dir
+  struct stat st; 
   if (stat(inexistantOutdir.c_str(), &st) != -1) {
     llvm::errs() << "ERROR: Output folder already exists. Specify non existing!\n";
     assert(false);

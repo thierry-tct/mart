@@ -104,6 +104,9 @@ public:
   void linkMetamoduleWithMutantSelection(
                         std::unique_ptr<llvm::Module> &optMetaMu,
                         std::unique_ptr<llvm::Module> &mutantSelectorMod);
+  bool getMutant(llvm::Module &module, unsigned mutanatID,
+                 llvm::Function *mutFunc = nullptr,
+                 char optimizeModFuncNone = 'M' /* 'M', 'F', 'A', '0' */);
 
 private:
   bool getConfiguration(std::string &mutconfFile);
@@ -155,9 +158,6 @@ private:
       std::unordered_map<llvm::Function *, ReadWriteIRObj> *inMemIRModBufByFunc,
       std::unordered_map<llvm::Function *, llvm::Module *> *clonedModByFunc,
       std::vector<llvm::Function *> &funcMutByMutID);
-  bool getMutant(llvm::Module &module, unsigned mutanatID,
-                 llvm::Function *mutFunc = nullptr,
-                 char optimizeModFuncNone = 'M' /* 'M', 'F', 'A', '0' */);
 
   static inline void checkModuleValidity(llvm::Module &Mod,
                                          const char *errMsg = "");
