@@ -6,6 +6,7 @@ import os
 import json
 import argparse
 import tempfile
+from distutils.spawn import find_executable
 
 def main():
     # Parse the args
@@ -15,7 +16,20 @@ def main():
     parser.add_argument("output_dir", help="Non existant oputput dir")
     parser.add_argument("--mart_bin_dir", default='', \
                                                 help="custom mart binary dir")
+    parser.add_argument("--verbose", action='store_true', \
+                                        help="print execution progress log")
     args = parser.parse_args()
+
+    tool = 'mart-utils'
+
+    if args.mart_bin_dir:
+        tool = os.path.join(args.mart_bin_dir, tool)
+        if not os.path.isfile(tool):
+            error_exit("{} not existing.".format(tool))
+    else:
+        # must exist in path
+        if find_executable(tool) is None:
+            error_exit("mart_bin_dir not set and {} not on path.".format(tool))
 
     if not os.path.isdir(args.mart_out_dir):
         error_exit("specified mart mutants generation folder is not existing")
@@ -60,17 +74,19 @@ def main():
             for mut_id in candidate_mutants:
                 tmp.write("{}\n".format(mut_id))
 
-        mart_selection_cmd = " ".join([
-            os.path.join(args.mart_bin_dir, 'mart-utils'),
+        mart_utils_cmd = " ".join([
+            tool,
             prepro_bc,
             meta_bc,
             args.output_dir,
             '-mutant-list-file', mutant_list_file,
             '-write-mutants-bc',
         ])
+        if args.verbose:
+            mart_utils_cmd += " -verbose"
 
-        if os.system(mart_selection_cmd) != 0:
-            error_exit ("Mart selection error. cmd: {}".format(mart_selection_cmd))
+        if os.system(mart_utils_cmd) != 0:
+            error_exit ("Mart selection error. cmd: {}".format(mart_utils_cmd))
 
     finally:
         os.remove(mutant_list_file)

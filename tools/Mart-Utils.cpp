@@ -69,6 +69,8 @@ int main(int argc, char **argv) {
       "mutant-list-file",
       llvm::cl::desc("(Optional) Specify the file containing the candidate mutant list"),
       llvm::cl::value_desc("filename"), llvm::cl::init(""));
+  llvm::cl::opt<bool> verbose(
+      "verbose", llvm::cl::desc("(Optional) Enable verbose execution (printing info)"));
 
   llvm::cl::SetVersionPrinter(printVersion);
 
@@ -148,7 +150,13 @@ int main(int argc, char **argv) {
       !outFile.substr(outFile.length() - 3, 3).compare(".bc"))
     outFile.replace(outFile.length() - 3, 3, "");
 
+  MutantIDType ind = 1;
   for (auto mid: cand_mut_ids) {
+    if (verbose)
+      llvm::outs() << "# Writing Mutant " << mid 
+	      		<< ". (" << ind << "/" << cand_mut_ids.size() << ").\n";
+      ind++;
+
     // (1) clone
     #if (LLVM_VERSION_MAJOR <= 3) && (LLVM_VERSION_MINOR < 8)
       std::unique_ptr<llvm::Module> mutmodule(llvm::CloneModule(moduleMeta));
