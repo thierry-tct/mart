@@ -85,7 +85,9 @@ def main():
         if args.verbose:
             mart_utils_cmd += " -verbose"
 
-        if os.system(mart_utils_cmd) != 0:
+        filter_cmd = " 2>&1 | grep -v '^# Number of Mutants:   PreTCE'"
+
+        if os.system(mart_utils_cmd + filter_cmd) != 0:
             error_exit ("Mart selection error. cmd: {}".format(mart_utils_cmd))
 
     finally:
