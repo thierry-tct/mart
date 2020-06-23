@@ -41,7 +41,7 @@ def main():
     
     if os.path.isdir(args.output_dir):
         error_exit("output_dir exist, please use non existant")
-    if not os.path.isdir(os.path.dirname(args.output_dir)):
+    if not os.path.isdir(os.path.dirname(os.path.abspath(args.output_dir))):
         error_exit("parent of output_dir not existing. create it")
 
     # get the bc with shortest name
