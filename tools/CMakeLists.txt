@@ -8,9 +8,15 @@ if (MART_GENMU)
     # Mutation
 	add_executable(mart Mart.cpp)
 	target_link_libraries(mart MART_GenMu)
-
 	install(TARGETS mart
 		RUNTIME DESTINATION bin)
+    
+    # Utils
+	add_executable(mart-utils Mart-Utils.cpp)
+	target_link_libraries(mart-utils MART_Utils)
+	install(TARGETS mart-utils
+		RUNTIME DESTINATION bin)
+
 		
     if (MART_MUTANT_SELECTION)
         # Selection
