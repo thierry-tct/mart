@@ -8,6 +8,11 @@ import argparse
 import tempfile
 from distutils.spawn import find_executable
 
+def error_exit(string):
+    print("@ERROR: {}".format(string))
+    assert False, string
+#~ def error_exit()
+
 def main():
     # Parse the args
     parser = argparse.ArgumentParser()
