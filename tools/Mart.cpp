@@ -707,16 +707,18 @@ mutantsDir+"//"+std::to_string(mid)+"//"+outFile+".bc"))
           << "located in the directory from where the program is called.\n";
     if (!dumpPreTCEMeta)
       xxx << ind++ << ". `" << (outFile + preTCEMetaIRFileSuffix)
-          << "` file: is the raw meta-mutants program before in-memory TCE's"
+          << "` file: is the raw meta-mutants program before in-memory TCE's "
           << "redundant mutats removal.\n";
     if (!disableDumpMetaIRbc)
       xxx << ind++ << ". `" << (outFile + metaMuIRFileSuffix) 
-          << "` file: is the  raw meta-mutants program after in-memory TCE's"
-          << "redundant mutats removal (only contain mutants after"
-          << "in-memory TCE).\n";
+          << "` file: is the  raw meta-mutants program after in-memory TCE's "
+          << "redundant mutants removal (only contain mutants after "
+          << "in-memory TCE). USE this file with SEMu for mutants test "
+          << "generation (Note though that it is better to specify "
+          << "the list of non TCE fdupes duplicates for better perf).\n";
     if (!disableDumpOptimalMetaIRbc)
       xxx << ind++ << ". `" << (outFile + optimizedMetaMuIRFileSuffix) 
-          << "` file: is the optimized meta-mutant after in-memory TCE's"
+          << "` file: is the optimized meta-mutant after in-memory TCE's "
           << "redundant mutats removal. The difference with the RAW "
           << "meta-mutant is that it can be used directly to execute mutants "
           << "by setting the environment variable 'MART_SELECTED_MUTANT_ID' "
@@ -728,7 +730,7 @@ mutantsDir+"//"+std::to_string(mid)+"//"+outFile+".bc"))
           << "the corresponding mutant ID. Executable files for the "
           << " corresponding mutant is located in the mutant ID folder.\n";
       xxx << ind++ << ". `fdupes_duplicates.json` file: contain mutant ID "
-          << "mapping of mutants after on disk TCE (occuring when separate )"
+          << "mapping of mutants after on disk TCE (occuring when separate) "
           << "mutants are dumped. Each key is the ID of the mutant kept and "
           << "the value is the list of mutants duplicate to the key, and that "
           << "were removed from on disk TCE. Note that the key that is '0' "
