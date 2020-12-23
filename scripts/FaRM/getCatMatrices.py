@@ -5,7 +5,7 @@ from __future__ import print_function
 import sys
 import os
 from pathlib import Path
-useful_dir = os.path.join(Path(__file__).parent.parent.parent, \
+useful_dir = os.path.join(str(Path(__file__).parent.parent.parent), \
                                                             'tools', 'useful')
 sys.path.insert(0, useful_dir)
 import create_mconf
