@@ -51,7 +51,11 @@ public:
   void setToModule(llvm::Module const *module) {
     std::string data;
     llvm::raw_string_ostream OS(data);
+#if (LLVM_VERSION_MAJOR >= 8) // && (LLVM_VERSION_MINOR < 5)
+    llvm::WriteBitcodeToFile(*module, OS);
+#else
     llvm::WriteBitcodeToFile(module, OS);
+#endif
 #if (LLVM_VERSION_MAJOR <= 3) && (LLVM_VERSION_MINOR < 5)
     mBuf.reset(llvm::MemoryBuffer::getMemBufferCopy(OS.str()));
 #else
@@ -132,7 +136,11 @@ public:
 #endif
     // std::ofstream ofstr(filename);
     // llvm::raw_os_ostream Out(ofstr);
+#if (LLVM_VERSION_MAJOR >= 8) // && (LLVM_VERSION_MINOR < 5)
+    llvm::WriteBitcodeToFile(*module, Out);
+#else
     llvm::WriteBitcodeToFile(module, Out);
+#endif
     Out.flush();
     return true;
   }
