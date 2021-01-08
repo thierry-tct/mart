@@ -573,8 +573,14 @@ struct MatchStmtIR {
     int instpos = toMatchIRs.size() - 1;
     int bbind = bbStartPosToOrigBB.size() - 1;
     do {
+#if (LLVM_VERSION_MAJOR >= 8) // && (LLVM_VERSION_MINOR < 5)
+      llvm::Instruction* term = llvm::dyn_cast<llvm::Instruction>(
+                                                        toMatchIRs[instpos]);
+      if (term && term->isTerminator()) {
+#else
       if (auto *term =
               llvm::dyn_cast<llvm::TerminatorInst>(toMatchIRs[instpos])) {
+#endif
         if (term->getNumSuccessors() == 0) // case for return and unreachable...
           return true;
         for (auto i = 0; i < term->getNumSuccessors(); i++) {
@@ -881,8 +887,14 @@ struct MutantsOfStmt {
       int instpos = toMatchIRsMutClone.size() - 1;
       int bbind = toMatch.bbStartPosToOrigBB.size() - 1;
       do {
+#if (LLVM_VERSION_MAJOR >= 8) // && (LLVM_VERSION_MINOR < 5)
+      llvm::Instruction* term = llvm::dyn_cast<llvm::Instruction>(
+                                                toMatchIRsMutClone[instpos]);
+      if (term && term->isTerminator()) {
+#else
         if (auto *term = llvm::dyn_cast<llvm::TerminatorInst>(
                 toMatchIRsMutClone[instpos])) {
+#endif
           for (auto i = 0; i < term->getNumSuccessors(); i++) {
             llvm::BasicBlock *bb = term->getSuccessor(i);
             if (origBBToMutBB.count(bb) > 0) {
