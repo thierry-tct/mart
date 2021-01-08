@@ -179,7 +179,7 @@ public:
                 llvm::dyn_cast<llvm::CallInst>(toMatchMutant.getIRAt(pos))
                     ->setCalledFunction(repFun);
                 resultMuts.add(/*toMatch, */ toMatchMutant, repl,
-                               std::vector<unsigned>({pos}));
+                               std::vector<unsigned>({(unsigned)pos}));
               }
             }
           } else if (repl.getExpElemKey() == mSHUFFLE_ARGS) {
@@ -206,7 +206,7 @@ public:
                 clonecall->setArgOperand(i, initialargsSequence[argspos[i]]);
 
               resultMuts.add(/*toMatch, */ toMatchMutant, repl,
-                             std::vector<unsigned>({pos}));
+                             std::vector<unsigned>({(unsigned)pos}));
             }
           } else {
             assert(false && "Error: CALL should have only 'NEWCALLEE' or "

@@ -180,7 +180,7 @@ public:
 #endif
 
               resultMuts.add(/*toMatch, */ toMatchMutant, repl,
-                             std::vector<unsigned>({pos}));
+                             std::vector<unsigned>({(unsigned)pos}));
             }
           } else if (repl.getExpElemKey() == mSHUFFLE_CASE_DESTS) {
             std::vector<std::vector<unsigned>> combinations;
@@ -206,7 +206,7 @@ public:
                 clonesw->setSuccessor(i, initialcaseSequence[bbspos[i]]);
 
               resultMuts.add(/*toMatch, */ toMatchMutant, repl,
-                             std::vector<unsigned>({pos}));
+                             std::vector<unsigned>({(unsigned)pos}));
             }
           } else {
             assert(false && "Error: SWITCH should have only 'REMOVECASE' and "

@@ -240,8 +240,8 @@ public:
               default:
                 assert(false && "Unreachable");
               }
-              std::vector<unsigned> relevantPosInToMatch(
-                  {pos}); // Only pos because is was the only added
+              // Only pos because is was the only added
+              std::vector<unsigned> relevantPosInToMatch({(unsigned)pos}); 
               resultMuts.add(/*toMatch, */ toMatchMutant, repl,
                              relevantPosInToMatch);
               toMatchMutant.clear();
