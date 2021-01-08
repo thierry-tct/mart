@@ -48,7 +48,9 @@ public:
     pmbuilder.SizeLevel = 2;
     // pmbuilder.Inliner = llvm::createFunctionInliningPass(3, 2); //This is for
     // module pass
+#if (LLVM_VERSION_MAJOR < 8) // && (LLVM_VERSION_MINOR < 5)
     pmbuilder.DisableUnitAtATime = false;
+#endif
     pmbuilder.DisableUnrollLoops = false;
     pmbuilder.LoopVectorize = true;
     pmbuilder.SLPVectorize = true;
@@ -74,7 +76,9 @@ public:
     pmbuilder.SizeLevel = 2;
     // pmbuilder.Inliner = llvm::createFunctionInliningPass(3, 2); //This is for
     // module pass
+#if (LLVM_VERSION_MAJOR < 8) // && (LLVM_VERSION_MINOR < 5)
     pmbuilder.DisableUnitAtATime = false;
+#endif
     pmbuilder.DisableUnrollLoops = false;
     pmbuilder.LoopVectorize = true;
     pmbuilder.SLPVectorize = true;
