@@ -839,7 +839,11 @@ llvm::Function *Mutation::createKSFunc(llvm::Module &module, bool bodyOnly,
                                         std::string ks_func_name) {
   llvm::Function *funcForKS = nullptr;
   if (!bodyOnly) {
-    auto *c = module.getOrInsertFunction(
+#if (LLVM_VERSION_MAJOR >= 8) // && (LLVM_VERSION_MINOR < 5)
+    llvm::FunctionCallee c = module.getOrInsertFunction(
+#else
+    llvm::Constant *c = module.getOrInsertFunction(
+#endif
         ks_func_name,
         llvm::Type::getVoidTy(moduleInfo.getContext()),
         llvm::Type::getInt32Ty(moduleInfo.getContext()),
