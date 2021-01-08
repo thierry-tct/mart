@@ -1080,7 +1080,7 @@ bool Mutation::doMutate() {
           phi->setIncomingBlock(pind, proxyBlock);
 #if (LLVM_VERSION_MAJOR >= 8) // && (LLVM_VERSION_MINOR < 5)
           llvm::Instruction *TI = bb->getTerminator();
-#endif
+#else
           llvm::TerminatorInst *TI = bb->getTerminator();
 #endif
           bool found = false; // DEBUG
