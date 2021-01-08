@@ -453,7 +453,12 @@ llvm::AllocaInst *Mutation::MyDemoteRegToStack(llvm::Instruction &I,
     // careful if I is an invoke instruction, because we can't insert the store
     // AFTER the terminator instruction.
     llvm::BasicBlock::iterator InsertPt;
+#if (LLVM_VERSION_MAJOR >= 8) // && (LLVM_VERSION_MINOR < 5)
+    if (!I.isTerminator()) {
+#else
     if (!llvm::isa<llvm::TerminatorInst>(I)) {
+#endif
+
 #if (LLVM_VERSION_MAJOR <= 3) && (LLVM_VERSION_MINOR < 8)
       InsertPt = ++(llvm::BasicBlock::iterator(I));
       for (; llvm::isa<llvm::PHINode>(InsertPt) || oldVersionIsEHPad(InsertPt);
@@ -1007,7 +1012,11 @@ bool Mutation::doMutate() {
     }
     void handleBB(llvm::BasicBlock *bb, ModuleUserInfos const &MI) { // see
       // http://llvm.org/docs/doxygen/html/BasicBlock_8cpp_source.html#l00401
+#if (LLVM_VERSION_MAJOR >= 8) // && (LLVM_VERSION_MINOR < 5)
+      llvm::Instruction *TI = bb->getTerminator();
+#else
       llvm::TerminatorInst *TI = bb->getTerminator();
+#endif
       if (!TI)
         return;
       for (auto i = 0; i < TI->getNumSuccessors(); i++) {
@@ -1069,7 +1078,11 @@ bool Mutation::doMutate() {
           proxies.insert(proxyBlock);
 
           phi->setIncomingBlock(pind, proxyBlock);
+#if (LLVM_VERSION_MAJOR >= 8) // && (LLVM_VERSION_MINOR < 5)
+          llvm::Instruction *TI = bb->getTerminator();
+#endif
           llvm::TerminatorInst *TI = bb->getTerminator();
+#endif
           bool found = false; // DEBUG
           for (auto i = 0; i < TI->getNumSuccessors(); i++) {
             if (phiBB == TI->getSuccessor(i)) {
@@ -2882,9 +2895,13 @@ void Mutation::applyPostMutationPointForKSOnMetaModule(llvm::Module &module) {
               pointBB2mutantIDVect.clear();
               
               // Original
+#if (LLVM_VERSION_MAJOR >= 8) // && (LLVM_VERSION_MINOR < 5)
+              llvm::Instruction* origBBterm_i = sw->getDefaultDest()->getTerminator();
+#else
               llvm::TerminatorInst* origBBterm_i = 
                             llvm::dyn_cast<llvm::TerminatorInst>(
                                         sw->getDefaultDest()->getTerminator());
+#endif
               assert (origBBterm_i && "malformed original BB");
               for (auto sid = 0; sid < origBBterm_i->getNumSuccessors(); ++sid) {
                 llvm::BasicBlock * pointBB = origBBterm_i->getSuccessor(sid);
@@ -2894,7 +2911,11 @@ void Mutation::applyPostMutationPointForKSOnMetaModule(llvm::Module &module) {
               // Mutants
               for (auto csit = sw->case_begin(), cse = sw->case_end();
                    csit != cse; ++csit) {
-#if (LLVM_VERSION_MAJOR <= 4)
+#if (LLVM_VERSION_MAJOR >= 8) // && (LLVM_VERSION_MINOR < 5)
+                llvm::Instruction* mutBBterm_i = 
+                                          csit.getCaseSuccessor()->getTerminator();
+                uint64_t curcaseuint = csit.getCaseValue()->getZExtValue();
+#elif (LLVM_VERSION_MAJOR <= 4)
                 llvm::TerminatorInst* mutBBterm_i = 
                             llvm::dyn_cast<llvm::TerminatorInst>(
                                         csit.getCaseSuccessor()->getTerminator());

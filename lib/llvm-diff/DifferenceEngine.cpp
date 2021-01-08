@@ -619,8 +619,13 @@ void FunctionDifferenceEngine::runBlockDiff(BasicBlock::iterator LStart,
   // If the terminators have different kinds, but one is an invoke and the
   // other is an unconditional branch immediately following a call, unify
   // the results and the destinations.
+#if (LLVM_VERSION_MAJOR >= 8) // && (LLVM_VERSION_MINOR < 5)
   TerminatorInst *LTerm = LStart->getParent()->getTerminator();
   TerminatorInst *RTerm = RStart->getParent()->getTerminator();
+#else
+  Instruction *LTerm = LStart->getParent()->getTerminator();
+  Instruction *RTerm = RStart->getParent()->getTerminator();
+#endif
   if (isa<BranchInst>(LTerm) && isa<InvokeInst>(RTerm)) {
     if (cast<BranchInst>(LTerm)->isConditional()) return;
 #if (LLVM_VERSION_MAJOR <= 3) && (LLVM_VERSION_MINOR < 8)

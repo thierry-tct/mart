@@ -6,6 +6,11 @@ ARG llvm_version=3.4.2
 FROM thierrytct/llvm:$llvm_version
 ARG llvm_version=3.4.2
 
+# set this to enable mutant selection (with features axtraction)
+# This relies on dg, so careful with newer LLVM versions, need to
+# update compatibility with dg
+ARG mutant_selection_on
+
 ARG mart_location=/home/MART
 
 RUN mkdir -p $mart_location/build $mart_location/mart/src
@@ -16,7 +21,8 @@ COPY . $mart_location/src
 # fdupes needed for post compilation TCE. XXX 'make gitversion' is needed for dg
 RUN apt-get -y install fdupes \
  && mkdir -p $mart_location/build && cd $mart_location/build \
- && cmake -DMART_MUTANT_SELECTION=on -DLLVM_DIR=/usr/local/share/llvm/cmake/ $mart_location/src \
+ && if [ "$mutant_selection_on" = "" ]; then extra=""; else extra="-DMART_MUTANT_SELECTION=on"; fi \
+ && cmake $extra -DLLVM_DIR=/usr/local/share/llvm/cmake/ $mart_location/src \
  && make CollectMutOpHeaders && { make gitversion || echo "No gitversion need"; } && make
 ENV PATH="$mart_location/build/tools:${PATH}"
 
