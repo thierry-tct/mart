@@ -2731,7 +2731,9 @@ void Mutation::doTCE(std::unique_ptr<llvm::Module> &optMetaMu, std::unique_ptr<l
 
     // WM
     if (modWMLog) {
-#if (LLVM_VERSION_MAJOR <= 3) && (LLVM_VERSION_MINOR < 8)
+#if (LLVM_VERSION_MAJOR >= 8) // && (LLVM_VERSION_MINOR < 5)
+      wmModule = llvm::CloneModule(module);
+#elif (LLVM_VERSION_MAJOR <= 3) && (LLVM_VERSION_MINOR < 8)
       wmModule.reset(llvm::CloneModule(&module));
 #else
       wmModule = llvm::CloneModule(&module);
@@ -2741,7 +2743,9 @@ void Mutation::doTCE(std::unique_ptr<llvm::Module> &optMetaMu, std::unique_ptr<l
 
     // Cov
     if (modCovLog) {
-#if (LLVM_VERSION_MAJOR <= 3) && (LLVM_VERSION_MINOR < 8)
+#if (LLVM_VERSION_MAJOR >= 8) // && (LLVM_VERSION_MINOR < 5)
+      covModule = llvm::CloneModule(module);
+#elif (LLVM_VERSION_MAJOR <= 3) && (LLVM_VERSION_MINOR < 8)
       covModule.reset(llvm::CloneModule(&module));
 #else
       covModule = llvm::CloneModule(&module);
