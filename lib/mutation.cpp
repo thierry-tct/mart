@@ -2925,8 +2925,8 @@ void Mutation::applyPostMutationPointForKSOnMetaModule(llvm::Module &module) {
                    csit != cse; ++csit) {
 #if (LLVM_VERSION_MAJOR >= 8) // && (LLVM_VERSION_MINOR < 5)
                 llvm::Instruction* mutBBterm_i = 
-                                          csit.getCaseSuccessor()->getTerminator();
-                uint64_t curcaseuint = csit.getCaseValue()->getZExtValue();
+                                          csit->getCaseSuccessor()->getTerminator();
+                uint64_t curcaseuint = csit->getCaseValue()->getZExtValue();
 #elif (LLVM_VERSION_MAJOR <= 4)
                 llvm::TerminatorInst* mutBBterm_i = 
                             llvm::dyn_cast<llvm::TerminatorInst>(
