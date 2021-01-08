@@ -620,8 +620,8 @@ void FunctionDifferenceEngine::runBlockDiff(BasicBlock::iterator LStart,
   // other is an unconditional branch immediately following a call, unify
   // the results and the destinations.
 #if (LLVM_VERSION_MAJOR >= 8) // && (LLVM_VERSION_MINOR < 5)
-  TerminatorInst *LTerm = LStart->getParent()->getTerminator();
-  TerminatorInst *RTerm = RStart->getParent()->getTerminator();
+  Instruction* LTerm = LStart->getParent()->getTerminator();
+  Instruction *RTerm = RStart->getParent()->getTerminator();
 #else
   Instruction *LTerm = LStart->getParent()->getTerminator();
   Instruction *RTerm = RStart->getParent()->getTerminator();
