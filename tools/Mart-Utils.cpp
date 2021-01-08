@@ -158,11 +158,13 @@ int main(int argc, char **argv) {
       ind++;
 
     // (1) clone
-    #if (LLVM_VERSION_MAJOR <= 3) && (LLVM_VERSION_MINOR < 8)
+#if (LLVM_VERSION_MAJOR >= 8) // && (LLVM_VERSION_MINOR < 5)
+      std::unique_ptr<llvm::Module> mutmodule = llvm::CloneModule(*moduleMeta);
+#elif (LLVM_VERSION_MAJOR <= 3) && (LLVM_VERSION_MINOR < 8)
       std::unique_ptr<llvm::Module> mutmodule(llvm::CloneModule(moduleMeta));
-    #else
+#else
       std::unique_ptr<llvm::Module> mutmodule = llvm::CloneModule(moduleMeta);
-    #endif
+#endif
 
     // (2) set to mutant
     if (!mut.getMutant(*mutmodule, mid, nullptr)) {

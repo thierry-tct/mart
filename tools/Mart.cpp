@@ -437,7 +437,10 @@ llvm::cl::opt<std::string> extraLinkingFlags(
                mutantScopeJsonfile);
 
 // Keep Phi2Mem-preprocessed module
-#if (LLVM_VERSION_MAJOR <= 3) && (LLVM_VERSION_MINOR < 8)
+#if (LLVM_VERSION_MAJOR >= 8) // && (LLVM_VERSION_MINOR < 5)
+  std::unique_ptr<llvm::Module> preProPhi2MemModule =
+      llvm::CloneModule(*moduleM);
+#elif (LLVM_VERSION_MAJOR <= 3) && (LLVM_VERSION_MINOR < 8)
   std::unique_ptr<llvm::Module> preProPhi2MemModule(llvm::CloneModule(moduleM));
 #else
   std::unique_ptr<llvm::Module> preProPhi2MemModule =
