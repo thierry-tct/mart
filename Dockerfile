@@ -19,7 +19,8 @@ RUN mkdir -p $mart_location/build $mart_location/mart/src
 COPY . $mart_location/src
 
 # fdupes needed for post compilation TCE. XXX 'make gitversion' is needed for dg
-RUN apt-get -y install fdupes \
+# libtinfo-dev is needed because of linking error with llvm-9 (problem -ltinfo)
+RUN apt-get -y install fdupes libtinfo-dev \
  && mkdir -p $mart_location/build && cd $mart_location/build \
  && if [ "$mutant_selection_on" = "" ]; then extra=""; else extra="-DMART_MUTANT_SELECTION=on"; fi \
  && cmake $extra -DLLVM_DIR=/usr/local/share/llvm/cmake/ $mart_location/src \
