@@ -91,7 +91,9 @@ public:
   }
 
   static inline llvm::Module *cloneModuleAndRelease(llvm::Module *M) {
-#if (LLVM_VERSION_MAJOR <= 3) && (LLVM_VERSION_MINOR < 8)
+#if (LLVM_VERSION_MAJOR >= 8) // && (LLVM_VERSION_MINOR < 5)
+    return llvm::CloneModule(*M).release();
+#elif (LLVM_VERSION_MAJOR <= 3) && (LLVM_VERSION_MINOR < 8)
     return llvm::CloneModule(M);
 #else
     return llvm::CloneModule(M).release();
