@@ -197,21 +197,21 @@ void DiffConsumer::logd(const DiffLogBuilder &Log) {
     case DC_match:
       out << "  ";
 #ifdef MART_GenMu_PRINTDIFF
-      Log.getLeft(I)->dump();
+      Log.getLeft(I)->print(out);
 #endif
       //printValue(Log.getLeft(I), true);
       break;
     case DC_left:
       out << "< ";
 #ifdef MART_GenMu_PRINTDIFF
-      Log.getLeft(I)->dump();
+      Log.getLeft(I)->print(out);
 #endif
       //printValue(Log.getLeft(I), true);
       break;
     case DC_right:
       out << "> ";
 #ifdef MART_GenMu_PRINTDIFF
-      Log.getRight(I)->dump();
+      Log.getRight(I)->print(out);
 #endif
       //printValue(Log.getRight(I), false);
       break;
