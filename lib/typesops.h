@@ -545,7 +545,7 @@ struct MatchStmtIR {
   void dumpIRs() const {
     llvm::errs() << "\n";
     for (auto *x : toMatchIRs)
-      x->dump();
+      x->print(llvm::errs());
   }
   inline int getNumBB() const { return bbStartPosToOrigBB.size(); }
   inline llvm::BasicBlock *getBBAt(int i) const {
@@ -623,7 +623,7 @@ struct MatchStmtIR {
             break;
         if (!(toMatchIRs.size() > findpos)) {
           for (auto *tmpins : toMatchIRs)
-            llvm::dyn_cast<llvm::Instruction>(tmpins)->dump();
+            llvm::dyn_cast<llvm::Instruction>(tmpins)->print(llvm::errs());
           llvm::errs() << "Pos = " << pos << "\n";
           /*toMatchIRs.size() > findpos*/
           assert(false && "Impossible error (before)");
@@ -640,7 +640,7 @@ struct MatchStmtIR {
             break;
         if (!(findpos >= 0)) {
           for (auto *tmpins : toMatchIRs)
-            llvm::dyn_cast<llvm::Instruction>(tmpins)->dump();
+            llvm::dyn_cast<llvm::Instruction>(tmpins)->print(llvm::errs());
           llvm::errs() << "Pos = " << pos << "\n";
           assert(false /*findpos>=0*/ && "Impossible error (after)");
         }
@@ -699,7 +699,7 @@ struct MutantsOfStmt {
     void dumpIRs() const {
       llvm::errs() << "\n";
       for (auto *x : toMatchIRsMutClone)
-        x->dump();
+        x->print(llvm::errs());
     }
     inline void add(llvm::BasicBlock *orig,
                     std::vector<llvm::BasicBlock *> mut) {
@@ -782,7 +782,7 @@ struct MutantsOfStmt {
         if (!toMatchIRsMutClone[ind]->use_empty()) {
           llvm::errs() << "\nError: Deleting IR while its use is not empty. "
                           "Please report Bug (MART)!\n\n";
-          llvm::dyn_cast<llvm::Instruction>(toMatchIRsMutClone[ind])->dump();
+          llvm::dyn_cast<llvm::Instruction>(toMatchIRsMutClone[ind])->print(llvm::errs());
           assert(false);
         }
         llvm::dyn_cast<llvm::Instruction>(toMatchIRsMutClone[ind])
@@ -866,8 +866,8 @@ struct MutantsOfStmt {
               if (fail) {
                 llvm::errs() << "Error (Mutation::getOriginalStmtBB): lookup "
                                 "an element not in the map -- ";
-                llvm::dyn_cast<llvm::Instruction>(I)->dump();
-                oprd->dump();
+                llvm::dyn_cast<llvm::Instruction>(I)->print(llvm::errs());
+                oprd->print(llvm::errs());
                 assert(false && "");
               }
             }
@@ -958,8 +958,8 @@ struct MutantsOfStmt {
                   ->getElementType() != yy->getType()) {
             llvm::errs() << "ERROR: LOAD value type does not match pointer "
                             "pointee type\n";
-            // for (auto *zz: toMatchIRsMutClone) zz->dump();
-            yy->dump();
+            // for (auto *zz: toMatchIRsMutClone) zz->print(llvm::errs());
+            yy->print(llvm::errs());
             // assert (false && "ERROR: LOAD value type does not match pointer
             // pointee type");
             return false;
@@ -970,7 +970,7 @@ struct MutantsOfStmt {
                   ->getElementType() != yy->getValueOperand()->getType()) {
             llvm::errs() << "ERROR: STORE value type does not match pointer "
                             "pointee type\n";
-            yy->dump();
+            yy->print(llvm::errs());
             // assert (false && "ERROR: STORE value type does not match pointer
             // pointee type");
             return false;
@@ -1105,13 +1105,13 @@ struct StatementSearch {
 
   void checkAtomicityInBB(llvm::BasicBlock *curBB) {
     if (atomicityInBB == curBB) {
-      curBB->dump();
+      curBB->print(llvm::errs());
       llvm::errs() << "Error (Mutation::doMutate): Problem with IR - "
                       "statements are not atomic ("
                    << stmtIRcount
                    << "). Maybe mem2reg was applied to input module...\n";
       for (auto *rr : matchStmtIR.toMatchIRs)          // DEBUG
-        llvm::dyn_cast<llvm::Instruction>(rr)->dump(); // DEBUG
+        llvm::dyn_cast<llvm::Instruction>(rr)->print(llvm::errs()); // DEBUG
       assert(false);
     }
   }
@@ -1202,10 +1202,10 @@ struct MutantInfoList {
             // rfind to remove the column info
             {
               /*llvm::errs() << srcLevelLoc << " --- " << tmpSrc <<"\n\n";
-              I->dump();
+              I->print(llvm::errs());
               llvm::errs() <<"toMatch: ---\n";
               for (auto *iival: toMatch)
-                  iival->dump();
+                  iival->print(llvm::errs());
               assert (false && "A stmt spawn more than 1 src level line of
               code");*/
 
