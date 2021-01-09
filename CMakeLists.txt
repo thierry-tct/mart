@@ -156,3 +156,4 @@ add_subdirectory(tools)
 add_subdirectory(scripts)
 add_subdirectory(test EXCLUDE_FROM_ALL)
 
+message(STATUS "Run: `make CollectMutOpHeaders && make` to compile")
