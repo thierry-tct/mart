@@ -1163,7 +1163,7 @@ bool Mutation::doMutate() {
           } else {
             llvm::errs() << "Mart@Error: the instruction to delete does not "
                             "directly follow its precursor! (Atomic..)\n";
-            Instr.dump();
+            Instr.print(llvm::errs());
             assert(false && "consecutiveSkippedInsts not empty");
           }
         }
@@ -1190,7 +1190,7 @@ bool Mutation::doMutate() {
               srcStmtsSearchList.remove(curLiveStmtSearch);
               curLiveStmtSearch = nullptr;
             } else {
-              Instr.getParent()->dump();
+              Instr.getParent()->print(llvm::errs());
               assert(false && "Non atomic ??. Please Report bug (Mart)");
               // assert (llvm::isa<llvm::ConstantInt>(alloca->getArraySize()) &&
               // "Non Atomic??");
@@ -1345,7 +1345,7 @@ bool Mutation::doMutate() {
         if (!curLiveStmtSearch->visit(&Instr)) {
           // Func.dump();
           llvm::errs() << "\nInstruction: ";
-          Instr.dump();
+          Instr.print(llvm::errs());
           assert(false && "first time seing an instruction but present in "
                           "visited. report bug");
         }
@@ -1433,7 +1433,7 @@ bool Mutation::doMutate() {
             // for(auto
             // &xx:sstmt->mutantStmt_list.getMutantStmtIR(mind).origBBToMutBB)
             //    for(auto *bb: xx.second)
-            //        bb->dump();
+            //        bb->print(llvm::errs());
           }
         }
       }
