@@ -504,7 +504,7 @@ protected:
         nc = llvm::ConstantPointerNull::get(
             llvm::dyn_cast<llvm::PointerType>(type));
       } else {
-        type->dump();
+        type->print(llvm::errs());
         assert(false && "unreachable!!");
       }
     }
