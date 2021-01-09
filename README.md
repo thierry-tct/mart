@@ -18,7 +18,7 @@ _Please use the following reference to cite this tool_
 
 ## Requirements
 - Linux (Tested on Ubuntu 14.04 and 16.04)
-- LLVM >= 3.4
+- LLVM >= 3.4 (To enable Selection, use LLVM >= 3.4 and < 4, as [dg](https://github.com/mchalupa/dg) is not yet updated (TODO: update [dg](https://github.com/mchalupa/dg)))
 Note: Mart uses [JsonBox](https://github.com/anhero/JsonBox) and [dg](https://github.com/mchalupa/dg)(for mutant selection's dependence analysis), included as git submodules
 - cmake >= 3.4.3 (for build)
     ```bash
