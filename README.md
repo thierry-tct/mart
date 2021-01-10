@@ -112,7 +112,9 @@ make
 ---
 
 ## Usage
-Checkout the usage demo video [here](https://youtu.be/V2Hvi_iqiVE).
+For use in the integration with other testing tools such ast automated test generation tools, [Muteria](https://github.com/muteria/muteria) is a good way to use `Mart` (Check out the `example_c` usage from [Muteria](https://github.com/muteria/muteria)).
+
+For direct usage of `Mart`, checkout the usage demo video [here](https://youtu.be/V2Hvi_iqiVE).
 ### Compile your code into LLVM bitcode (.bc) file
 Use `clang` to build the C language program (<SourceFile>.c) into LLVM bitcode (<BitCode>.c) with a command of the form:
 ``` bash
