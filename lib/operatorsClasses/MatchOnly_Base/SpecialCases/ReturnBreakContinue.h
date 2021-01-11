@@ -140,7 +140,11 @@ public:
         return;
 
       llvm::Type *retType = curFunc->getReturnType();
-#if (LLVM_VERSION_MAJOR <= 3) && (LLVM_VERSION_MINOR < 9)
+#if (LLVM_VERSION_MAJOR >= 8)
+      static llvm::LLVMContext getGlobalContext;
+      llvm::IRBuilder<> builder(getGlobalContext);
+      builder.ClearInsertionPoint();
+#elif (LLVM_VERSION_MAJOR <= 3) && (LLVM_VERSION_MINOR < 9)
       llvm::IRBuilder<> builder(llvm::getGlobalContext());
 #else
       static llvm::LLVMContext getGlobalContext;
