@@ -39,7 +39,10 @@ llvmvers=$($buildDir/../tools/mart -version 2>&1 | grep "LLVM version " | grep -
     
 tmpLLVM_COMPILER_PATH=$($buildDir/../tools/mart -version 2>&1 | grep "LLVM tools dir:" | cut -d':' -f2 | sed 's|^ ||g')     #temporary, change this later
 CLANGC=$tmpLLVM_COMPILER_PATH/clang-$llvmvers
+test -f $CLANGC || CLANGC=$tmpLLVM_COMPILER_PATH/clang-$(echo $llvmvers | cut -d'.' -f1)
+test -f $CLANGC || CLANGC=$tmpLLVM_COMPILER_PATH/clang
 LLVM_DIS=$tmpLLVM_COMPILER_PATH/llvm-dis-$llvmvers
+test -f $LLVM_DIS || LLVM_DIS=$tmpLLVM_COMPILER_PATH/llvm-dis-$(echo $llvmvers | cut -d'.' -f1)
 test -f $LLVM_DIS || LLVM_DIS=$tmpLLVM_COMPILER_PATH/llvm-dis
 #------------------------------------
 
