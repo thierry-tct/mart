@@ -631,7 +631,7 @@ mutantsDir+"//"+std::to_string(mid)+"//"+outFile+".bc"))
           (LLVM_TOOLS_BINARY_DIR), outputDir.c_str(), 
           tmpFuncModuleFolder.c_str(), keepMutantsBCs ? "no" : "yes", 
           extraLinkingFlags.c_str(), 
-          disablePostGenerationCompilation ? "no" : "yes", (char *)NULL);
+          disablePostGenerationCompilation ? "yes" : "no", (char *)NULL);
     llvm::errs() << "\n:( ERRORS: Mutants Compile script failed (probably not "
                     "enough memory)!!!"
                  << "!\n\n";
