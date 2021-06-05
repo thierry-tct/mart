@@ -623,8 +623,8 @@ void FunctionDifferenceEngine::runBlockDiff(BasicBlock::iterator LStart,
   Instruction* LTerm = LStart->getParent()->getTerminator();
   Instruction *RTerm = RStart->getParent()->getTerminator();
 #else
-  Instruction *LTerm = LStart->getParent()->getTerminator();
-  Instruction *RTerm = RStart->getParent()->getTerminator();
+  TerminatorInst *LTerm = LStart->getParent()->getTerminator();
+  TerminatorInst *RTerm = RStart->getParent()->getTerminator();
 #endif
   if (isa<BranchInst>(LTerm) && isa<InvokeInst>(RTerm)) {
     if (cast<BranchInst>(LTerm)->isConditional()) return;
