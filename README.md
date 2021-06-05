@@ -145,6 +145,8 @@ This is done using the option: `-mutant-config <path./to/mutant config file>`
 
 Find the details about the format and language to specify the configuration [here](docs/mutation_configuration.md). 
 
+Source code doxygen documentation is available [here](https://thierry-tct.github.io/mart/).
+
 ---
 
 ## TODO

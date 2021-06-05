@@ -1,4 +1,5 @@
 # sudo docker build --no-cache -t thierrytct/mart:llvm-9.0.0 . --build-arg llvm_version=9.0.0 && sudo docker push thierrytct/mart:llvm-9.0.0
+# sudo docker image tag thierrytct/mart:llvm-9.0.0 thierrytct/mart:latest && sudo docker push thierrytct/mart:latest
 
 #ARG llvm_version=3.8.1
 ARG llvm_version=3.4.2
