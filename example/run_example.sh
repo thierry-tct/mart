@@ -36,5 +36,13 @@ echo ">>> COMMAND: mart -mutant-config mutant_conf.mconf -mutant-scope mutant_sc
 mart -mutant-config mutant_conf.mconf -mutant-scope mutant_scope.json $sample_bc
 echo "# Done Generating (c) into folder $thisdir/mart-out-2"
 
+echo "==========================="; echo
+
+# 4. Generate using specified mutant operators and only for a single function (meta only), with post generation no compilation
+echo ">> d. Generating mutants with specified operators and a single function (met only), with no post generation compilation"
+echo ">>> COMMAND: mart -mutant-config mutant_conf.mconf -mutant-scope mutant_scope.json -no-compilation $sample_bc"
+mart -mutant-config mutant_conf.mconf -mutant-scope mutant_scope.json -no-compilation $sample_bc
+echo "# Done Generating (d) into folder $thisdir/mart-out-3"
+
 cd - > /dev/null
 

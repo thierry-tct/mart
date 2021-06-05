@@ -1,12 +1,12 @@
 # sudo docker build --no-cache -t thierrytct/mart:llvm-9.0.0 . --build-arg llvm_version=9.0.0 && sudo docker push thierrytct/mart:llvm-9.0.0
 
 #ARG llvm_version=3.8.1
-#ARG llvm_version=3.4.2
-ARG llvm_version=9.0.0
+ARG llvm_version=3.4.2
+#ARG llvm_version=9.0.0
 
 FROM thierrytct/llvm:$llvm_version
-#ARG llvm_version=3.4.2
-ARG llvm_version=9.0.0
+ARG llvm_version=3.4.2
+#ARG llvm_version=9.0.0
 
 # set this to enable mutant selection (with features axtraction)
 # This relies on dg, so careful with newer LLVM versions, need to
@@ -15,7 +15,7 @@ ARG mutant_selection_on
 
 ARG mart_location=/home/MART
 
-RUN mkdir -p $mart_location/build $mart_location/mart/src
+RUN mkdir -p $mart_location/build $mart_location/src
 
 #git clone https://github.com/thierry-tct/mart.git /tmp/mart/src
 COPY . $mart_location/src
