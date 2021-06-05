@@ -74,7 +74,11 @@ public:
     unsigned NewSize = Storage.size() - 1;
     if (NewSize) {
       // Move the slot at the end to the beginning.
+#if (LLVM_VERSION_MAJOR < 5)
+      if (isPodLike<T>::value)
+#else
       if (is_trivially_copyable<T>::value) //isPodLike<T>::value)
+#endif
         Storage[0] = Storage[NewSize];
       else
         std::swap(Storage[0], Storage[NewSize]);
