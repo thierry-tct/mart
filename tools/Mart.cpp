@@ -325,6 +325,9 @@ llvm::cl::opt<std::string> extraLinkingFlags(
   llvm::cl::opt<bool> disableDumpMutantInfos(
       "no-mutant-info",
       llvm::cl::desc("Disable dumping mutants info JSON file"));
+  llvm::cl::opt<bool> disablePostGenerationCompilation(
+      "no-compilation",
+      llvm::cl::desc("Disable compiling generated bitcode file into executable"));
 
   llvm::cl::opt<bool> keepMutantsBCs(
       "keep-mutants-bc",
@@ -627,7 +630,8 @@ mutantsDir+"//"+std::to_string(mid)+"//"+outFile+".bc"))
           //STRINGIFY(LLVM_TOOLS_BINARY_DIR), outputDir.c_str(), 
           (LLVM_TOOLS_BINARY_DIR), outputDir.c_str(), 
           tmpFuncModuleFolder.c_str(), keepMutantsBCs ? "no" : "yes", 
-          extraLinkingFlags.c_str(), (char *)NULL);
+          extraLinkingFlags.c_str(), 
+          disablePostGenerationCompilation ? "no" : "yes", (char *)NULL);
     llvm::errs() << "\n:( ERRORS: Mutants Compile script failed (probably not "
                     "enough memory)!!!"
                  << "!\n\n";

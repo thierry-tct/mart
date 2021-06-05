@@ -13,13 +13,14 @@ error_exit()
 
 TOPDIR=$(dirname $(readlink -f $0))
 
-[ $# = 5 ] || error_exit "Expected 5 parameters, $# passed: $0 <llvmBinaryDir> <directory (mart-out-0)> <tmpFuncModuleFolder> <remove mutants' \".bc\"? yes/no> <extra linking flags>"
+[ $# = 6 ] || error_exit "Expected 5 parameters, $# passed: $0 <llvmBinaryDir> <directory (mart-out-0)> <tmpFuncModuleFolder> <remove mutants' \".bc\"? yes/no> <extra linking flags>"
 
 llvm_bin_dir=$(readlink -f $1)
 Dir=$(readlink -f $2)
 tmpFuncModuleFolder=$3
 removeMutsBCs=$4
-extraLinkingFlags=$5
+extraLinkingFlags="$5"
+disablePostGenerationCompilation=$6
 fdupesData=$Dir/"fdupes_duplicates.txt"
 fdupesJson=$Dir/"fdupes_duplicates.json"
 mutantsFolder="mutants.out"
@@ -43,13 +44,15 @@ cd $Dir
 #Compile the generated mutants
 CFLAGS="-lm"    #link with lm because gcc complain linking when fmod mutant is added
 CFLAGS+=" $extraLinkingFlags"
-for m in `find -maxdepth 1 -type f -name "*.bc"`
-do
-    $llc -O0 -filetype=obj -o ${m%.bc}.o $m || error_exit "Failed to compile bitcode $m to object (in $Dir)"
-    $CC -O3 -o ${m%.bc} ${m%.bc}.o $CFLAGS || error_exit "Failed to compile object ${m%.bc}.o of bitcode $m to executable (in $Dir)"
-    rm -f ${m%.bc}.o #$m
-    echo "# xx ($SECONDS s) done $m!"   ##DEBUG
-done
+if [ "$disablePostGenerationCompilation" != "yes" ]; then
+    for m in `find -maxdepth 1 -type f -name "*.bc"`
+    do
+        $llc -O0 -filetype=obj -o ${m%.bc}.o $m || error_exit "Failed to compile bitcode $m to object (in $Dir)"
+        $CC -O3 -o ${m%.bc} ${m%.bc}.o $CFLAGS || error_exit "Failed to compile object ${m%.bc}.o of bitcode $m to executable (in $Dir)"
+        rm -f ${m%.bc}.o #$m
+        echo "# xx ($SECONDS s) done $m!"   ##DEBUG
+    done
+fi
 
 if test -d $mutantsFolder # && [ `ls 'mutants' | wc -l` -gt 0 ]        #no need to check non empty because the original is alway there
 then
@@ -68,10 +71,12 @@ then
         x_path=`printf "$in" | cut -d' ' -f1`
         x_dir=$(dirname $x_path)
         x=$(basename $x_path)
-        cd $x_dir || error_exit "Failed to cd into x_dir ($x_dir)"
-        $llc -O0 -filetype=obj -o $x ${x%.o}.bc || error_exit "Failed to compile mutant $m to object (cmd: $llc -O0 -filetype=obj -o $x ${x%.o}.bc)"
-        cd - > /dev/null # go back from x_dir
-        $CC -O3 -o ${x_path%.o} $in $CFLAGS || error_exit "Failed to compile mutant $m to executable (cmd: $CC -O3 -o ${x_path%.o} $in $CFLAGS)"
+        if [ "$disablePostGenerationCompilation" != "yes" ]; then
+            cd $x_dir || error_exit "Failed to cd into x_dir ($x_dir)"
+            $llc -O0 -filetype=obj -o $x ${x%.o}.bc || error_exit "Failed to compile mutant $m to object (cmd: $llc -O0 -filetype=obj -o $x ${x%.o}.bc)"
+            cd - > /dev/null # go back from x_dir
+            $CC -O3 -o ${x_path%.o} $in $CFLAGS || error_exit "Failed to compile mutant $m to executable (cmd: $CC -O3 -o ${x_path%.o} $in $CFLAGS)"
+        fi
         rm -f $x_path #$m
         echo "$bcCount/$nBCs ($SECONDS s) done $x_path!"   ##DEBUG
         bcCount=$((bcCount+1))
