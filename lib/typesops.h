@@ -583,7 +583,7 @@ struct MatchStmtIR {
 #endif
         if (term->getNumSuccessors() == 0) // case for return and unreachable...
           return true;
-        for (auto i = 0; i < term->getNumSuccessors(); i++) {
+        for (unsigned i = 0; i < term->getNumSuccessors(); i++) {
           llvm::BasicBlock *bb = term->getSuccessor(i);
           bool notfound = true;
           for (auto &pit : bbStartPosToOrigBB)
@@ -611,7 +611,7 @@ struct MatchStmtIR {
    */
   int depPosofPos(llvm::Value const *irinst, int pos,
                   bool firstCheckBefore = true) const {
-    int findpos;
+    size_t findpos;
     if (firstCheckBefore) {
       findpos = pos - 1;
       for (; findpos >= 0; findpos--)
@@ -794,7 +794,7 @@ struct MutantsOfStmt {
         MatchStmtIR const &toMatch, ModuleUserInfos const &MI,
         llvm::SmallVector<llvm::Instruction *, 1> *fixedinsts = nullptr) {
       assert(empty() && "already have some data, first clear it");
-      for (auto i = 0; i < toMatch.getNumBB(); i++) {
+      for (unsigned i = 0; i < toMatch.getNumBB(); i++) {
         llvm::BasicBlock *bb = llvm::BasicBlock::Create(MI.getContext());
         origBBToMutBB[toMatch.getBBAt(i)] =
             std::vector<llvm::BasicBlock *>({bb});
@@ -895,7 +895,7 @@ struct MutantsOfStmt {
         if (auto *term = llvm::dyn_cast<llvm::TerminatorInst>(
                 toMatchIRsMutClone[instpos])) {
 #endif
-          for (auto i = 0; i < term->getNumSuccessors(); i++) {
+          for (unsigned i = 0; i < term->getNumSuccessors(); i++) {
             llvm::BasicBlock *bb = term->getSuccessor(i);
             if (origBBToMutBB.count(bb) > 0) {
               term->setSuccessor(i, origBBToMutBB[bb].front());
