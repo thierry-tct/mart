@@ -107,6 +107,13 @@ public:
     llvm::errs() << "Unsuported yet: 'matchIRs' mathod of FunctionCall should "
                     "not be called \n";
     assert(false);
+    // Suppress build warnings
+    (void)toMatch;
+    (void)mutationOp;
+    (void)pos;
+    (void)MU;
+    (void)MI;
+    return false;
   }
 
   void prepareCloneIRs(MatchStmtIR const &toMatch, unsigned pos,
@@ -116,6 +123,13 @@ public:
     llvm::errs() << "Unsuported yet: 'prepareCloneIRs' mathod of FunctionCall "
                     "should not be called \n";
     assert(false);
+    // Suppress build warnings
+    (void)toMatch;
+    (void)pos;
+    (void)MU;
+    (void)repl;
+    (void)DRU;
+    (void)MI;
   }
 
   void matchAndReplace(MatchStmtIR const &toMatch,
@@ -154,7 +168,7 @@ public:
                                          [0])) //'repl.getOprdIndexList()[0]' is
                                                // it the function to match?
             {
-              for (auto i = 1; i < repl.getOprdIndexList().size(); i++) {
+              for (unsigned i = 1; i < repl.getOprdIndexList().size(); i++) {
                 toMatchMutant.clear();
                 toMatchMutant.setToCloneStmtIROf(toMatch, MI);
                 llvm::Function *repFun = MI.getModule()->getFunction(

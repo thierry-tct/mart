@@ -41,6 +41,11 @@ protected:
 public:
   bool matchIRs(MatchStmtIR const &toMatch, llvmMutationOp const &mutationOp,
                 unsigned pos, MatchUseful &MU, ModuleUserInfos const &MI) {
+    // Suppress build warnings
+    (void)mutationOp;
+    (void)MI;
+
+    // Computations
     llvm::Value *val = toMatch.getIRAt(pos);
 
     // Skip switch
@@ -59,8 +64,7 @@ public:
           // only mutate, if possible, the 'len' and 'isvolatile' params
           int indxs[2] = {2, 4};
           for (auto i = 0; i < 2; i++) {
-            if (llvm::Constant *constval =
-                    constMatched(callinst->getArgOperand(indxs[i]))) {
+            if (constMatched(callinst->getArgOperand(indxs[i]))) {
               MatchUseful *ptr_mu = MU.getNew();
               ptr_mu->appendHLOprdsSource(pos, indxs[i]);
               ptr_mu->appendRelevantIRPos(pos);
@@ -75,7 +79,7 @@ public:
                        val)) { // for gep, only mutate the poiter indexing
       int pindex;
       if (llvm::Value *tmpVal = checkIsPointerIndexingAndGet(gep, pindex)) {
-        if (llvm::Constant *constval = constMatched(tmpVal)) {
+        if (constMatched(tmpVal)) {
           pindex++; // This because 'checkIsPointerIndexingAndGet' returns Gep
                     // index which is User index - 1
           MatchUseful *ptr_mu = MU.getNew();
@@ -91,7 +95,7 @@ public:
                oprdvIt = 0,
                maxbound = llvm::dyn_cast<llvm::User>(val)->getNumOperands();
            oprdvIt < maxbound; oprdvIt++) {
-        if (llvm::Constant *constval = constMatched(
+        if (constMatched(
                 llvm::dyn_cast<llvm::User>(val)->getOperand(oprdvIt))) {
           MatchUseful *ptr_mu = MU.getNew();
           ptr_mu->appendHLOprdsSource(pos, oprdvIt);
@@ -108,9 +112,13 @@ public:
                        MatchUseful const &MU,
                        llvmMutationOp::MutantReplacors const &repl,
                        DoReplaceUseful &DRU, ModuleUserInfos const &MI) {
+    // Suppress build warnings
+    (void)pos;
+
+    // Computations
     DRU.toMatchMutant.setToCloneStmtIROf(toMatch, MI);
     llvm::Value *oprdptr[] = {nullptr, nullptr};
-    for (int i = 0; i < repl.getOprdIndexList().size(); i++) {
+    for (unsigned i = 0; i < repl.getOprdIndexList().size(); i++) {
       if (repl.getOprdIndexList()[i] == 0) {
         oprdptr[i] = llvm::dyn_cast<llvm::User>(
                          DRU.toMatchMutant.getIRAt(MU.getHLReturnIntoIRPos()))

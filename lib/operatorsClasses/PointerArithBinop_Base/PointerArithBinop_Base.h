@@ -34,6 +34,9 @@ protected:
 public:
   bool matchIRs(MatchStmtIR const &toMatch, llvmMutationOp const &mutationOp,
                 unsigned pos, MatchUseful &MU, ModuleUserInfos const &MI) {
+    // Suppress build warnings
+    (void)MI;
+    // Computation
     llvm::Value *val = toMatch.getIRAt(pos);
     if (auto *gep = llvm::dyn_cast<llvm::GetElementPtrInst>(val)) {
       // check the pointer displacement index (0)'s value
@@ -75,17 +78,19 @@ public:
                        MatchUseful const &MU,
                        llvmMutationOp::MutantReplacors const &repl,
                        DoReplaceUseful &DRU, ModuleUserInfos const &MI) {
+    // Suppress build warnings
+    (void)pos;
+    // Computation
     DRU.toMatchMutant.setToCloneStmtIROf(toMatch, MI);
-    llvm::Value *indxVal = MU.getHLOperandSource(
-        1, DRU.toMatchMutant); // Integer oprd (secondly appended in matchIs)
-    int oldPos = MU.getRelevantIRPosOf(0);
-    int newPos = oldPos;
-    int indx = MU.getHLOperandSourceIndexInIR(1) - 1; // index according to Gep:
-                                                      // Get the in IR index of
-                                                      // the Integer HLOprd (1)
-                                                      // then remove 1
-    // if (indx > 0)
-    //    newPos++;
+    // Integer oprd (secondly appended in matchIs)
+    llvm::Value *indxVal = MU.getHLOperandSource(1, DRU.toMatchMutant);
+    unsigned oldPos = MU.getRelevantIRPosOf(0);
+    unsigned newPos = oldPos;
+    // index according to Gep: Get the in IR index of the Integer HLOprd (1) 
+    // then remove 1
+    int indx = MU.getHLOperandSourceIndexInIR(1) - 1;
+    //if (indx > 0)
+    //  newPos++;
 
     std::vector<llvm::Value *> extraIdx;
 
@@ -114,18 +119,19 @@ public:
     }
 
     /// \brief indx is not the last, we can split after
-    if (indx < llvm::dyn_cast<llvm::GetElementPtrInst>(
+    if (indx < (int)llvm::dyn_cast<llvm::GetElementPtrInst>(
                    DRU.toMatchMutant.getIRAt(oldPos))
                        ->getNumIndices() -
                    1) {
       llvm::GetElementPtrInst *curGI = llvm::dyn_cast<llvm::GetElementPtrInst>(
           DRU.toMatchMutant.getIRAt(oldPos));
       extraIdx.clear();
-      for (auto i = indx + 1; i < llvm::dyn_cast<llvm::GetElementPtrInst>(
+      for (auto i = indx + 1; i < (int)llvm::dyn_cast<llvm::GetElementPtrInst>(
                                       DRU.toMatchMutant.getIRAt(oldPos))
                                       ->getNumIndices();
-           i++)
+           i++) {
         extraIdx.push_back(*(curGI->idx_begin() + i));
+      }
       postGep = llvm::dyn_cast<llvm::GetElementPtrInst>(
           builder.CreateInBoundsGEP(curGI, extraIdx));
       assert(postGep &&
@@ -202,10 +208,8 @@ public:
         valoprd = indxVal;
     } else // size is 1
     {
-      if (ptroprd = createIfConst(
-              indxVal->getType(),
-              repl.getOprdIndexList()[0])) { // The replacor should be
-                                             // CONST_VALUE_OF
+      if ((ptroprd = createIfConst(indxVal->getType(), repl.getOprdIndexList()[0]))) { 
+        // The replacor should be CONST_VALUE_OF
         ptroprd = builder.CreateIntToPtr(ptroprd, tmpPtr->getType());
         if (!llvm::isa<llvm::Constant>(ptroprd))
           DRU.toMatchMutant.insertIRAt(

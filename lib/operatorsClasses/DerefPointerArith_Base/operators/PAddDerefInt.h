@@ -54,7 +54,13 @@ public:
                                                replacement, MI);
 
     llvm::Value *deref = builder.CreateAlignedLoad(
+#if (LLVM_VERSION_MAJOR >= 10)
+        ret->getType()->getPointerElementType(),
+        ret,
+        llvm::MaybeAlign(MI.getDataLayout().getPointerTypeSize(ret->getType())));
+#else
         ret, MI.getDataLayout().getPointerTypeSize(ret->getType()));
+#endif
     if (!llvm::dyn_cast<llvm::Constant>(deref))
       replacement.push_back(deref);
 

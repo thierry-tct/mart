@@ -25,6 +25,13 @@ public:
     llvm::errs() << "Unsuported yet: 'matchIRs' mathod of ReturnBreakContinue "
                     "should not be called \n";
     assert(false);
+    // Suppress build warnings
+    (void)toMatch;
+    (void)mutationOp;
+    (void)pos;
+    (void)MU;
+    (void)MI;
+    return false;
   }
 
   void prepareCloneIRs(MatchStmtIR const &toMatch, unsigned pos,
@@ -34,6 +41,13 @@ public:
     llvm::errs() << "Unsuported yet: 'prepareCloneIRs' mathod of "
                     "ReturnBreakContinue should not be called \n";
     assert(false);
+    // Suppress build warnings
+    (void)toMatch;
+    (void)pos;
+    (void)MU;
+    (void)repl;
+    (void)DRU;
+    (void)MI;
   }
 
   void matchAndReplace(MatchStmtIR const &toMatch,
@@ -199,9 +213,19 @@ public:
             toMatchMutant.setToCloneStmtIROf(toMatch, MI);
             llvm::AllocaInst *alloca = builder.CreateAlloca(retType);
             alloca->setAlignment(
+#if (LLVM_VERSION_MAJOR >= 10)
+                llvm::MaybeAlign(MI.getDataLayout().getPrefTypeAlignment(retType)).valueOrOne());
+#else
                 MI.getDataLayout().getPrefTypeAlignment(retType));
+#endif
             llvm::LoadInst *load = builder.CreateAlignedLoad(
+#if (LLVM_VERSION_MAJOR >= 10)
+                alloca->getType()->getPointerElementType(),
+                alloca,
+                llvm::MaybeAlign(MI.getDataLayout().getPrefTypeAlignment(retType)));
+#else
                 alloca, MI.getDataLayout().getPrefTypeAlignment(retType));
+#endif
             // llvm::ReturnInst *newret = builder.CreateRet(load);
             unsigned initialRetPos = toMatch.getTotNumIRs() - 1;
             llvm::dyn_cast<llvm::ReturnInst>(

@@ -51,6 +51,9 @@ public:
                                  llvm::Value *oprd2_intValOprd,
                                  std::vector<llvm::Value *> &replacement,
                                  ModuleUserInfos const &MI) {
+    // Suppress build warnings
+    (void)oprd2_intValOprd;
+    // Computation
     llvm::IRBuilder<> builder(MI.getContext());
     llvm::Value *bitnot = builder.CreateXor(
         oprd1_addrOprd,

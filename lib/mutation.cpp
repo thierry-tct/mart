@@ -695,9 +695,9 @@ bool Mutation::getConfiguration(std::string &mutConfFile) {
 
             unsigned iM = 0;
             while (iM < correspKeysMutant->size() &&
-                   (isExpElemKeys_ForbidenType(
+                   (UserMaps::isExpElemKeys_ForbidenType(
                         mutationOperations[iM].getMatchOp()) ||
-                    isExpElemKeys_ForbidenType(correspKeysMutant->at(iM)))) {
+                    UserMaps::isExpElemKeys_ForbidenType(correspKeysMutant->at(iM)))) {
               iM++;
             }
             if (iM >= correspKeysMutant->size())
@@ -708,9 +708,9 @@ bool Mutation::getConfiguration(std::string &mutConfFile) {
             enum ExpElemKeys prevMu = correspKeysMutant->at(iM);
             enum ExpElemKeys prevMa = mutationOperations[iM].getMatchOp();
             for (iM = iM + 1; iM < correspKeysMutant->size(); iM++) {
-              if (!isExpElemKeys_ForbidenType(
+              if (!UserMaps::isExpElemKeys_ForbidenType(
                       mutationOperations[iM].getMatchOp()) &&
-                  !isExpElemKeys_ForbidenType(correspKeysMutant->at(iM))) {
+                  !UserMaps::isExpElemKeys_ForbidenType(correspKeysMutant->at(iM))) {
                 if (correspKeysMutant->at(iM) != prevMu ||
                     mutationOperations[iM].getMatchOp() != prevMa) {
                   mutationOperations[iM].addReplacor(correspKeysMutant->at(iM),

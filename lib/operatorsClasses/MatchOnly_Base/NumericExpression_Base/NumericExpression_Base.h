@@ -45,6 +45,11 @@ protected:
 public:
   bool matchIRs(MatchStmtIR const &toMatch, llvmMutationOp const &mutationOp,
                 unsigned pos, MatchUseful &MU, ModuleUserInfos const &MI) {
+    // Suppress build warnings
+    (void)mutationOp;
+    (void)MI;
+    
+    // Computations
     llvm::Value *val = toMatch.getIRAt(pos);
 
     // \brief do not consider 'cast(exp)' different than 'exp'
@@ -64,9 +69,13 @@ public:
                        MatchUseful const &MU,
                        llvmMutationOp::MutantReplacors const &repl,
                        DoReplaceUseful &DRU, ModuleUserInfos const &MI) {
+    // Suppress build warnings
+    (void)pos;
+    
+    // Computations
     DRU.toMatchMutant.setToCloneStmtIROf(toMatch, MI);
     llvm::Value *oprdptr[] = {nullptr, nullptr};
-    for (int i = 0; i < repl.getOprdIndexList().size(); i++) {
+    for (unsigned i = 0; i < repl.getOprdIndexList().size(); i++) {
       if (!(oprdptr[i] = createIfConst(
                 MU.getHLOperandSource(0, DRU.toMatchMutant)->getType(),
                 repl.getOprdIndexList()[i]))) {

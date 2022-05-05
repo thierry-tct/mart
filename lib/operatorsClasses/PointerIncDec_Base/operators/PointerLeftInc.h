@@ -38,6 +38,9 @@ public:
                                  llvm::Value *oprd2_intValOprd,
                                  std::vector<llvm::Value *> &replacement,
                                  ModuleUserInfos const &MI) {
+    // Suppress build warnings
+    (void)oprd2_intValOprd;
+    // Computation
     llvm::IRBuilder<> builder(MI.getContext());
 
     // Assuming that we check before that it was a Pointer with
@@ -73,8 +76,12 @@ public:
     // primitive here");
     storeit = builder.CreateAlignedStore(
         changedVal, storeit,
-        MI.getDataLayout().getPointerTypeSize(
-            storeit->getType())); // the val here is a pointer
+        // the val here is a pointer
+#if (LLVM_VERSION_MAJOR >= 10)
+        llvm::MaybeAlign(MI.getDataLayout().getPrefTypeAlignment(storeit->getType())));
+#else
+        MI.getDataLayout().getPrefTypeAlignment(storeit->getType())); 
+#endif
     replacement.push_back(storeit);
     return changedVal;
   }

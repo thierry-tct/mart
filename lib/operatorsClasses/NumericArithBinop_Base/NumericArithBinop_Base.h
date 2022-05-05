@@ -31,12 +31,16 @@ protected:
 public:
   bool matchIRs(MatchStmtIR const &toMatch, llvmMutationOp const &mutationOp,
                 unsigned pos, MatchUseful &MU, ModuleUserInfos const &MI) {
+    // Suppress build warnings
+    (void)MI;
+
+    // Computation
     llvm::Value *val = toMatch.getIRAt(pos);
     if (auto *binop = llvm::dyn_cast<llvm::BinaryOperator>(val)) {
       if (binop->getOpcode() != getMyInstructionIROpCode())
         return false;
 
-      for (auto oprdID = 0; oprdID < binop->getNumOperands(); oprdID++) {
+      for (unsigned oprdID = 0; oprdID < binop->getNumOperands(); oprdID++) {
         if (!checkCPTypeInIR(mutationOp.getCPType(oprdID),
                              binop->getOperand(oprdID)))
           return false;
@@ -63,9 +67,13 @@ public:
                        MatchUseful const &MU,
                        llvmMutationOp::MutantReplacors const &repl,
                        DoReplaceUseful &DRU, ModuleUserInfos const &MI) {
+    // Suppress build warnings
+    (void)pos;
+
+    // Computation
     DRU.toMatchMutant.setToCloneStmtIROf(toMatch, MI);
     llvm::Value *oprdptr[] = {nullptr, nullptr};
-    for (int i = 0; i < repl.getOprdIndexList().size(); i++) {
+    for (unsigned i = 0; i < repl.getOprdIndexList().size(); i++) {
       if (!(oprdptr[i] = createIfConst(
                 MU.getHLOperandSource(i, DRU.toMatchMutant)->getType(),
                 repl.getOprdIndexList()[i]))) {

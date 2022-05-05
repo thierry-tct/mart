@@ -50,6 +50,12 @@ public:
                     "can create it): " /*<< typeid(*this).name()*/
                  << "\n";
     assert(false);
+    // Suppress build warnings
+    (void)oprd1_addrOprd;
+    (void)oprd2_intValOprd;
+    (void)replacement;
+    (void)MI;
+    return nullptr;
   }
 }; // class PointerRelational_Base
 

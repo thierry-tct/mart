@@ -39,10 +39,14 @@ protected:
 public:
   bool matchIRs(MatchStmtIR const &toMatch, llvmMutationOp const &mutationOp,
                 unsigned pos, MatchUseful &MU, ModuleUserInfos const &MI) {
+    // Suppress build warnings
+    (void)pos;
+    (void)MI;
+    // Computation
     llvm::Value *val = toMatch.getIRAt(pos);
     if (llvm::StoreInst *store = llvm::dyn_cast<llvm::StoreInst>(val)) {
-      llvm::Value *addr =
-          store->getOperand(1); // equivalent to getPointerOperand()
+      // equivalent to getPointerOperand()
+      //llvm::Value *addr = store->getOperand(1); 
 
       if (llvm::GetElementPtrInst *modif =
               llvm::dyn_cast<llvm::GetElementPtrInst>(
@@ -70,9 +74,9 @@ public:
                              modif->getPointerOperand()))
           return false;
 
-        int returningIRPos;
-        int loadpos = toMatch.depPosofPos(load, pos, true);
-        int modifpos = toMatch.depPosofPos(modif, pos, true);
+        unsigned returningIRPos;
+        unsigned loadpos = toMatch.depPosofPos(load, pos, true);
+        unsigned modifpos = toMatch.depPosofPos(modif, pos, true);
         assert((pos > loadpos && pos > modifpos) && "problem in IR order");
 
         // check wheter it is left or right inc-dec
@@ -113,6 +117,9 @@ public:
                        MatchUseful const &MU,
                        llvmMutationOp::MutantReplacors const &repl,
                        DoReplaceUseful &DRU, ModuleUserInfos const &MI) {
+    // Suppress build warnings
+    (void)pos;
+    // Computation
     DRU.toMatchMutant.setToCloneStmtIROf(toMatch, MI);
     llvm::Value *ptroprd = nullptr, *valoprd = nullptr;
     if (repl.getOprdIndexList().size() == 2) // size is 2
@@ -126,14 +133,13 @@ public:
               ->getType(),
           repl.getOprdIndexList()[1]);
       assert(valoprd && "Problem here, must be hard coded constant int here");
-    } else // size is 1
-    {
-      if (ptroprd = createIfConst(
+    } else { // size is 1
+      if ((ptroprd = createIfConst(
               (*(llvm::dyn_cast<llvm::GetElementPtrInst>(
                      DRU.toMatchMutant.getIRAt(MU.getRelevantIRPosOf(0)))
                      ->idx_begin()))
                   ->getType(),
-              repl.getOprdIndexList()[0])) { // The replacor should be
+              repl.getOprdIndexList()[0]))) { // The replacor should be
                                              // CONST_VALUE_OF
         llvm::IRBuilder<> builder(MI.getContext());
         ptroprd = builder.CreateIntToPtr(

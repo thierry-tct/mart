@@ -35,6 +35,8 @@ protected:
                                             llvmMutationOp &tmpMutationOp) {
     tmpMutationOp.setMatchOp_CP(getCorrespondingAritPtrOp(),
                                 std::vector<enum codeParts>({cpVAR}));
+    // Suppress build warnings
+    (void)mutationOp;
   }
 
 public:
@@ -45,8 +47,14 @@ public:
     llvm::IRBuilder<> builder(MI.getContext());
 
     llvm::Value *deref = builder.CreateAlignedLoad(
+#if (LLVM_VERSION_MAJOR >= 10)
+        oprd1_addrOprd->getType()->getPointerElementType(),
+        oprd1_addrOprd,
+        llvm::MaybeAlign(MI.getDataLayout().getPointerTypeSize(oprd1_addrOprd->getType())));
+#else
         oprd1_addrOprd,
         MI.getDataLayout().getPointerTypeSize(oprd1_addrOprd->getType()));
+#endif
     if (!llvm::dyn_cast<llvm::Constant>(deref))
       replacement.push_back(deref);
 

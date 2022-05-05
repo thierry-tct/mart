@@ -49,10 +49,13 @@ public:
                                  llvm::Value *oprd2_intValOprd,
                                  std::vector<llvm::Value *> &replacement,
                                  ModuleUserInfos const &MI) {
+    // Suppress build warnings
+    (void)oprd2_intValOprd;
+    // Computation
     llvm::IRBuilder<> builder(MI.getContext());
 
     // llvm::dyn_cast<llvm::Instruction>(oprd1_addrOprd)->dump();//DEBUG
-    llvm::Value *rawVal = oprd1_addrOprd;
+    //llvm::Value *rawVal = oprd1_addrOprd;
     std::vector<llvm::Value *> seenCasts;
     while (llvm::isa<llvm::CastInst>(oprd1_addrOprd)) {
       // assert (llvm::dyn_cast<llvm::User>(val)->getNumOperands() == 1);
@@ -98,7 +101,11 @@ public:
            "Must be primitive here");
     storeit = builder.CreateAlignedStore(
         changedVal, storeit,
+#if (LLVM_VERSION_MAJOR >= 10)
+        llvm::MaybeAlign(MI.getDataLayout().getPrefTypeAlignment(changedVal->getType())));
+#else
         MI.getDataLayout().getPrefTypeAlignment(changedVal->getType()));
+#endif
     replacement.push_back(storeit);
     if (!seenCasts.empty()) {
       llvm::Value *tmp = changedVal;
