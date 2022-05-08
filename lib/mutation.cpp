@@ -258,8 +258,11 @@ void Mutation::preprocessVariablePhi(llvm::Module &module) {
                                 ->getIterator()));
 #endif
             new llvm::StoreInst(alloc_arr_size, Slot, loadinsertpt);
-            llvm::Value *V =
-                new llvm::LoadInst(Slot, alloc_arr_size->getName() + ".reload",
+            llvm::Value *V = new llvm::LoadInst(
+#if (LLVM_VERSION_MAJOR >= 10)
+                                  Slot->getType()->getPointerElementType(),
+#endif
+                                  Slot, alloc_arr_size->getName() + ".reload",
                                    false /*VolatileLoads*/, alloca);
             alloca->setOperand(0, V); // set array size
           }
@@ -367,8 +370,11 @@ llvm::AllocaInst *Mutation::MYDemotePHIToStack(llvm::PHINode *P,
     /* empty */; // Don't insert before PHI nodes or landingpad instrs.
 #endif
 
-  llvm::Value *V =
-      new llvm::LoadInst(Slot, P->getName() + ".reload", &*InsertPt);
+  llvm::Value *V = new llvm::LoadInst(
+#if (LLVM_VERSION_MAJOR >= 10)
+                          Slot->getType()->getPointerElementType(),
+#endif
+                          Slot, P->getName() + ".reload", &*InsertPt);
   P->replaceAllUsesWith(V);
 
   // Delete PHI.
@@ -444,8 +450,11 @@ llvm::AllocaInst *Mutation::MyDemoteRegToStack(llvm::Instruction &I,
 
     for (auto *U : crossBBUsers) {
       // XXX: No need to care for PHI Nodes, since they are already all removed
-      llvm::Value *V =
-          new llvm::LoadInst(Slot, I.getName() + ".reload", VolatileLoads, U);
+      llvm::Value *V = new llvm::LoadInst(
+#if (LLVM_VERSION_MAJOR >= 10)
+                                  Slot->getType()->getPointerElementType(),
+#endif
+                                  Slot, I.getName() + ".reload", VolatileLoads, U);
       U->replaceUsesOfWith(&I, V);
     }
 
@@ -935,7 +944,11 @@ bool Mutation::doMutate() {
       module.getNamedGlobal(mutantIDSelectorName);
   // mutantIDSelectorGlobal->setLinkage(llvm::GlobalValue::CommonLinkage);
   // //commonlinkage require 0 as initial value
+#if (LLVM_VERSION_MAJOR >= 10) // && (LLVM_VERSION_MINOR < 5)
+  mutantIDSelectorGlobal->setAlignment(llvm::MaybeAlign(4));
+#else
   mutantIDSelectorGlobal->setAlignment(4);
+#endif
   mutantIDSelectorGlobal->setInitializer(llvm::ConstantInt::get(
       moduleInfo.getContext(), llvm::APInt(32, 0, false)));
 
@@ -1882,9 +1895,9 @@ void Mutation::computeWeakMutation(std::unique_ptr<llvm::Module> &cmodule,
 
               std::vector<llvm::Instruction *> origUnsafes;
               getWMUnsafeInstructions(defaultBB, origUnsafes);
-              std::vector<llvm::IRBuilder<>> sbuilders;
-              for (auto *II : origUnsafes)
-                sbuilders.emplace_back(II);
+              std::vector<std::unique_ptr<llvm::IRBuilder<> > > sbuilders(origUnsafes.size());
+              for (unsigned idx=0; idx < origUnsafes.size(); idx++)
+                sbuilders[idx].reset(new llvm::IRBuilder<>(origUnsafes[idx]));
               for (llvm::SwitchInst::CaseIt i = sw->case_begin(),
                                             e = sw->case_end();
                    i != e; ++i) {
@@ -1964,10 +1977,10 @@ void Mutation::computeWeakMutation(std::unique_ptr<llvm::Module> &cmodule,
                       if (subcondInst)
                         subcondInst->insertBefore(origUnsafes[ic]);
                       if (condVals[ic].front() != condtmp)
-                        condVals[ic].front() = sbuilders[ic].CreateOr(
+                        condVals[ic].front() = sbuilders[ic]->CreateOr(
                             condVals[ic].front(), condtmp);
                     }
-                    condVals[ic].front() = sbuilders[ic].CreateZExt(
+                    condVals[ic].front() = sbuilders[ic]->CreateZExt(
                         condVals[ic].front(),
                         llvm::Type::getInt8Ty(
                             moduleInfo.getContext())); // convert i1 into i8
@@ -1976,7 +1989,7 @@ void Mutation::computeWeakMutation(std::unique_ptr<llvm::Module> &cmodule,
                     // weak kill condition
                     argsv.push_back(condVals[ic].front());
                     // call WM log func
-                    sbuilders[ic].CreateCall(funcWMLog, argsv); 
+                    sbuilders[ic]->CreateCall(funcWMLog, argsv); 
                   }
                 }
 
@@ -2001,7 +2014,7 @@ void Mutation::computeWeakMutation(std::unique_ptr<llvm::Module> &cmodule,
 
               // Now call fflush
               argsv.clear();
-              sbuilders.back().CreateCall(funcWMFflush, argsv);
+              sbuilders.back()->CreateCall(funcWMFflush, argsv);
 
               for (auto *caseval : cases) {
                 llvm::SwitchInst::CaseIt cit = sw->findCaseValue(caseval);
@@ -2436,7 +2449,7 @@ void Mutation::doTCE(std::unique_ptr<llvm::Module> &optMetaMu, std::unique_ptr<l
         clonedM = dup_eq_processor.clonedModByFunc.at(
             dup_eq_processor.funcMutByMutID[id]);
         const std::string subjFunctionName =
-            dup_eq_processor.funcMutByMutID[id]->getName();
+            dup_eq_processor.funcMutByMutID[id]->getName().str();
         llvm::GlobalVariable *mutantIDSelGlobFF =
             clonedM->getNamedGlobal(mutantIDSelectorName);
         llvm::Function *mutantIDSelGlob_FuncFF =
@@ -3227,12 +3240,12 @@ void Mutation::computeModuleBufsByFunc(
         ReadWriteIRObj::cloneModuleAndRelease(&module);
     for (auto &funcmodIt : *clonedModByFunc)
       if (funcmodIt.first != nullptr)
-        mutFuncList.push_back(funcmodIt.first->getName());
+        mutFuncList.push_back(funcmodIt.first->getName().str());
   } else {
     (*inMemIRModBufByFunc)[nullptr].setToModule(&module);
     for (auto &funcmodIt : *inMemIRModBufByFunc)
       if (funcmodIt.first != nullptr)
-        mutFuncList.push_back(funcmodIt.first->getName());
+        mutFuncList.push_back(funcmodIt.first->getName().str());
   }
   if (!mutFuncList.empty())
     workStack.emplace(ReadWriteIRObj::cloneModuleAndRelease(&module), 0,

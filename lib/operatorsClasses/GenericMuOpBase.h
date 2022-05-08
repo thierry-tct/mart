@@ -382,6 +382,31 @@ public:
 
 protected:
   /**
+   * \brief Tels whether the llvm type is a sequential type
+   * @param type is the type to be checked
+   * @return true if the type is a sequential type, else false
+   */
+  inline bool isSequentialType(const llvm::Type *type) {
+    if (llvm::isa<llvm::ArrayType>(type)
+        || llvm::isa<llvm::PointerType>(type)
+        || llvm::isa<llvm::VectorType>(type)) {
+      return true;
+    }
+    return false;
+  }
+  /**
+   * \brief Tels whether the llvm type is a composite type
+   * @param type is the type to be checked
+   * @return true if the type is a composite type, else false
+   */
+  inline bool isCompositeType(const llvm::Type *type) {
+    if (isSequentialType(type) || llvm::isa<llvm::StructType>(type)) {
+      return true;
+    }
+    return false;
+  }
+
+  /**
    * \brief the method checkCPTypeInIR - "Check Code Part Type In IR" - validate
    * the seen value type match with the expected one.
    * \detail Use this when matching IR with code parts to mutate, to match each
@@ -400,7 +425,7 @@ protected:
       if (!llvm::PointerType::isLoadableOrStorableType(val->getType()))
 #endif
         return false;
-      if (!(llvm::isa<llvm::CompositeType>(val->getType()) ||
+      if (!(isCompositeType(val->getType()) ||
             llvm::isa<llvm::FunctionType>(val->getType())))
         return true;
       return false;
@@ -429,7 +454,7 @@ protected:
                                   ->getOperand(0)
                                   ->getType()
                                   ->getPointerElementType();
-        if (!(llvm::isa<llvm::CompositeType>(valelty) ||
+        if (!(isCompositeType(valelty) ||
               llvm::isa<llvm::FunctionType>(valelty))) // XXX: Change this to
                                                        // add support for array
                                                        // and vector operation
@@ -693,9 +718,13 @@ protected:
       relpos.push_back(i);
     MutantsOfStmt::MutantStmtIR toMatchMutant;
     llvm::SmallVector<llvm::Instruction *, 1> trapinst;
-    llvm::Value *TrapFn =
+    llvm::Function *TrapFn =
         llvm::Intrinsic::getDeclaration(MI.getModule(), llvm::Intrinsic::trap);
+#if (LLVM_VERSION_MAJOR >= 8)
+    trapinst.push_back(llvm::CallInst::Create(TrapFn->getFunctionType(), TrapFn, "")); //->setDebugLoc(dl);
+#else
     trapinst.push_back(llvm::CallInst::Create(TrapFn, "")); //->setDebugLoc(dl);
+#endif
 
     // This will be the terminator for the mutant BB in case the current
     // original stmt has terminator
@@ -787,7 +816,7 @@ protected:
                                           "load before doing any other Gep)");
       index = 0;
       return *(gep->idx_begin() + index);
-    } else if (!llvm::isa<llvm::SequentialType>(ptrOprdElemType)) {
+    } else if (!isSequentialType(ptrOprdElemType)) {
       if (llvm::isa<llvm::LoadInst>(ptrOprd)) {
         // return the first index (idx = 0)
         index = 0;

@@ -461,7 +461,7 @@ public:
           }
         }
         if (!specFuncs.empty()) {
-          if (specFuncs.count(Func.getName())) {
+          if (specFuncs.count(Func.getName().str())) {
             if (!canMutThisFunc) {
               llvm::errs() << "Error in input file: Function selected to be "
                               "mutated but corresponding source file not "
@@ -482,8 +482,8 @@ public:
                "Error: Either some specified function do not exist or Bug (non "
                "specified function is added).");
         for (auto *f : funcsToMutate) {
-          if (!specFuncs.count(f->getName())) {
-            assert(specFuncs.count(f->getName()) &&
+          if (!specFuncs.count(f->getName().str())) {
+            assert(specFuncs.count(f->getName().str()) &&
                    "a function specified is not in function to mutate. please "
                    "report a bug");
           }
@@ -1190,7 +1190,7 @@ struct MutantInfoList {
                llvm::Function *curFunc, std::vector<unsigned> const &absPos) {
       id = mid;
       typeName = mName;
-      locFuncName = curFunc->getName();
+      locFuncName = curFunc->getName().str();
       for (auto ind : relpos)
         irLeveLocInFunc.push_back(absPos[ind]);
 
