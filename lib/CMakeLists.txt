@@ -36,15 +36,39 @@ if (MART_GENMU)
     add_library(UserMaps SHARED usermaps.cpp)
     target_link_libraries(UserMaps JsonBox)
    
-    
+    # Find LLVM-DIFF SRC files
+    set(llvm_diff_SRC "")
+    set(DifferenceEnginHeader "")
+    if(${LLVM_PACKAGE_VERSION} VERSION_GREATER_EQUAL "14.0.0")
+        # TODO: Use static lib
+        message( FATAL_ERROR "please first add support for llvm-diff >= 14.0.0: ${LLVM_VERSION_BASE_STRING}" )
+    elseif(${LLVM_PACKAGE_VERSION} VERSION_GREATER_EQUAL "11.0.0")
+        set(llvm_diff_SRC 
+            llvm-diff/11.0.0/DiffConsumer.cpp
+            llvm-diff/11.0.0/DiffLog.cpp
+            llvm-diff/11.0.0/DifferenceEngine.cpp
+        )
+        #set(DifferenceEnginHeader "llvm-diff/11.0.0/DifferenceEngine.h")
+    elseif (${LLVM_PACKAGE_VERSION} VERSION_GREATER_EQUAL "3.4.0")
+        set(llvm_diff_SRC 
+            llvm-diff/3.4.2/DiffConsumer.cpp
+            llvm-diff/3.4.2/DiffLog.cpp
+            llvm-diff/3.4.2/DifferenceEngine.cpp
+        )
+        set(DifferenceEnginHeader "llvm-diff/3.4.2/DifferenceEngine.h")
+    else()
+        message( FATAL_ERROR "Unsupported LLVM version for llvm-diff: ${LLVM_PACKAGE_VERSION}" )
+    endif()
+
     add_library(MART_GenMu SHARED
         mutation.cpp
         #usermaps.cpp
         #llvm-diff
-        llvm-diff/DiffConsumer.cpp
-        llvm-diff/DiffLog.cpp
-        llvm-diff/DifferenceEngine.cpp
+        ${llvm_diff_SRC}
     )
+    if (NOT ${DifferenceEnginHeader} STREQUAL "")
+        target_compile_definitions(MART_GenMu PRIVATE DIFFERENCE_ENGINE_H=${DifferenceEnginHeader})
+    endif()
 
     target_link_libraries(MART_GenMu UserMaps ${llvm_libs} JsonBox) #link with JsonBox
     
