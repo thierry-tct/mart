@@ -572,7 +572,7 @@ void FunctionDifferenceEngine::runBlockDiff(BasicBlock::iterator LStart,
 
   // We don't need the tentative values anymore; everything from here
   // on out should be non-tentative.
-  TentativeValues.clear();
+  //TentativeValues.clear(); /*@MART*/
 
   SmallVectorImpl<char> &Path = Cur[NL].Path;
   BasicBlock::iterator LI = LStart, RI = RStart;
@@ -627,6 +627,15 @@ void FunctionDifferenceEngine::runBlockDiff(BasicBlock::iterator LStart,
     ++LI;
     ++RI;
   }
+
+  // @MART: FIX - for bug caused by early clearing of 'TentativeValues' and cause 'unify' function 
+  // @MART: to fail (assert) saying that the 2 Inst don't match (since operand are not matched then)
+  // @MART: To fix this, 'TentativeValues.clear()' is moved from before 
+  // @MART: "SmallVectorImpl<char> &Path = Cur[NL].Path;" to here bellow: after the last 'unify'
+  // @MART: of this function and before any return (must be cleared before return)
+  // @MART: We don't need the tentative values anymore; everything from here
+  // @MART: on out should be non-tentative.
+  TentativeValues.clear(); /*@MART*/
 
   // If the terminators have different kinds, but one is an invoke and the
   // other is an unconditional branch immediately following a call, unify
