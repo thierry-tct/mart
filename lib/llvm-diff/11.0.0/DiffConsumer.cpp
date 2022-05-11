@@ -118,6 +118,7 @@ void DiffConsumer::header() {
         printValue(R, false);
         out << ":\n";
       }
+      if (mart_diffBBs) mart_diffBBs->push_back(L);   /*@MART*/
     } else if (isa<Instruction>(I->L)) {
       out << "    in instruction ";
       printValue(I->L, true);
@@ -194,17 +195,23 @@ void DiffConsumer::logd(const DiffLogBuilder &Log) {
     switch (Log.getLineKind(I)) {
     case DC_match:
       out << "  ";
+#ifdef MART_GenMu_PRINTDIFF  /*@MART*/
       Log.getLeft(I)->print(dbgs()); dbgs() << '\n';
+#endif  /*@MART*/
       //printValue(Log.getLeft(I), true);
       break;
     case DC_left:
       out << "< ";
+#ifdef MART_GenMu_PRINTDIFF  /*@MART*/
       Log.getLeft(I)->print(dbgs()); dbgs() << '\n';
+#endif  /*@MART*/
       //printValue(Log.getLeft(I), true);
       break;
     case DC_right:
       out << "> ";
+#ifdef MART_GenMu_PRINTDIFF  /*@MART*/
       Log.getRight(I)->print(dbgs()); dbgs() << '\n';
+#endif  /*@MART*/
       //printValue(Log.getRight(I), false);
       break;
     }

@@ -58,7 +58,7 @@ std::string getUsefulAbsPath(char *argv0) {
     llvm::SmallString<512> rootpath(llvm::sys::fs::getMainExecutable(argv0, MainExecAddr));
     assert(!rootpath.empty() && "Failed to get xecutable abspath!");
     llvm::sys::path::remove_filename(rootpath);
-    useful_conf_dir = rootpath.str();
+    useful_conf_dir = rootpath.str().str();
   }
 
   useful_conf_dir = useful_conf_dir + "/" + usefulFolderName + "/";

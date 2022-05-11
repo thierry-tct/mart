@@ -119,7 +119,7 @@ bool dumpMutantsCallback(Mutation *mutEng,
       if (mutFunctions != nullptr) {
         mid = m.second.front();
         llvm::Function *currFunc = mutFunctions->at(m.first);
-        std::string funcName = currFunc->getName();
+        std::string funcName = currFunc->getName().str();
         std::string funcFile = tmpFunctionDir + "/" + funcName + ".bc";
         std::string mutDirPath = mutantsDir + "/" + std::to_string(mid);
         if (mkdir(mutDirPath.c_str(), 0777) != 0)

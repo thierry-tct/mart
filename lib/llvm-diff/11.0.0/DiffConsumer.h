@@ -69,14 +69,20 @@ class StringRef;
     SmallVector<DiffContext, 5> contexts;
     bool Differences;
     unsigned Indent;
+    SmallVector<BasicBlock *, 2> *mart_diffBBs;   /*@MART*/
 
     void printValue(Value *V, bool isL);
     void header();
     void indent();
 
   public:
-    DiffConsumer()
-      : out(errs()), Differences(false), Indent(0) {}
+    DiffConsumer(/*@MART*/SmallVector<BasicBlock *, 2> *mdiffBBs=nullptr)
+#ifdef MART_GenMu_PRINTDIFF  /*@MART*/
+      : out(errs()), Differences(false), Indent(0), /*@MART*/mart_diffBBs(mdiffBBs) {}
+#else /*@MART*/
+      : out(nulls()), Differences(false), Indent(0), mart_diffBBs(mdiffBBs) {} /*@MART*/
+#endif /*@MART*/
+    bool stopAtFirstDiff () {return (mart_diffBBs == nullptr);}  /*@MART*/
 
     bool hadDifferences() const;
     void enterContext(Value *L, Value *R) override;

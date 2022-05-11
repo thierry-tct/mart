@@ -56,7 +56,7 @@ namespace llvm {
       virtual ~Oracle() {}
     };
 
-    DifferenceEngine(Consumer &consumer)
+    DifferenceEngine(/*@MART*/DiffConsumer &consumer)
       : consumer(consumer), globalValueOracle(nullptr) {}
 
     void diff(Module *L, Module *R);
@@ -67,7 +67,7 @@ namespace llvm {
     LogBuilder logf(StringRef text) {
       return LogBuilder(consumer, text);
     }
-    Consumer& getConsumer() const { return consumer; }
+    DiffConsumer& getConsumer() const { return consumer; }  /*@MART*/
 
     /// Installs an oracle to decide whether two global values are
     /// equivalent as operands.  Without an oracle, global values are
@@ -81,7 +81,7 @@ namespace llvm {
     bool equivalentAsOperands(GlobalValue *L, GlobalValue *R);
 
   private:
-    Consumer &consumer;
+    DiffConsumer &consumer;  /*@MART*/
     Oracle *globalValueOracle;
   };
 }
