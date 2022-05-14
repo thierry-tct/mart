@@ -18,7 +18,7 @@ clang -g -c -emit-llvm $sample_src -o $sample_bc
 
 # 1. Generate using all mutant operators and everywhere (Only meta mutants)
 echo ">> a. Generating mutants with default operators and everywhere (only meta)"
-echo ">>> COMMAND: mart $sample_bc"
+echo ">>> COMMAND (CWD=$(pwd)): mart $sample_bc"
 mart $sample_bc
 echo "# Done Generating (a) into folder $thisdir/mart-out-0"
 echo "==========================="; echo
