@@ -211,7 +211,14 @@ public:
           if (isDeletion(repl.getExpElemKey())) {
             toMatchMutant.clear();
             toMatchMutant.setToCloneStmtIROf(toMatch, MI);
+            // Temporally set insertion point because CreateAlloca uses BB
+            builder.SetInsertPoint(ret);
+            // Create allocaInst using builder with insersion point
             llvm::AllocaInst *alloca = builder.CreateAlloca(retType);
+            // Unlink the created alloca Inst from builder InsertionPoint BB
+            alloca->removeFromParent();
+            // Remove insertion point
+            builder.ClearInsertionPoint();
             alloca->setAlignment(
 #if (LLVM_VERSION_MAJOR >= 10)
                 llvm::MaybeAlign(MI.getDataLayout().getPrefTypeAlignment(retType)).valueOrOne());
