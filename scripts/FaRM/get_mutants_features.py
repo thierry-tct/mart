@@ -44,7 +44,7 @@ def main():
     
     # get the bc with shortest name
     prepro_bc = []
-    len_prepro_bc = 99999999999
+    len_prepro_bc = float('inf')
     for f in os.listdir(args.mart_out_dir):
         if not f.endswith('.bc'):
             continue

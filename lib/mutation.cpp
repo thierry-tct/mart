@@ -138,7 +138,7 @@ getWMUnsafeInstructions(llvm::BasicBlock *BB,
 Mutation::Mutation(llvm::Module &module, std::string mutConfFile,
                    DumpMutFunc_t writeMutsF, std::string scopeJsonFile)
     : forKLEESEMu(true), funcForKLEESEMu(nullptr),
-      writeMutantsCallback(writeMutsF), moduleInfo(&module, &usermaps) {
+      moduleInfo(&module, &usermaps), writeMutantsCallback(writeMutsF) {
   // tranform the PHI Node with any non-constant incoming value with reg2mem
   preprocessVariablePhi(module);
 
@@ -542,7 +542,7 @@ bool Mutation::getConfiguration(std::string &mutConfFile) {
         continue;
       }
 
-      std::regex rgx("\\s+\-\->\\s+"); // Matcher --> Replacors
+      std::regex rgx("\\s+\\-\\->\\s+"); // Matcher --> Replacors
       std::sregex_token_iterator iter(linei.begin(), linei.end(), rgx, -1);
       std::sregex_token_iterator end;
       unsigned short matchRepl = 0;
@@ -817,18 +817,19 @@ void Mutation::getMutantsOfStmt(MatchStmtIR const &stmtIR,
       }
     }
 
+    /*
     // Verify that no constant is considered as instruction in the mutant
     // (inserted in replacement vector)  TODO: Remove commented bellow
-    /*# llvm::errs() << "\n@orig\n";   //DBG
+    //llvm::errs() << "\n@orig\n";   //DBG
     for (auto *dd: stmtIR)          //DBG
-        dd->dump();                 //DBG*/
-    /*for (auto ind = 0; ind < ret_mutants.getNumMuts(); ind++)
+        dd->dump();                 //DBG
+    for (auto ind = 0; ind < ret_mutants.getNumMuts(); ind++)
     {
         auto &mutInsVec = ret_mutants.getMutantStmtIR(ind);
-        /*# llvm::errs() << "\n@Muts\n";    //DBG* /
+        //llvm::errs() << "\n@Muts\n";    //DBG
         for (auto *mutIns: mutInsVec)
         {
-            /*# mutIns->dump();     //DBG* /
+            //# mutIns->dump();     //DBG
             if(llvm::dyn_cast<llvm::Constant>(mutIns))
             {
                 llvm::errs() << "\nError: A constant is considered as
@@ -839,8 +840,6 @@ void Mutation::getMutantsOfStmt(MatchStmtIR const &stmtIR,
             }
         }
     }*/
-    //}
-    //}
   }
 } //~Mutation::getMutantsOfStmt
 
@@ -1040,7 +1039,7 @@ bool Mutation::doMutate() {
 #endif
       if (!TI)
         return;
-      for (auto i = 0; i < TI->getNumSuccessors(); i++) {
+      for (unsigned i = 0; i < TI->getNumSuccessors(); i++) {
         llvm::BasicBlock *Succ = TI->getSuccessor(i);
         for (llvm::BasicBlock::iterator II = Succ->begin(), IE = Succ->end();
              II != IE; ++II) {
@@ -1105,7 +1104,7 @@ bool Mutation::doMutate() {
           llvm::TerminatorInst *TI = bb->getTerminator();
 #endif
           bool found = false; // DEBUG
-          for (auto i = 0; i < TI->getNumSuccessors(); i++) {
+          for (unsigned i = 0; i < TI->getNumSuccessors(); i++) {
             if (phiBB == TI->getSuccessor(i)) {
               TI->setSuccessor(i, proxyBlock);
               found = true; // DEBUG
@@ -1412,8 +1411,8 @@ bool Mutation::doMutate() {
       if (!remainMultiBBLiveStmts.empty())
         continue;
 
-      /***********************************************************
-      // \brief Actual mutation **********************************
+      /***********************************************************/
+      /// \brief Actual mutation **********************************
       /***********************************************************/
 
       /// \brief mutate all the basic blocks between 'mutationStartingAtBB' and
@@ -1440,7 +1439,7 @@ bool Mutation::doMutate() {
                            moduleInfo);
 
           // set the mutant IDs
-          for (auto mind = 0; mind < sstmt->mutantStmt_list.getNumMuts();
+          for (unsigned mind = 0; mind < sstmt->mutantStmt_list.getNumMuts();
                mind++) {
             sstmt->mutantStmt_list.setMutID(mind, ++curMutantID);
             // for(auto
@@ -1528,7 +1527,15 @@ bool Mutation::doMutate() {
               }
 
               sstmtMutants.push_back(sbuilder.CreateSwitch(
+#if (LLVM_VERSION_MAJOR >= 10)
+                  sbuilder.CreateAlignedLoad(
+                    mutantIDSelectorGlobal->getType()->getPointerElementType(), 
+                    mutantIDSelectorGlobal, 
+                    llvm::MaybeAlign(4)
+                  ),
+#else
                   sbuilder.CreateAlignedLoad(mutantIDSelectorGlobal, 4),
+#endif
                   original, nMuts));
 
               // Remove old terminator link
@@ -1558,7 +1565,7 @@ bool Mutation::doMutate() {
 
             // XXX: Insert mutant blocks here
             //@# MUTANTS (see ELSE bellow)
-            for (auto ms_ind = 0;
+            for (unsigned ms_ind = 0;
                  ms_ind < (*curSrcStmtIt)->mutantStmt_list.getNumMuts();
                  ms_ind++) {
               auto &mut_stmt_ir =
@@ -2928,7 +2935,7 @@ void Mutation::applyPostMutationPointForKSOnMetaModule(llvm::Module &module) {
                                         sw->getDefaultDest()->getTerminator());
 #endif
               assert (origBBterm_i && "malformed original BB");
-              for (auto sid = 0; sid < origBBterm_i->getNumSuccessors(); ++sid) {
+              for (unsigned sid = 0; sid < origBBterm_i->getNumSuccessors(); ++sid) {
                 llvm::BasicBlock * pointBB = origBBterm_i->getSuccessor(sid);
                 pointBB2mutantIDVect[pointBB].push_back(0);
               }
@@ -2952,7 +2959,7 @@ void Mutation::applyPostMutationPointForKSOnMetaModule(llvm::Module &module) {
                 uint64_t curcaseuint = (*csit).getCaseValue()->getZExtValue();
 #endif
                 assert (mutBBterm_i && "malformed mutant BB");
-                for (auto sid = 0; sid < mutBBterm_i->getNumSuccessors(); ++sid) {
+                for (unsigned sid = 0; sid < mutBBterm_i->getNumSuccessors(); ++sid) {
                   llvm::BasicBlock * pointBB = mutBBterm_i->getSuccessor(sid);
                   pointBB2mutantIDVect[pointBB].push_back(curcaseuint);
                 }
@@ -3183,8 +3190,8 @@ void Mutation::computeModuleBufsByFunc(
   std::unordered_set<MutantIDType> mutHavingMoreThan1Func;
   llvm::GlobalVariable *mutantIDSelGlob =
       module.getNamedGlobal(mutantIDSelectorName);
-  llvm::Function *mutantIDSelGlob_Func =
-      module.getFunction(mutantIDSelectorName_Func);
+  //llvm::Function *mutantIDSelGlob_Func =
+      //module.getFunction(mutantIDSelectorName_Func);
   // llvm::errs() << "XXXCloning...\n";   //////DBG
   /// \brief First pass to get the functions mutated for each mutant (nullptr
   /// when more than one function mutated).

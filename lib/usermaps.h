@@ -198,7 +198,7 @@ public:
     return (me == mFORBIDEN_TYPE);
   }
 
-  inline bool isConstValOPRD(llvm::StringRef oprd);
+  bool isConstValOPRD(llvm::StringRef oprd);
 
   void validateNonConstValOPRD(llvm::StringRef oprd, unsigned lno);
 

@@ -60,7 +60,7 @@ void UserMaps::addConfNameOpPair(llvm::StringRef cname,
   }*/
 }
 
-inline bool UserMaps::isConstValOPRD(llvm::StringRef oprd) {
+bool UserMaps::isConstValOPRD(llvm::StringRef oprd) {
   if (oprd.startswith_lower("@") || oprd.startswith_lower("C") ||
       oprd.startswith_lower("V") || oprd.startswith_lower("A") ||
       oprd.startswith_lower("P"))

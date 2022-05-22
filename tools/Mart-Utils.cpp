@@ -152,10 +152,11 @@ int main(int argc, char **argv) {
 
   MutantIDType ind = 1;
   for (auto mid: cand_mut_ids) {
-    if (verbose)
+    if (verbose) {
       llvm::outs() << "# Writing Mutant " << mid 
 	      		<< ". (" << ind << "/" << cand_mut_ids.size() << ").\n";
       ind++;
+    }
 
     // (1) clone
 #if (LLVM_VERSION_MAJOR >= 8) // && (LLVM_VERSION_MINOR < 5)

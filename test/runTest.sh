@@ -8,17 +8,16 @@ error_exit()
     exit 1
 }
 
-# Example (inside of 'build' dir):  ../src/test/runTest.sh ./ (Optional: test src file, ex: 'abs.c')
+# Example (inside of 'build' dir):  ../src/test/runTest.sh ./ 
+# Example (inside of 'build' dir): TEST_SRCS="abd.c add.c" ../src/test/runTest.sh ./ 
 
-[ $# -ge 1 ] || error_exit "Expected 1 argument(build dir), or more (<build dir> <list of tests to run: c source>), $# passed"
+testSrcs="${TEST_SRCS:-}"
+example_only="${EXAMPLE_ONLY:-off}"
+
+[ $# -eq 1 ] || error_exit "Expected 1 argument(build dir), $# passed"
 
 buildDir=$(readlink -f $1)
 test -d $buildDir || error_exit "builddir $buildDir inexistent"
-
-testSrcs=""
-if [ $# -gt 1 ]; then
-    testSrcs=$(printf "${@:2}")
-fi
 
 TOPDIR=$(dirname $(readlink -f $0))
 
@@ -49,8 +48,15 @@ test -f $LLVM_DIS || LLVM_DIS=$tmpLLVM_COMPILER_PATH/llvm-dis
 ## compile
 if [ "$testSrcs" = "" ]; then
     testSrcs=$(find ../operator -type f -name "*.c")
+    run_example_on=1
 else
     testSrcs=$(printf "$testSrcs" | tr ' ' '\n' | grep -v "^$" | sed 's|^|../operator/|g' | tr '\n' ' ')
+    run_example_on=0
+fi
+
+if [ "$example_only" != "off" ]; then
+    run_example_on=1
+    testSrcs=""
 fi
 
 for src in $testSrcs
@@ -75,3 +81,8 @@ do
     test -f $filep-out/$filep.WM.bc && { $LLVM_DIS -o $filep-out/$filep.WM.ll $filep-out/$filep.WM.bc || error_exit "llvm-dis failed on $filep-out/wm-$filep.bc" ; }
 done  
 
+if [ $run_example_on -eq 1 ]; then
+    echo "# Running example ..."
+    cp -r $TOPDIR/../example . || error_exit "Failed to copy folder $TOPDIR/../example into $(pwd)"
+    CLANG_EXE=$CLANGC MART_EXE=$buildDir/../tools/mart ./example/run_example.sh || error_exit "Example failed"
+fi
