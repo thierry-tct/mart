@@ -145,6 +145,20 @@ This is done using the option: `-mutant-config <path./to/mutant config file>`
 
 Find the details about the format and language to specify the configuration [here](docs/mutation_configuration.md). 
 
+
+## Build Documentation
+This requires [Doxygen](https://doxygen.nl/index.html) and [Graphviz](https://graphviz.org/).
+
+On Ubuntu, install using the command:
+```
+sudo apt-get install doxygen graphviz
+```
+
+Build the documentation using the command:
+```
+make docs
+```
+
 ---
 
 ## TODO
