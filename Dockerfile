@@ -5,10 +5,10 @@
 #   $ sudo docker build --no-cache -t thierrytct/mart:llvm-3.4.2 . --build-arg llvm_version=3.4.2 --build-arg base_image=thierrytct/llvm:3.4.2 --build-arg using_custom_llvm_base_image=on
 #   $ sudo docker push thierrytct/mart:llvm-3.4.2
 # - LLVM 11
-#   $ sudo docker build --no-cache -t thierrytct/mart:llvm-11 . --build-arg llvm_version=11 
+#   $ sudo docker build --no-cache -t thierrytct/mart:llvm-11 . --build-arg llvm_version=11 --build-arg mutant_selection_on=on
 #   $ sudo docker push thierrytct/mart:llvm-11
 # - LLVM latest
-#   $ sudo docker build --no-cache -t thierrytct/mart:llvm-latest .
+#   $ sudo docker build --no-cache -t thierrytct/mart:llvm-latest . --build-arg mutant_selection_on=on
 #   $ sudo docker push thierrytct/mart:llvm-latest
 #
 # When using the latest version on LLVM (with version specified), do
@@ -69,7 +69,7 @@ RUN apt-get -y install fdupes libtinfo-dev zlib1g-dev \
  && if [ "${mutant_selection_on}" = "" ]; then extra=""; else extra="-DMART_MUTANT_SELECTION=on"; fi \
  && if [ "${using_custom_llvm_base_image}" != "" ]; then extra+=" -DLLVM_DIR=/usr/local/share/llvm/cmake/"; fi \
  && cmake ${extra} -DCMAKE_BUILD_TYPE=${built_type} ${mart_location}/src \
- && make CollectMutOpHeaders && { make gitversion || echo "No gitversion need"; } && make
+ && { make gitversion || echo "No gitversion need"; } && make
 
 ENV PATH="${mart_location}/build/tools:${PATH}"
 ENV MART_BINARY_DIR="${mart_location}/build/tools"

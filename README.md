@@ -161,9 +161,9 @@ make docs
 
 ---
 
-## TODO
-- Fix auto creation of AUTOGEN headers ".inc"
-- Fix compiling third-parties/dg (CMake file when pull), should point to right version
-- Give build option to enable mutant selection
+## OTHERS
+- Give build option to enable mutant selection (pass `-DMART_MUTANT_SELECTION` to the cmake command)
 
+## TODO
+- Fix compiling third-parties/dg (CMake file when pull), should point to right version
 

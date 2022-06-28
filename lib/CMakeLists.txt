@@ -33,7 +33,7 @@ if (MART_GENMU)
     #    add_definitions(-DENABLE_OPENMP_PARALLEL)
     #endif()
     
-    add_library(UserMaps SHARED usermaps.cpp)
+    add_library(UserMaps SHARED usermaps.cpp ${CMAKE_CURRENT_SOURCE_DIR}/AUTOGEN_mutation_op_headers.h.inc)
     target_link_libraries(UserMaps JsonBox)
    
     # Find LLVM-DIFF SRC files

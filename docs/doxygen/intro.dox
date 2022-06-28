@@ -1,0 +1,9 @@
+/// @mainpage MART
+///
+/// @section main_intro Introduction
+/// Welcome to MART. MART is a mutant generation tool that works on LLVM
+/// bitcode.
+/// 
+/// @section Documentation
+/// The documentation of MART is composed of the Doxygen documentation
+/// of the code 
