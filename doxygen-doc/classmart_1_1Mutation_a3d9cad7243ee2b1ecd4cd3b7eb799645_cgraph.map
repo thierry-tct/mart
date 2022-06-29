@@ -1,0 +1,5 @@
+<map id="mart::Mutation::skipFunc" name="mart::Mutation::skipFunc">
+<area shape="rect" id="node1" title="The function that mutation will skip." alt="" coords="5,42,189,69"/>
+<area shape="rect" id="node2" href="$classmart_1_1MutationScope.html#a442efefc0fba9cb8ede9d26c7f106ac8" title="This method return true if the function passed is in the scope (to be mutated). false otherwise." alt="" coords="237,5,429,47"/>
+<area shape="rect" id="node3" href="$classmart_1_1MutationScope.html#a7a3ab07e38bcfbc1cc253004f9d4c934" title="Check wheter initialized." alt="" coords="477,35,636,76"/>
+</map>

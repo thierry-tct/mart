@@ -1,0 +1,4 @@
+<map id="mart::GenericMuOpBase::isDeletion" name="mart::GenericMuOpBase::isDeletion">
+<area shape="rect" id="node1" title="Check whether an operation is Del stmt, which deletes the whole statement, or for return statement,..." alt="" coords="5,5,187,47"/>
+<area shape="rect" id="node2" href="$classmart_1_1GenericMuOpBase.html#a21bea55a64c6aa3bea0f26ab0bb0f32c" title="get the matcher/replacor code for the operation that can delete any statement (like return,..." alt="" coords="235,5,417,47"/>
+</map>

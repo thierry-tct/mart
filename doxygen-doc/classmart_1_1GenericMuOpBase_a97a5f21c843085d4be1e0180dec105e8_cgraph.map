@@ -1,0 +1,52 @@
+<map id="mart::GenericMuOpBase::matchAndReplace" name="mart::GenericMuOpBase::matchAndReplace">
+<area shape="rect" id="node1" title="Match the IR pattern and mutate. This is entry&#45;point method called during mutation...." alt="" coords="5,1239,187,1280"/>
+<area shape="rect" id="node2" href="$classmart_1_1GenericMuOpBase.html#af011cf018d29f485e1d4af0b60e9edf8" title="check whether the replacer is wholestmt mutation and return true or false. if it is,..." alt="" coords="235,624,445,665"/>
+<area shape="rect" id="node28" href="$structmart_1_1MatchUseful.html#aabcbf1e1bdd8098c0cf36c9977cd318c" title=" " alt="" coords="265,991,415,1032"/>
+<area shape="rect" id="node29" href="$structmart_1_1DoReplaceUseful.html#ae06de8beaa44b23871b9fbc978e1d2b5" title=" " alt="" coords="253,831,427,872"/>
+<area shape="rect" id="node31" href="$classmart_1_1GenericMuOpBase.html#a52d8870056fff4d2649b6149ac0837ce" title="Mutate the statement (list if LLVM IR Instructions) &#39;toMatchMutant&#39; a clone of the original statement..." alt="" coords="249,925,431,967"/>
+<area shape="rect" id="node39" href="$structmart_1_1MatchUseful.html#a7c5ba570719bff722458529619d7bf2f" title=" " alt="" coords="253,1057,427,1083"/>
+<area shape="rect" id="node40" href="$structmart_1_1MatchUseful.html#aebaab78e010d4e4234107ddcad4f258b" title="Iterators methods." alt="" coords="265,1108,415,1149"/>
+<area shape="rect" id="node41" href="$structmart_1_1DoReplaceUseful.html#a512dffb28b1bc1e1e115ca62e2b5da65" title=" " alt="" coords="253,1173,427,1215"/>
+<area shape="rect" id="node42" href="$structmart_1_1DoReplaceUseful.html#ab26112e25e4d7358dd4c28672fa716e8" title=" " alt="" coords="253,1239,427,1280"/>
+<area shape="rect" id="node43" href="$structmart_1_1DoReplaceUseful.html#a125d32737f9b924f9c467e62a8b67a43" title=" " alt="" coords="253,1304,427,1345"/>
+<area shape="rect" id="node44" href="$structmart_1_1DoReplaceUseful.html#a2cae13c8373e1790f4ad1079e29266fd" title=" " alt="" coords="239,1369,441,1411"/>
+<area shape="rect" id="node45" href="$structmart_1_1MatchStmtIR.html#abbbcceb3506b42482dc38b0780b2a654" title=" " alt="" coords="263,1435,417,1476"/>
+<area shape="rect" id="node46" href="$classmart_1_1llvmMutationOp.html#ae0984e929c3c8fd6471de1505a385aaa" title=" " alt="" coords="248,1500,432,1541"/>
+<area shape="rect" id="node47" href="$structmart_1_1DoReplaceUseful.html#af4b27c60c9fb0f261fd1b3b62c14a8d7" title=" " alt="" coords="253,1565,427,1607"/>
+<area shape="rect" id="node48" href="$classmart_1_1GenericMuOpBase.html#ac1bccf83c36543d2c69017355abf4c52" title="Match the IR pattern that can be mutated by this operator, starting from the IR at position &#39;pos&#39;...." alt="" coords="249,1631,431,1672"/>
+<area shape="rect" id="node49" href="$structmart_1_1MatchUseful.html#af8135f0dbc2bb74bbbea8ebce554af3e" title=" " alt="" coords="250,1697,430,1723"/>
+<area shape="rect" id="node50" href="$classmart_1_1GenericMuOpBase.html#a9005a341500e44a05a66c17ea6368522" title="make the clones that will be mutated" alt="" coords="249,1748,431,1789"/>
+<area shape="rect" id="node3" href="$classmart_1_1GenericMuOpBase.html#afc34edc65cee39c46f286f994d2326d1" title="Create the mutant of delete stmt, for the case where the statement is not a terminator (break,..." alt="" coords="528,511,709,552"/>
+<area shape="rect" id="node20" href="$classmart_1_1GenericMuOpBase.html#ae5f28b422ddada01b8a9c2deaa7982e1" title="Create the mutant of trap stmt, for the case where the statement." alt="" coords="528,641,709,683"/>
+<area shape="rect" id="node24" href="$structmart_1_1llvmMutationOp_1_1MutantReplacors.html#acb021cbe109e459c8d0831b16204a33c" title=" " alt="" coords="493,707,744,748"/>
+<area shape="rect" id="node25" href="$classmart_1_1GenericMuOpBase.html#affd889ccd23a76605410fcab652a6fc9" title="Check whether an operation is Del stmt, which deletes the whole statement, or for return statement,..." alt="" coords="528,576,709,617"/>
+<area shape="rect" id="node26" href="$classmart_1_1GenericMuOpBase.html#aa0c9cb3f51681b060417d0819e881d7c" title="Check whether an operation is Trap stmt, which replace the whole statement by trap(basically insertin..." alt="" coords="528,225,709,267"/>
+<area shape="rect" id="node4" href="$structmart_1_1MutantsOfStmt.html#a9f2660bd2cd0588c7043b12486d57f18" title="This method add a new mutant statement. \detail It computes the corresponding Weak mutation using dif..." alt="" coords="821,923,1013,950"/>
+<area shape="rect" id="node5" href="$classmart_1_1llvmMutationOp.html#a52fd8ee7e8d6b3edb8f19d08381f83d5" title=" " alt="" coords="834,136,1001,177"/>
+<area shape="rect" id="node6" href="$classmart_1_1GenericMuOpBase.html#a21bea55a64c6aa3bea0f26ab0bb0f32c" title="get the matcher/replacor code for the operation that can delete any statement (like return,..." alt="" coords="826,463,1009,504"/>
+<area shape="rect" id="node7" href="$classmart_1_1UserMaps.html#ad9347edff14677018d4383b95de40c1f" title=" " alt="" coords="813,975,1021,1016"/>
+<area shape="rect" id="node8" href="$structmart_1_1llvmMutationOp_1_1MutantReplacors.html#a8631afbfbca6808e17074058c8073af5" title=" " alt="" coords="792,201,1043,243"/>
+<area shape="rect" id="node9" href="$classmart_1_1GenericMuOpBase.html#ae833ae34954dc85511ccd6acd9a65c4e" title="get the matcher/replacor code for the operation that can delete statement which are block terminators..." alt="" coords="816,267,1019,308"/>
+<area shape="rect" id="node10" href="$structmart_1_1MatchStmtIR.html#ad0b73a8e1a4e3397fde4eb181c3fc08d" title=" " alt="" coords="841,675,994,716"/>
+<area shape="rect" id="node11" href="$structmart_1_1ModuleUserInfos.html#a23b1e979cc8b3d0811c15c6c4bcf1ad0" title=" " alt="" coords="832,1040,1003,1081"/>
+<area shape="rect" id="node12" href="$structmart_1_1WholeStmtMutationOnce.html#a612bf422648137dabfe14009c281dbc7" title=" " alt="" coords="805,332,1029,373"/>
+<area shape="rect" id="node13" href="$structmart_1_1WholeStmtMutationOnce.html#ae69ac4fdcfe30125e4e8fd13779d9b67" title=" " alt="" coords="805,397,1029,439"/>
+<area shape="rect" id="node14" href="$classmart_1_1llvmMutationOp.html#a8ba20cd49bcb17c0134befb8b70dfe39" title=" " alt="" coords="834,71,1001,112"/>
+<area shape="rect" id="node16" href="$structmart_1_1MutantsOfStmt_1_1MutantStmtIR.html#a624dece777cab8cc44400cc3e986d779" title=" " alt="" coords="815,529,1019,585"/>
+<area shape="rect" id="node19" href="$structmart_1_1MatchStmtIR.html#a199dd9e86482b2a3baa8b83eafa68ab8" title=" " alt="" coords="820,609,1015,651"/>
+<area shape="rect" id="node15" href="$classmart_1_1UserMaps.html#a9b4a853971cf3b5f2afa47a9c04d70a4" title=" " alt="" coords="1091,78,1333,105"/>
+<area shape="rect" id="node17" href="$structmart_1_1MatchStmtIR.html#a5f19cb100dac766b6f5aeb76c01eb48a" title=" " alt="" coords="1135,536,1289,577"/>
+<area shape="rect" id="node18" href="$structmart_1_1ModuleUserInfos.html#aa4b29d09d13a650213d2aeba903bd89f" title=" " alt="" coords="1127,667,1297,708"/>
+<area shape="rect" id="node21" href="$structmart_1_1ModuleUserInfos.html#aee91e12da903d1f6d13828c72d36ef17" title=" " alt="" coords="832,792,1003,833"/>
+<area shape="rect" id="node22" href="$structmart_1_1WholeStmtMutationOnce.html#a46c0458e6681449da370e16be2a2cddb" title=" " alt="" coords="805,857,1029,899"/>
+<area shape="rect" id="node23" href="$structmart_1_1WholeStmtMutationOnce.html#a6b2cd0bbfbadf03f51eb6919daac95a5" title=" " alt="" coords="805,1105,1029,1147"/>
+<area shape="rect" id="node27" href="$classmart_1_1GenericMuOpBase.html#a689ca298ae6ee072ee17af66a4ba295d" title="get the matcher/replacor code for the operation that can delete any statement (like return,..." alt="" coords="812,5,1023,47"/>
+<area shape="rect" id="node30" href="$structmart_1_1MutantsOfStmt_1_1MutantStmtIR.html#a6880272c11fe8dc99ffa87d6786b2411" title=" " alt="" coords="539,772,699,813"/>
+<area shape="rect" id="node32" href="$classmart_1_1GenericMuOpBase.html#a5999df8142a41800b6f240f4e0e3822a" title="Check whether two values of the same type are constant and of same values." alt="" coords="528,1268,709,1309"/>
+<area shape="rect" id="node33" href="$classmart_1_1GenericMuOpBase.html#a2a9dda703a3342a8ac5e6f7330105c1c" title="create and operation using the passed operands. For thos that match only, report an error." alt="" coords="528,1333,709,1375"/>
+<area shape="rect" id="node34" href="$structmart_1_1MutantsOfStmt_1_1MutantStmtIR.html#a33f1944451057ed1802421d9b89079e5" title=" " alt="" coords="501,1187,736,1243"/>
+<area shape="rect" id="node36" href="$structmart_1_1MutantsOfStmt_1_1MutantStmtIR.html#aeacf5bc6d4ca85471d345a24c106ab6c" title=" " alt="" coords="523,1020,714,1061"/>
+<area shape="rect" id="node37" href="$structmart_1_1MutantsOfStmt_1_1MutantStmtIR.html#a1397eb93298fd0ea7024467654a7bacc" title=" " alt="" coords="531,889,707,931"/>
+<area shape="rect" id="node38" href="$structmart_1_1MutantsOfStmt_1_1MutantStmtIR.html#acfa79702c37435712ac072972884d302" title="insert an IR into this mutantstmt, THIS MUTANT MUST HAVE BEEN CLONED FOM THE ORIGINAL,..." alt="" coords="523,955,715,996"/>
+<area shape="rect" id="node35" href="$structmart_1_1MatchStmtIR.html#a73d85f4487f9215accb74b527cd08e33" title=" " alt="" coords="841,1195,994,1236"/>
+</map>

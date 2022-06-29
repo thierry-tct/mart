@@ -1,0 +1,4 @@
+<map id="mart::PointerIncDec_Base::checkIntPartConst1" name="mart::PointerIncDec_Base::checkIntPartConst1">
+<area shape="rect" id="node1" title="This method is to be implemented by each numeric pointer arithmetic ind/dec operation matching&#45;mutati..." alt="" coords="204,5,399,47"/>
+<area shape="rect" id="node2" href="$classmart_1_1PointerIncDec__Base.html#a94bb57d43d1530c4f839bb7d6a33a738" title="Match the IR pattern that can be mutated by this operator, starting from the IR at position &#39;pos&#39;...." alt="" coords="5,5,156,47"/>
+</map>

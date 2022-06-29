@@ -1,0 +1,11 @@
+<map id="llvm::DiffConsumer::logd" name="llvm::DiffConsumer::logd">
+<area shape="rect" id="node1" title="Record a line&#45;by&#45;line instruction diff." alt="" coords="5,169,153,211"/>
+<area shape="rect" id="node2" href="$classllvm_1_1DiffLogBuilder.html#a422945dfd0d02334b807e4fa370b1389" title=" " alt="" coords="201,5,352,47"/>
+<area shape="rect" id="node3" href="$classllvm_1_1DiffLogBuilder.html#ad9a24f97c3a7858dce67e452c8017450" title=" " alt="" coords="201,71,352,112"/>
+<area shape="rect" id="node4" href="$classllvm_1_1DiffLogBuilder.html#ae8c697fcc4326322626d51993aebf9b3" title=" " alt="" coords="201,136,352,177"/>
+<area shape="rect" id="node5" href="$classllvm_1_1DiffLogBuilder.html#a23592bb9bd433ac5d404c908e5dca25c" title=" " alt="" coords="201,201,352,243"/>
+<area shape="rect" id="node6" href="$classllvm_1_1DiffConsumer.html#a803aa2261eacdf2997608ff6f9ff407c" title=" " alt="" coords="203,267,351,308"/>
+<area shape="rect" id="node9" href="$classllvm_1_1DiffConsumer.html#a7c7a05fef7e46147edd1e678a4df17d7" title=" " alt="" coords="203,332,351,373"/>
+<area shape="rect" id="node7" href="$classllvm_1_1DiffConsumer.html#af0d6a7eb32b00d584dce5f8ab8da6793" title=" " alt="" coords="400,267,548,308"/>
+<area shape="rect" id="node8" href="$11_80_80_2DiffConsumer_8cpp.html#ad6522e3ea97fe76bc343e3046373c11b" title=" " alt="" coords="596,274,749,301"/>
+</map>

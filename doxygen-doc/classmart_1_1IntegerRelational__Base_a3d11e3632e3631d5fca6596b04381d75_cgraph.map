@@ -1,0 +1,5 @@
+<map id="mart::IntegerRelational_Base::createReplacement" name="mart::IntegerRelational_Base::createReplacement">
+<area shape="rect" id="node1" title="create and operation using the passed operands. For thos that match only, report an error." alt="" coords="5,39,201,80"/>
+<area shape="rect" id="node2" href="$structmart_1_1ModuleUserInfos.html#aa4b29d09d13a650213d2aeba903bd89f" title=" " alt="" coords="291,5,461,47"/>
+<area shape="rect" id="node3" href="$classmart_1_1NumericAndPointerRelational__Base.html#adca60176a7543bdf9076f4592c9767a6" title="This method is to be implemented by each relational matching&#45;mutating operator." alt="" coords="249,71,503,112"/>
+</map>

@@ -1,0 +1,7 @@
+<map id="mart::DerefPointerArith_Base::getCorrespondingAritPtrOp" name="mart::DerefPointerArith_Base::getCorrespondingAritPtrOp">
+<area shape="rect" id="node1" title="This method is to be implemented by each deref&#45;arith matching&#45;mutating operator." alt="" coords="753,35,996,76"/>
+<area shape="rect" id="node2" href="$classmart_1_1DerefPointerArith__Base.html#a07e612a7a846b9eb86710d13c1f56b9d" title=" " alt="" coords="475,5,705,47"/>
+<area shape="rect" id="node3" href="$classmart_1_1DerefPointerArith__Base.html#af4584d3ed95e0d62f13baf22de2dbaa6" title="Match the IR pattern that can be mutated by this operator, starting from the IR at position &#39;pos&#39;...." alt="" coords="252,35,427,76"/>
+<area shape="rect" id="node4" href="$classmart_1_1DerefPSub.html#a7a73781f2ee7f15c2bf8bb570717f288" title="Match the IR pattern that can be mutated by this operator, starting from the IR at position &#39;pos&#39;...." alt="" coords="5,17,204,43"/>
+<area shape="rect" id="node5" href="$classmart_1_1DerefPAdd.html#ab329986903bd5551d04a80743ace1fe8" title="Match the IR pattern that can be mutated by this operator, starting from the IR at position &#39;pos&#39;...." alt="" coords="5,67,204,94"/>
+</map>

@@ -1,0 +1,4 @@
+<map id="mart::MutationScope::functionInMutationScope" name="mart::MutationScope::functionInMutationScope">
+<area shape="rect" id="node1" title="This method return true if the function passed is in the scope (to be mutated). false otherwise." alt="" coords="5,5,197,47"/>
+<area shape="rect" id="node2" href="$classmart_1_1MutationScope.html#a7a3ab07e38bcfbc1cc253004f9d4c934" title="Check wheter initialized." alt="" coords="245,5,404,47"/>
+</map>

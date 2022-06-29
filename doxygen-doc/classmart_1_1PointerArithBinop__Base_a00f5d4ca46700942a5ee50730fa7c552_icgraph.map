@@ -1,0 +1,4 @@
+<map id="mart::PointerArithBinop_Base::checkIntPartConst" name="mart::PointerArithBinop_Base::checkIntPartConst">
+<area shape="rect" id="node1" title="This method is to be implemented by each numeric pointer arithmetic binary operation matching&#45;mutatin..." alt="" coords="228,5,415,47"/>
+<area shape="rect" id="node2" href="$classmart_1_1PointerArithBinop__Base.html#ab6cf332f9ce3a7fd4ee00f0e2d78f725" title="Match the IR pattern that can be mutated by this operator, starting from the IR at position &#39;pos&#39;...." alt="" coords="5,5,180,47"/>
+</map>

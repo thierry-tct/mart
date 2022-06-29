@@ -1,0 +1,4 @@
+<map id="mart::PRightDecDerefPtr::getCorrespondingAritPtrOp" name="mart::PRightDecDerefPtr::getCorrespondingAritPtrOp">
+<area shape="rect" id="node1" title="Implements from DerefPointerArith_Base." alt="" coords="236,5,440,47"/>
+<area shape="rect" id="node2" href="$classmart_1_1PRightDecDerefPtr.html#a6ee2f682a20598d24de551bcf9228d44" title="create and operation using the passed operands. For thos that match only, report an error." alt="" coords="5,5,188,47"/>
+</map>
