@@ -163,6 +163,7 @@ make docs
 
 ## OTHERS
 - Give build option to enable mutant selection (pass `-DMART_MUTANT_SELECTION` to the cmake command)
+- Source code doxygen documentation is available [here](https://thierry-tct.github.io/mart/).
 
 ## TODO
 - Fix compiling third-parties/dg (CMake file when pull), should point to right version
