@@ -156,9 +156,13 @@ sudo apt-get install doxygen graphviz
 
 Build the documentation using the command:
 ```
-make docs
+make gen-docs
 ```
 
+Push the documentation to the Mart documentation web page using the command:
+```
+make push-docs
+```
 ---
 
 ## OTHERS

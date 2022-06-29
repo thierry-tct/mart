@@ -1,5 +1,19 @@
 
-add_custom_target(docs)
+# Generate and push the docs
+add_custom_target(push-docs
+  COMMAND rm -rf ${CMAKE_CURRENT_BINARY_DIR}/mart-gh-page   
+  COMMAND git clone -b gh-pages git@github.com:thierry-tct/mart ${CMAKE_CURRENT_BINARY_DIR}/mart-gh-page 
+  COMMAND rm -r ${CMAKE_CURRENT_BINARY_DIR}/mart-gh-page/doxygen-doc 
+  COMMAND cp -r ${CMAKE_CURRENT_BINARY_DIR}/html ${CMAKE_CURRENT_BINARY_DIR}/mart-gh-page/doxygen-doc 
+  COMMAND cd ${CMAKE_CURRENT_BINARY_DIR}/mart-gh-page && git add . && git commit -m'Updating mart doc on `date`' && git push 
+  COMMAND rm -rf ${CMAKE_CURRENT_BINARY_DIR}/mart-gh-page   
+  COMMENT "Pushing the generated Doxygen documentation"
+  USES_TERMINAL
+)
+
+# Generate the docs
+add_custom_target(gen-docs)
+add_dependencies(push-docs gen-docs)
 
 option(ENABLE_DOXYGEN "Enable building doxygen documentation" ON)
 if (ENABLE_DOXYGEN)
@@ -18,7 +32,7 @@ if (ENABLE_DOXYGEN)
       COMMENT "Generating Doxygen documentation"
       USES_TERMINAL
     )
-    add_dependencies(docs doc-doxygen)
+    add_dependencies(gen-docs doc-doxygen)
 
     # FIXME: This variable should be used to set `OUTPUT_DIRECTORY` in
     # doxyfile
