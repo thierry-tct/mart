@@ -192,7 +192,7 @@ add_subdirectory(lib)
 add_subdirectory(tools)
 add_subdirectory(scripts)
 add_subdirectory(test EXCLUDE_FROM_ALL)
-add_subdirectory(docs/doxygen EXCLUDE_FROM_ALL)
+add_subdirectory(docs EXCLUDE_FROM_ALL)
 
 #message(STATUS "Run: `make CollectMutOpHeaders && make` to compile")
 

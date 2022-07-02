@@ -1,10 +1,14 @@
+# Use MkDocs to build the documentation (https://www.mkdocs.org/)
 
 # Generate and push the docs
 add_custom_target(push-docs
   COMMAND rm -rf ${CMAKE_CURRENT_BINARY_DIR}/mart-gh-page   
   COMMAND git clone -b gh-pages git@github.com:thierry-tct/mart ${CMAKE_CURRENT_BINARY_DIR}/mart-gh-page 
   COMMAND rm -r ${CMAKE_CURRENT_BINARY_DIR}/mart-gh-page/doxygen-doc 
-  COMMAND cp -r ${CMAKE_CURRENT_BINARY_DIR}/html ${CMAKE_CURRENT_BINARY_DIR}/mart-gh-page/doxygen-doc 
+  COMMAND cp -r ${CMAKE_CURRENT_BINARY_DIR}/doxygen/html ${CMAKE_CURRENT_BINARY_DIR}/mart-gh-page/doxygen-doc 
+  COMMAND rm -rf ${CMAKE_CURRENT_BINARY_DIR}/mart-gh-page/user-doc 
+  COMMAND cp -r ${CMAKE_CURRENT_SOURCE_DIR}/user-doc/ ${CMAKE_CURRENT_BINARY_DIR}/mart-gh-page/user-doc 
+  COMMAND cp ${CMAKE_CURRENT_SOURCE_DIR}/index.md ${CMAKE_CURRENT_BINARY_DIR}/mart-gh-page/
   COMMAND cd ${CMAKE_CURRENT_BINARY_DIR}/mart-gh-page && git add . && git commit -m'Updating mart doc on `date`' && git push 
   COMMAND rm -rf ${CMAKE_CURRENT_BINARY_DIR}/mart-gh-page   
   COMMENT "Pushing the generated Doxygen documentation"
@@ -24,11 +28,11 @@ if (ENABLE_DOXYGEN)
     set(abs_top_builddir "${CMAKE_BINARY_DIR}")
 
     # Configure the Doxyfile
-    configure_file(doxyfile.in doxyfile @ONLY)
+    configure_file(doxygen/doxyfile.in doxygen/doxyfile @ONLY)
 
     # Add rule to build doxygen documentation
     add_custom_target(doc-doxygen
-      COMMAND Doxygen::doxygen "${CMAKE_CURRENT_BINARY_DIR}/doxyfile"
+      COMMAND Doxygen::doxygen "${CMAKE_CURRENT_BINARY_DIR}/doxygen/doxyfile"
       COMMENT "Generating Doxygen documentation"
       USES_TERMINAL
     )
