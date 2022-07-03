@@ -1,3 +1,5 @@
+# Mart Configurtion
+
 ## I. Specifying the mutation scope (source files and functions to mutate)
 The scope configuration file is a JSON file where the source files and functions to mutate can be specified in two list. The template is the following:
 ```
