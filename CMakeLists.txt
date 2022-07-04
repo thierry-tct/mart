@@ -151,6 +151,7 @@ endif()
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-rtti -Wall -Wextra")
 if (NO_EXCEPTIONS)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-exceptions")
+	message(STATUS "NO_EXCEPTION is enabled")
 endif()
 
 if (USE_CLANG_SANITIZERS)

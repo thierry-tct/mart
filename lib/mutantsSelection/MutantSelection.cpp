@@ -20,6 +20,11 @@
 #include <ctime>
 #include <fstream>
 
+#if ((LLVM_VERSION_MAJOR == 3) && (LLVM_VERSION_MINOR < 5))
+#include <llvm/Support/CFG.h>
+#else
+#include <llvm/IR/CFG.h>
+#endif
 #include "llvm/Analysis/CFG.h"
 
 #include "MutantSelection.h"
@@ -38,19 +43,17 @@
 //#include "../third-parties/dg/src/llvm/LLVMDependenceGraph.h"
 #include "../third-parties/dg/include/dg/llvm/LLVMDependenceGraph.h"
 //#include "../third-parties/dg/src/llvm/analysis/DefUse.h"
-#include "../third-parties/dg/lib/llvm/analysis/DefUse/DefUse.h"
+#include "../third-parties/dg/lib/llvm/DefUse/DefUse.h"
 //#include "../third-parties/dg/src/llvm/analysis/PointsTo/PointsTo.h"
-#include "../third-parties/dg/include/dg/llvm/analysis/PointsTo/PointerAnalysis.h"
-//#include "../third-parties/dg/src/llvm/analysis/ReachingDefinitions/ReachingDefinitions.h"
-#include "../third-parties/dg/include/dg/llvm/analysis/ReachingDefinitions/ReachingDefinitions.h"
+#include "../third-parties/dg/include/dg/llvm/PointerAnalysis/PointerAnalysis.h"
 
 //#include "../third-parties/dg/src/analysis/PointsTo/PointsToFlowInsensitive.h"
-#include "../third-parties/dg/include/dg/analysis/PointsTo/PointerAnalysisFI.h"
+#include "../third-parties/dg/include/dg/PointerAnalysis/PointerAnalysisFI.h"
 //#include "../third-parties/dg/src/analysis/PointsTo/PointsToFlowSensitive.h"
-#include "../third-parties/dg/include/dg/analysis/PointsTo/PointerAnalysisFS.h"
+#include "../third-parties/dg/include/dg/PointerAnalysis/PointerAnalysisFS.h"
 
 #include "../third-parties/dg/include/dg/llvm/LLVMDependenceGraphBuilder.h"
-#include "../third-parties/dg/include/dg/llvm/analysis/PointsTo/LLVMPointerAnalysisOptions.h"
+#include "../third-parties/dg/include/dg/llvm/PointerAnalysis/LLVMPointerAnalysisOptions.h"
 
 using namespace mart;
 using namespace mart::selection;
@@ -301,7 +304,7 @@ bool MutantDependenceGraph::build(llvm::Module const &mod,
   // First compute IR2mutantset
   for (auto &Func : *usedModule) {
     unsigned instPosition = 0;
-    std::string funcName = Func.getName();
+    std::string funcName = Func.getName().str();
     // functionName_position2IR.clear();        //XXX: Since each mutant belong
     // to only one function
     for (auto &BB : Func) {
@@ -1694,12 +1697,12 @@ void MutantSelection::buildDependenceGraphs(std::string mutant_depend_filename,
                                             bool isClassicCtrlDepAlgo,
                                             bool disable_selection) {
   if (rerundg) {
-    dg::CD_ALG cd_alg;
+    dg::ControlDependenceAnalysisOptions::CDAlgorithm cd_alg;
     if (isClassicCtrlDepAlgo)
       //cd_alg = dg::CLASSIC;
-      cd_alg = dg::CD_ALG::CLASSIC;
+      cd_alg = dg::ControlDependenceAnalysisOptions::CDAlgorithm::STANDARD;
     else
-      cd_alg = dg::CD_ALG::CONTROL_EXPRESSION;
+      cd_alg = dg::ControlDependenceAnalysisOptions::CDAlgorithm::STRONG_CC;
 
     // build IR DGraph
     /*dg::LLVMDependenceGraph IRDGraph;
@@ -1730,28 +1733,29 @@ void MutantSelection::buildDependenceGraphs(std::string mutant_depend_filename,
     // Set options
     bool threads = false;
     const char *entry_func = "main";
-    const char *rda = "dataflow";
+    const char *rda = "ssa"; //"dataflow";
     dg::llvmdg::LLVMDependenceGraphOptions options;
-    options.cdAlgorithm = cd_alg;
+    options.CDAOptions.algorithm = cd_alg;
     options.threads = threads; //true;
     options.PTAOptions.threads = threads;
-    options.RDAOptions.threads = threads;
+    options.DDAOptions.threads = threads;
     options.PTAOptions.entryFunction = entry_func;
-    options.RDAOptions.entryFunction = entry_func;
+    options.DDAOptions.entryFunction = entry_func;
 
     if (isFlowSensitive)
         options.PTAOptions.analysisType
-            = dg::analysis::LLVMPointerAnalysisOptions::AnalysisType::fs;
+            = dg::LLVMPointerAnalysisOptions::AnalysisType::fs;
     else
         options.PTAOptions.analysisType
-            = dg::analysis::LLVMPointerAnalysisOptions::AnalysisType::fi;
+            = dg::LLVMPointerAnalysisOptions::AnalysisType::fi;
 
-    if (strcmp(rda, "dataflow") == 0) {
-        options.RDAOptions.analysisType
-                = dg::analysis::LLVMReachingDefinitionsAnalysisOptions::AnalysisType::dataflow;
-    } else if (strcmp(rda, "ssa") == 0) {
-        options.RDAOptions.analysisType
-                = dg::analysis::LLVMReachingDefinitionsAnalysisOptions::AnalysisType::ssa;
+    //if (strcmp(rda, "dataflow") == 0) {
+    //    options.DDAOptions.analysisType
+    //            = dg::LLVMDataDependenceAnalysisOptions::AnalysisType::dataflow;
+    //} else 
+    if (strcmp(rda, "ssa") == 0) {
+        options.DDAOptions.analysisType
+                = dg::LLVMDataDependenceAnalysisOptions::AnalysisType::ssa;
     } else {
         llvm::errs() << "Unknown reaching definitions analysis, try: dataflow, ssa\n";
         assert(false);

@@ -1,0 +1,4 @@
+site_name: Mart Docs
+docs_dir: @MKDOCS_INPUT_DIR@
+site_dir: @MKDOCS_OUTPUT_DIR@
+repo_url: https://github.com/thierry-tct/mart/

@@ -90,7 +90,7 @@ if (MART_GENMU)
                                     ${CMAKE_CURRENT_BINARY_DIR}/third-parties/FastBDT/include
                                     ${CMAKE_CURRENT_SOURCE_DIR}/third-parties/random-forest/include 
                                 )
-        target_link_libraries(MutantSelection UserMaps JsonBox LLVMdg ${llvm_libs} FastBDT_shared) # pthread dl) #LLVMpta PTA RD 
+        target_link_libraries(MutantSelection UserMaps JsonBox dgllvmdg ${llvm_libs} FastBDT_shared) # pthread dl) #LLVMpta PTA RD 
 #       target_link_libraries(MutantSelection UserMaps JsonBox LLVMdg FastBDT_shared) #LLVMpta PTA RD 
         install(TARGETS MutantSelection
                 LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR})

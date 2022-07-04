@@ -59,7 +59,7 @@ or interactively
 docker run --rm -it thierrytct/mart /bin/bash
 ```
 
-### Manually build from source 
+## Manually build from source 
 Compile MART form source (using cmake version >= 3.4.3):
 * Clone repository with git clone. (```--recursive``` to clone the submodules dg and JsonBox)
 ```
@@ -109,11 +109,12 @@ You can run tests with `make tests`. The command runs system tests.
 
 
 ## Build Documentation
-This requires [Doxygen](https://doxygen.nl/index.html) and [Graphviz](https://graphviz.org/).
+This requires [MKdocs](https://www.mkdocs.org/user-guide/installation/), [Doxygen](https://doxygen.nl/index.html) and [Graphviz](https://graphviz.org/).
 
 On Ubuntu, install using the command:
 ```
 sudo apt-get install doxygen graphviz
+pip install mkdocs
 ```
 
 Build the documentation using the command:

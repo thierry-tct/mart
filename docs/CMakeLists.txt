@@ -1,17 +1,19 @@
 # Use MkDocs to build the documentation (https://www.mkdocs.org/)
 
+set(DOXYGEN_OUTPUT_DIR "${CMAKE_CURRENT_BINARY_DIR}/doxygen")
+set(DOXYGEN_OUTPUT_CODE_DIR "${DOXYGEN_OUTPUT_DIR}/html")
+set(MKDOCS_INPUT_DIR "${CMAKE_CURRENT_BINARY_DIR}/mkdocs_input")
+set(MKDOCS_OUTPUT_DIR "${CMAKE_CURRENT_BINARY_DIR}/site")
+
 # Generate and push the docs
 add_custom_target(push-docs
   COMMAND rm -rf ${CMAKE_CURRENT_BINARY_DIR}/mart-gh-page   
   COMMAND git clone -b gh-pages git@github.com:thierry-tct/mart ${CMAKE_CURRENT_BINARY_DIR}/mart-gh-page 
-  COMMAND rm -r ${CMAKE_CURRENT_BINARY_DIR}/mart-gh-page/doxygen-doc 
-  COMMAND cp -r ${CMAKE_CURRENT_BINARY_DIR}/doxygen/html ${CMAKE_CURRENT_BINARY_DIR}/mart-gh-page/doxygen-doc 
-  COMMAND rm -rf ${CMAKE_CURRENT_BINARY_DIR}/mart-gh-page/user-doc 
-  COMMAND cp -r ${CMAKE_CURRENT_SOURCE_DIR}/user-doc/ ${CMAKE_CURRENT_BINARY_DIR}/mart-gh-page/user-doc 
-  COMMAND cp ${CMAKE_CURRENT_SOURCE_DIR}/index.md ${CMAKE_CURRENT_BINARY_DIR}/mart-gh-page/
-  COMMAND cd ${CMAKE_CURRENT_BINARY_DIR}/mart-gh-page && git add . && git commit -m'Updating mart doc on `date`' && git push 
+  COMMAND rm -r ${CMAKE_CURRENT_BINARY_DIR}/mart-gh-page/*
+  COMMAND cp -r ${MKDOCS_OUTPUT_DIR}/* ${CMAKE_CURRENT_BINARY_DIR}/mart-gh-page/
+  COMMAND cd ${CMAKE_CURRENT_BINARY_DIR}/mart-gh-page && git add . && git commit -m"Updating mart doc on `date`" && git push 
   COMMAND rm -rf ${CMAKE_CURRENT_BINARY_DIR}/mart-gh-page   
-  COMMENT "Pushing the generated Doxygen documentation"
+  COMMENT "Pushing the generated documentation"
   USES_TERMINAL
 )
 
@@ -38,10 +40,6 @@ if (ENABLE_DOXYGEN)
     )
     add_dependencies(gen-docs doc-doxygen)
 
-    # FIXME: This variable should be used to set `OUTPUT_DIRECTORY` in
-    # doxyfile
-    set(DOXYGEN_OUTPUT_DIR "${CMAKE_CURRENT_BINARY_DIR}/doxygen")
-
     if ("${CMAKE_VERSION}" VERSION_LESS "3.15")
       set_directory_properties(PROPERTY ADDITIONAL_MAKE_CLEAN_FILES
               "${DOXYGEN_OUTPUT_DIR}")
@@ -62,4 +60,49 @@ if (ENABLE_DOXYGEN)
       BOOL
       "Enable building doxygen documentation" FORCE)
   endif()
+endif()
+
+option(ENABLE_MKDOCS "Enable building Mkdocs documentation" ON)
+if (ENABLE_MKDOCS)
+  find_program(MKDOCS_EXE mkdocs)
+  if (NOT MKDOCS_EXE)
+    message(WARNING "Mkdocs not found. Can't build Mkdocs documentation")
+  else ()
+    message(STATUS "Mkdocs found found")
+
+    
+    # Configure the mkdocs.yml
+    configure_file(mkdocs/mkdocs.yml.in mkdocs/mkdocs.yml @ONLY)
+
+    # Add rule to build doxygen documentation
+    add_custom_target(doc-mkdocs
+      COMMAND rm -rf ${MKDOCS_INPUT_DIR}
+      COMMAND mkdir -p ${MKDOCS_INPUT_DIR}
+      COMMAND cp ${CMAKE_CURRENT_SOURCE_DIR}/index.md ${MKDOCS_INPUT_DIR}/ 
+      COMMAND cp -r ${CMAKE_CURRENT_SOURCE_DIR}/user-doc/ ${MKDOCS_INPUT_DIR}/user-doc/ 
+      COMMAND cp -r ${DOXYGEN_OUTPUT_CODE_DIR} ${MKDOCS_INPUT_DIR}/doxygen-doc/
+
+      COMMAND ${MKDOCS_EXE} build -f "${CMAKE_CURRENT_BINARY_DIR}/mkdocs/mkdocs.yml"
+      COMMENT "Generating Mkdocs documentation"
+      USES_TERMINAL
+    )
+    add_dependencies(doc-mkdocs doc-doxygen)
+    add_dependencies(gen-docs doc-mkdocs)
+
+    # FIXME: This variable should be used to set `OUTPUT_DIRECTORY` in
+    # doxyfile
+    set(MKDOCS_OUTPUT_DIR "${CMAKE_CURRENT_BINARY_DIR}/mkdocs")
+
+    if ("${CMAKE_VERSION}" VERSION_LESS "3.15")
+      set_directory_properties(PROPERTY ADDITIONAL_MAKE_CLEAN_FILES
+              "${MKDOCS_OUTPUT_DIR}")
+      set_directory_properties(PROPERTY ADDITIONAL_MAKE_CLEAN_FILES
+              "${MKDOCS_INPUT_DIR}")
+    else ()
+      set_directory_properties(PROPERTY ADDITIONAL_CLEAN_FILES
+              "${MKDOCS_OUTPUT_DIR}")
+      set_directory_properties(PROPERTY ADDITIONAL_CLEAN_FILES
+              "${MKDOCS_INPUT_DIR}")
+    endif ()
+  endif ()
 endif()

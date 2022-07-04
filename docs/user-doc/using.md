@@ -1,9 +1,9 @@
 # Using MART mutant generation
-## Usage
+## Test Automation
 For use in the integration with other testing tools such ast automated test generation tools, [Muteria](https://github.com/muteria/muteria) is a good way to use `Mart` (Check out the `example_c` usage from [Muteria](https://github.com/muteria/muteria)).
 
 For direct usage of `Mart`, checkout the usage demo video [here](https://youtu.be/V2Hvi_iqiVE).
-### Compile your code into LLVM bitcode (.bc) file
+## Compile your code into LLVM bitcode (.bc) file
 Use `clang` to build the C language program (<SourceFile>.c) into LLVM bitcode (<BitCode>.c) with a command of the form:
 ``` bash
 clang -c -emit-llvm -g <SourceFile>.c -o <BitFile>.bc
@@ -11,7 +11,7 @@ clang -c -emit-llvm -g <SourceFile>.c -o <BitFile>.bc
 You may use [wllvm](https://github.com/travitch/whole-program-llvm) for large C/C++ projects. 
 Compile with `debug` flag enable (`-g` option for C/C++ compilers gcc and clang) and without optimization to have mutants closer to source code mutants.
 
-### Generate the mutants
+## Generate the mutants
 Use Mart through command line. The usage format is the following:
 ```bash
 <path to mart build dir>/tools/mart [OPTIONS] <bitcode file to mutate>
@@ -21,7 +21,7 @@ View the help on usage with the command:
 ```bash
 <path to mart build dir>/tools/mart --help
 ```
-### Mutation Generation Configuration
+## Mutation Generation Configuration
 Mutant generation configuration consist in 2 configurations: 
 1. **Code locations to mutates (mutation scope):**
 This specifies the source files and functions to mutate.
