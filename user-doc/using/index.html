@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        
+        
+        
+        <link rel="shortcut icon" href="../../img/favicon.ico">
+        <title>Using MART mutant generation - Mart Docs</title>
+        <link href="../../css/bootstrap.min.css" rel="stylesheet">
+        <link href="../../css/font-awesome.min.css" rel="stylesheet">
+        <link href="../../css/base.css" rel="stylesheet">
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/10.5.0/styles/github.min.css">
+
+        <script src="../../js/jquery-1.10.2.min.js" defer></script>
+        <script src="../../js/bootstrap.min.js" defer></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/10.5.0/highlight.min.js"></script>
+        <script>hljs.initHighlightingOnLoad();</script> 
+    </head>
+
+    <body>
+        <div class="navbar fixed-top navbar-expand-lg navbar-dark bg-primary">
+            <div class="container">
+                <a class="navbar-brand" href="../..">Mart Docs</a>
+                <!-- Expander button -->
+                <button type="button" class="navbar-toggler" data-toggle="collapse" data-target="#navbar-collapse">
+                    <span class="navbar-toggler-icon"></span>
+                </button>
+
+                <!-- Expanded navigation -->
+                <div id="navbar-collapse" class="navbar-collapse collapse">
+                        <!-- Main navigation -->
+                        <ul class="nav navbar-nav">
+                            <li class="navitem">
+                                <a href="../.." class="nav-link">Home</a>
+                            </li>
+                            <li class="dropdown active">
+                                <a href="#" class="nav-link dropdown-toggle" data-toggle="dropdown">User doc <b class="caret"></b></a>
+                                <ul class="dropdown-menu">
+                                    
+<li>
+    <a href="../building/" class="dropdown-item">Building mart from source</a>
+</li>
+                                    
+<li>
+    <a href="../downloading/" class="dropdown-item">Getting pre-compiled Mart</a>
+</li>
+                                    
+<li>
+    <a href="../mutants-features-selection/" class="dropdown-item">MART mutants features and selection</a>
+</li>
+                                    
+<li>
+    <a href="../mutation_configuration/" class="dropdown-item">Mart Configurtion</a>
+</li>
+                                    
+<li>
+    <a href="../othertools/" class="dropdown-item">Mutant generation utilities</a>
+</li>
+                                    
+<li>
+    <a href="./" class="dropdown-item active">Using MART mutant generation</a>
+</li>
+                                </ul>
+                            </li>
+                        </ul>
+
+                    <ul class="nav navbar-nav ml-auto">
+                        <li class="nav-item">
+                            <a href="#" class="nav-link" data-toggle="modal" data-target="#mkdocs_search_modal">
+                                <i class="fa fa-search"></i> Search
+                            </a>
+                        </li>
+                            <li class="nav-item">
+                                <a rel="prev" href="../othertools/" class="nav-link">
+                                    <i class="fa fa-arrow-left"></i> Previous
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a rel="next" class="nav-link disabled">
+                                    Next <i class="fa fa-arrow-right"></i>
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a href="https://github.com/thierry-tct/mart/edit/master/docs/user-doc/using.md" class="nav-link"><i class="fa fa-github"></i> Edit on GitHub</a>
+                            </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <div class="container">
+            <div class="row">
+                    <div class="col-md-3"><div class="navbar-light navbar-expand-md bs-sidebar hidden-print affix" role="complementary">
+    <div class="navbar-header">
+        <button type="button" class="navbar-toggler collapsed" data-toggle="collapse" data-target="#toc-collapse" title="Table of Contents">
+            <span class="fa fa-angle-down"></span>
+        </button>
+    </div>
+
+    
+    <div id="toc-collapse" class="navbar-collapse collapse card bg-secondary">
+        <ul class="nav flex-column">
+            
+            <li class="nav-item" data-level="1"><a href="#using-mart-mutant-generation" class="nav-link">Using MART mutant generation</a>
+              <ul class="nav flex-column">
+            <li class="nav-item" data-level="2"><a href="#usage" class="nav-link">Usage</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+              </ul>
+            </li>
+        </ul>
+    </div>
+</div></div>
+                    <div class="col-md-9" role="main">
+
+<h1 id="using-mart-mutant-generation">Using MART mutant generation</h1>
+<h2 id="usage">Usage</h2>
+<p>For use in the integration with other testing tools such ast automated test generation tools, <a href="https://github.com/muteria/muteria">Muteria</a> is a good way to use <code>Mart</code> (Check out the <code>example_c</code> usage from <a href="https://github.com/muteria/muteria">Muteria</a>).</p>
+<p>For direct usage of <code>Mart</code>, checkout the usage demo video <a href="https://youtu.be/V2Hvi_iqiVE">here</a>.</p>
+<h3 id="compile-your-code-into-llvm-bitcode-bc-file">Compile your code into LLVM bitcode (.bc) file</h3>
+<p>Use <code>clang</code> to build the C language program (<SourceFile>.c) into LLVM bitcode (<BitCode>.c) with a command of the form:</p>
+<pre><code class="language-bash">clang -c -emit-llvm -g &lt;SourceFile&gt;.c -o &lt;BitFile&gt;.bc
+</code></pre>
+<p>You may use <a href="https://github.com/travitch/whole-program-llvm">wllvm</a> for large C/C++ projects. 
+Compile with <code>debug</code> flag enable (<code>-g</code> option for C/C++ compilers gcc and clang) and without optimization to have mutants closer to source code mutants.</p>
+<h3 id="generate-the-mutants">Generate the mutants</h3>
+<p>Use Mart through command line. The usage format is the following:</p>
+<pre><code class="language-bash">&lt;path to mart build dir&gt;/tools/mart [OPTIONS] &lt;bitcode file to mutate&gt;
+</code></pre>
+<p>View the help on usage with the command:</p>
+<pre><code class="language-bash">&lt;path to mart build dir&gt;/tools/mart --help
+</code></pre>
+<h3 id="mutation-generation-configuration">Mutation Generation Configuration</h3>
+<p>Mutant generation configuration consist in 2 configurations: 
+1. <strong>Code locations to mutates (mutation scope):</strong>
+This specifies the source files and functions to mutate.
+This is done using the option: <code>-mutant-scope &lt;path/to/mutant scope file&gt;</code>
+2. <strong>Mutation operators to apply:</strong>
+This specifies the mutation operator to apply. Mart's way of specifying mutants is flexible. For example, the user has control on the constant to replace when replacing an expression with a constant value.
+This is done using the option: <code>-mutant-config &lt;path./to/mutant config file&gt;</code>
+<strong><em>Note</em></strong>:<em>If mutants operators configuration is not specified, the default configuration of 816 transformation rule is used. That default configuration file is located in <code>&lt;path to build dir&gt;/tools/useful/mconf-scope/default_allmax.mconf</code></em></p>
+<p>Find the details about the format and language to specify the configuration <a href="../mutation_configuration/">here</a>. </p></div>
+            </div>
+        </div>
+
+        <footer class="col-md-12">
+            <hr>
+            <p>Documentation built with <a href="https://www.mkdocs.org/">MkDocs</a>.</p>
+        </footer>
+        <script>
+            var base_url = "../..",
+                shortcuts = {"help": 191, "next": 78, "previous": 80, "search": 83};
+        </script>
+        <script src="../../js/base.js" defer></script>
+        <script src="../../search/main.js" defer></script>
+
+        <div class="modal" id="mkdocs_search_modal" tabindex="-1" role="dialog" aria-labelledby="searchModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h4 class="modal-title" id="searchModalLabel">Search</h4>
+                <button type="button" class="close" data-dismiss="modal"><span aria-hidden="true">&times;</span><span class="sr-only">Close</span></button>
+            </div>
+            <div class="modal-body">
+                <p>From here you can search these documents. Enter your search terms below.</p>
+                <form>
+                    <div class="form-group">
+                        <input type="search" class="form-control" placeholder="Search..." id="mkdocs-search-query" title="Type search term here">
+                    </div>
+                </form>
+                <div id="mkdocs-search-results" data-no-results-text="No results found"></div>
+            </div>
+            <div class="modal-footer">
+            </div>
+        </div>
+    </div>
+</div><div class="modal" id="mkdocs_keyboard_modal" tabindex="-1" role="dialog" aria-labelledby="keyboardModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h4 class="modal-title" id="keyboardModalLabel">Keyboard Shortcuts</h4>
+                <button type="button" class="close" data-dismiss="modal"><span aria-hidden="true">&times;</span><span class="sr-only">Close</span></button>
+            </div>
+            <div class="modal-body">
+              <table class="table">
+                <thead>
+                  <tr>
+                    <th style="width: 20%;">Keys</th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td class="help shortcut"><kbd>?</kbd></td>
+                    <td>Open this help</td>
+                  </tr>
+                  <tr>
+                    <td class="next shortcut"><kbd>n</kbd></td>
+                    <td>Next page</td>
+                  </tr>
+                  <tr>
+                    <td class="prev shortcut"><kbd>p</kbd></td>
+                    <td>Previous page</td>
+                  </tr>
+                  <tr>
+                    <td class="search shortcut"><kbd>s</kbd></td>
+                    <td>Search</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <div class="modal-footer">
+            </div>
+        </div>
+    </div>
+</div>
+
+    </body>
+</html>

@@ -1,0 +1,721 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        
+        
+        
+        <link rel="shortcut icon" href="../../img/favicon.ico">
+        <title>Mart Configurtion - Mart Docs</title>
+        <link href="../../css/bootstrap.min.css" rel="stylesheet">
+        <link href="../../css/font-awesome.min.css" rel="stylesheet">
+        <link href="../../css/base.css" rel="stylesheet">
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/10.5.0/styles/github.min.css">
+
+        <script src="../../js/jquery-1.10.2.min.js" defer></script>
+        <script src="../../js/bootstrap.min.js" defer></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/10.5.0/highlight.min.js"></script>
+        <script>hljs.initHighlightingOnLoad();</script> 
+    </head>
+
+    <body>
+        <div class="navbar fixed-top navbar-expand-lg navbar-dark bg-primary">
+            <div class="container">
+                <a class="navbar-brand" href="../..">Mart Docs</a>
+                <!-- Expander button -->
+                <button type="button" class="navbar-toggler" data-toggle="collapse" data-target="#navbar-collapse">
+                    <span class="navbar-toggler-icon"></span>
+                </button>
+
+                <!-- Expanded navigation -->
+                <div id="navbar-collapse" class="navbar-collapse collapse">
+                        <!-- Main navigation -->
+                        <ul class="nav navbar-nav">
+                            <li class="navitem">
+                                <a href="../.." class="nav-link">Home</a>
+                            </li>
+                            <li class="dropdown active">
+                                <a href="#" class="nav-link dropdown-toggle" data-toggle="dropdown">User doc <b class="caret"></b></a>
+                                <ul class="dropdown-menu">
+                                    
+<li>
+    <a href="../building/" class="dropdown-item">Building mart from source</a>
+</li>
+                                    
+<li>
+    <a href="../downloading/" class="dropdown-item">Getting pre-compiled Mart</a>
+</li>
+                                    
+<li>
+    <a href="../mutants-features-selection/" class="dropdown-item">MART mutants features and selection</a>
+</li>
+                                    
+<li>
+    <a href="./" class="dropdown-item active">Mart Configurtion</a>
+</li>
+                                    
+<li>
+    <a href="../othertools/" class="dropdown-item">Mutant generation utilities</a>
+</li>
+                                    
+<li>
+    <a href="../using/" class="dropdown-item">Using MART mutant generation</a>
+</li>
+                                </ul>
+                            </li>
+                        </ul>
+
+                    <ul class="nav navbar-nav ml-auto">
+                        <li class="nav-item">
+                            <a href="#" class="nav-link" data-toggle="modal" data-target="#mkdocs_search_modal">
+                                <i class="fa fa-search"></i> Search
+                            </a>
+                        </li>
+                            <li class="nav-item">
+                                <a rel="prev" href="../mutants-features-selection/" class="nav-link">
+                                    <i class="fa fa-arrow-left"></i> Previous
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a rel="next" href="../othertools/" class="nav-link">
+                                    Next <i class="fa fa-arrow-right"></i>
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a href="https://github.com/thierry-tct/mart/edit/master/docs/user-doc/mutation_configuration.md" class="nav-link"><i class="fa fa-github"></i> Edit on GitHub</a>
+                            </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <div class="container">
+            <div class="row">
+                    <div class="col-md-3"><div class="navbar-light navbar-expand-md bs-sidebar hidden-print affix" role="complementary">
+    <div class="navbar-header">
+        <button type="button" class="navbar-toggler collapsed" data-toggle="collapse" data-target="#toc-collapse" title="Table of Contents">
+            <span class="fa fa-angle-down"></span>
+        </button>
+    </div>
+
+    
+    <div id="toc-collapse" class="navbar-collapse collapse card bg-secondary">
+        <ul class="nav flex-column">
+            
+            <li class="nav-item" data-level="1"><a href="#mart-configurtion" class="nav-link">Mart Configurtion</a>
+              <ul class="nav flex-column">
+            <li class="nav-item" data-level="2"><a href="#i-specifying-the-mutation-scope-source-files-and-functions-to-mutate" class="nav-link">I. Specifying the mutation scope (source files and functions to mutate)</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-level="2"><a href="#ii-specifying-mutants-operators" class="nav-link">II. Specifying Mutants operators</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+              </ul>
+            </li>
+        </ul>
+    </div>
+</div></div>
+                    <div class="col-md-9" role="main">
+
+<h1 id="mart-configurtion">Mart Configurtion</h1>
+<h2 id="i-specifying-the-mutation-scope-source-files-and-functions-to-mutate">I. Specifying the mutation scope (source files and functions to mutate)</h2>
+<p>The scope configuration file is a JSON file where the source files and functions to mutate can be specified in two list. The template is the following:</p>
+<pre><code>{
+    &quot;Source-Files&quot;: [&lt;function1&gt;, &lt;function2&gt;,...],
+    &quot;Functions&quot;: [&lt;src_file1&gt;, &lt;src_file2&gt;,...]
+}
+</code></pre>
+<p>Not specifying mutation scope will mean nutating the whole LLVM bitcode module.</p>
+<hr />
+<h2 id="ii-specifying-mutants-operators">II. Specifying Mutants operators</h2>
+<p>Teh mutation operators to be applied may be specified using a simple description language. The Specification of the language follows.</p>
+<h3 id="1-syntax-diagram">1. Syntax Diagram</h3>
+<p><img alt="sample" src="../mutop_desc_lang.jpg?raw=true" title="Mutation Operator Description Language Syntax Diagram" /></p>
+<p>The above Diagram represent the Syntax Diagram of the Mutation operator description language. 
+The Bottom diagram is the representation of both the <code>Matched Fragment</code> and the <code>Compatible Replacement Fragment</code>.<br />
+<strong><em>Note</em></strong>: The argument (<code>@, C, V, A, P</code>) for the <code>Compatible Replacing Fragment</code> must be subset of those specified for the corresponding <code>Matched Fragment</code>.</p>
+<p>Following is an example of mutation operators configuration:</p>
+<pre><code>ADD(@1,@2) --&gt; Mutop1.1, SUB(@1, @2); Mutop1.2, SUB(@2, @1); Mutop1.3 TRAPSTMT;
+LEFTINC(V) --&gt; Mutop2.1, RIGHTDEC(V); Mutop2.2, ASSIGN(V, 0)
+</code></pre>
+<p>In this example we have 3 mutation operators:
+- <em>Mutop1.1</em>: Replace Sum of two expressions by Their Difference.
+- <em>Mutop1.2</em>: Replace Sum of two expressions by The negation of their difference Difference.
+- <em>Mutop1.3</em>: Replace Statement having a Sum by a Trap Statement (Failure).
+- <em>Mutop2.1</em>: Replace Variable left increment by its right decrement.
+- <em>Mutop2.2</em>: Replace Variable left increment by an assignement of <code>0</code> to it.</p>
+<p>The currently Supported <em>Fragment Elements</em> are listed bellow.</p>
+<h3 id="2-fragment-elements">2. Fragment Elements</h3>
+<p>The following table gives information about the currently Supported Fragment Elements (The Fragment Element names are case insensitive).</p>
+<table>
+<thead>
+<tr>
+<th><strong>Fragment Element</strong></th>
+<th><strong>Description</strong></th>
+<th><strong>Matching Fragment</strong></th>
+<th><strong>Replacing Fragment</strong></th>
+<th><strong>Fragment Argument</strong></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>@</td>
+<td>Any Scalar Expression</td>
+<td>&check;</td>
+<td>&cross;</td>
+<td>&check;</td>
+</tr>
+<tr>
+<td>C</td>
+<td>Any Constant</td>
+<td>&check;</td>
+<td>&cross;</td>
+<td>&check;</td>
+</tr>
+<tr>
+<td>V</td>
+<td>Any Scalar Variable</td>
+<td>&check;</td>
+<td>&cross;</td>
+<td>&check;</td>
+</tr>
+<tr>
+<td>A</td>
+<td>Any Address</td>
+<td>&check;</td>
+<td>&cross;</td>
+<td>&check;</td>
+</tr>
+<tr>
+<td>P</td>
+<td>Any Pointer Variable</td>
+<td>&check;</td>
+<td>&cross;</td>
+<td>&check;</td>
+</tr>
+<tr>
+<td>CONSTVAL</td>
+<td>specific constant value: 1 arg (const val)</td>
+<td>&cross;</td>
+<td>&check;</td>
+<td>&cross;</td>
+</tr>
+<tr>
+<td>OPERAND</td>
+<td>return an operand of an expression: 1 arg (operand class)</td>
+<td>&cross;</td>
+<td>&check;</td>
+<td>&cross;</td>
+</tr>
+<tr>
+<td>ABS</td>
+<td>Absolute value of the argument (single argument)</td>
+<td>&cross;</td>
+<td>&check;</td>
+<td>&cross;</td>
+</tr>
+<tr>
+<td>NEG</td>
+<td>Scalar arithmetic negation</td>
+<td>&check;</td>
+<td>&check;</td>
+<td>&cross;</td>
+</tr>
+<tr>
+<td>ADD</td>
+<td>Sum of two values</td>
+<td>&check;</td>
+<td>&check;</td>
+<td>&cross;</td>
+</tr>
+<tr>
+<td>SUB</td>
+<td>Scalar substraction: 2 args (left value, right value)</td>
+<td>&check;</td>
+<td>&check;</td>
+<td>&cross;</td>
+</tr>
+<tr>
+<td>MUL</td>
+<td>scalar multiplication: 2 args</td>
+<td>&check;</td>
+<td>&check;</td>
+<td>&cross;</td>
+</tr>
+<tr>
+<td>DIV</td>
+<td>Scalar division: 2 args (numerator, denominator)</td>
+<td>&check;</td>
+<td>&check;</td>
+<td>&cross;</td>
+</tr>
+<tr>
+<td>MOD</td>
+<td>scalar modulo operation: 2 args (left expr, right expr)</td>
+<td>&check;</td>
+<td>&check;</td>
+<td>&cross;</td>
+</tr>
+<tr>
+<td>BITAND</td>
+<td>Bit level <em>and</em> :2 args</td>
+<td>&check;</td>
+<td>&check;</td>
+<td>&cross;</td>
+</tr>
+<tr>
+<td>BITNOT</td>
+<td>bit level <em>not</em> :1 arg</td>
+<td>&check;</td>
+<td>&check;</td>
+<td>&cross;</td>
+</tr>
+<tr>
+<td>BITOR</td>
+<td>bit level <em>or</em> :2 args</td>
+<td>&check;</td>
+<td>&check;</td>
+<td>&cross;</td>
+</tr>
+<tr>
+<td>BITSHL</td>
+<td>bit level <em>shift left</em> :2 args (val, shift)</td>
+<td>&check;</td>
+<td>&check;</td>
+<td>&cross;</td>
+</tr>
+<tr>
+<td>BITSHR</td>
+<td>bit level <em>shift right</em>: 2 args (val, shift)</td>
+<td>&check;</td>
+<td>&check;</td>
+<td>&cross;</td>
+</tr>
+<tr>
+<td>BITXOR</td>
+<td>bit level <em>xor</em>: 2 args (val, shift)</td>
+<td>&check;</td>
+<td>&check;</td>
+<td>&cross;</td>
+</tr>
+<tr>
+<td>LEFTDEC</td>
+<td>Scalar left hand decrement: 1 arg (var)</td>
+<td>&check;</td>
+<td>&check;</td>
+<td>&cross;</td>
+</tr>
+<tr>
+<td>LEFTINC</td>
+<td>Scalar left hand increment: 1 arg (var)</td>
+<td>&check;</td>
+<td>&check;</td>
+<td>&cross;</td>
+</tr>
+<tr>
+<td>RIGHTDEC</td>
+<td>Scalar variable right decrement: 1 arg (var))</td>
+<td>&check;</td>
+<td>&check;</td>
+<td>&cross;</td>
+</tr>
+<tr>
+<td>RIGHTINC</td>
+<td>Scalar variable right decrement: 1 arg (var))</td>
+<td>&check;</td>
+<td>&check;</td>
+<td>&cross;</td>
+</tr>
+<tr>
+<td>EQ</td>
+<td>relational equal: 2 args (left expr, right expr)</td>
+<td>&check;</td>
+<td>&check;</td>
+<td>&cross;</td>
+</tr>
+<tr>
+<td>NEQ</td>
+<td>relational not equal: 2 args (left expr, right expr)</td>
+<td>&check;</td>
+<td>&check;</td>
+<td>&cross;</td>
+</tr>
+<tr>
+<td>GE</td>
+<td>relational greater or equal: 2 args (left expr, right expr)</td>
+<td>&check;</td>
+<td>&check;</td>
+<td>&cross;</td>
+</tr>
+<tr>
+<td>GT</td>
+<td>relational greater than: 2 args (left expr, right expr)</td>
+<td>&check;</td>
+<td>&check;</td>
+<td>&cross;</td>
+</tr>
+<tr>
+<td>LE</td>
+<td>relational less or equal: 2 args (left expr, right expr)</td>
+<td>&check;</td>
+<td>&check;</td>
+<td>&cross;</td>
+</tr>
+<tr>
+<td>LT</td>
+<td>relational less than: 2 args (left expr, right expr)</td>
+<td>&check;</td>
+<td>&check;</td>
+<td>&cross;</td>
+</tr>
+<tr>
+<td>AND</td>
+<td>Logical conjunction</td>
+<td>&check;</td>
+<td>&check;</td>
+<td>&cross;</td>
+</tr>
+<tr>
+<td>OR</td>
+<td>Logical or: 2 args (left expr, right expr))</td>
+<td>&check;</td>
+<td>&check;</td>
+<td>&cross;</td>
+</tr>
+<tr>
+<td>ASSIGN</td>
+<td>variable assignement: 2 args (var, expr)</td>
+<td>&check;</td>
+<td>&check;</td>
+<td>&cross;</td>
+</tr>
+<tr>
+<td>PADD</td>
+<td>Address addition operation with integer: 2 args (address, integer)</td>
+<td>&check;</td>
+<td>&check;</td>
+<td>&cross;</td>
+</tr>
+<tr>
+<td>PSUB</td>
+<td>Address substraction operation with integer: 2 args (address, integer)</td>
+<td>&check;</td>
+<td>&check;</td>
+<td>&cross;</td>
+</tr>
+<tr>
+<td>PLEFTDEC</td>
+<td>Pointer variable left decrement: 1 arg (pointer variable)</td>
+<td>&check;</td>
+<td>&check;</td>
+<td>&cross;</td>
+</tr>
+<tr>
+<td>PLEFTINC</td>
+<td>Pointer variable left increment: 1 arg (pointer variable)</td>
+<td>&check;</td>
+<td>&check;</td>
+<td>&cross;</td>
+</tr>
+<tr>
+<td>PRIGHTDEC</td>
+<td>Pointer variable right decrement: 1 arg (pointer variable)</td>
+<td>&check;</td>
+<td>&check;</td>
+<td>&cross;</td>
+</tr>
+<tr>
+<td>PRIGHTINC</td>
+<td>Pointer variable right increment: 1 arg (pointer variable)</td>
+<td>&check;</td>
+<td>&check;</td>
+<td>&cross;</td>
+</tr>
+<tr>
+<td>PEQ</td>
+<td>Address relational equal operation: 2 args (left addr, right addr)</td>
+<td>&check;</td>
+<td>&check;</td>
+<td>&cross;</td>
+</tr>
+<tr>
+<td>PNEQ</td>
+<td>Address relational not equal operation</td>
+<td>&check;</td>
+<td>&check;</td>
+<td>&cross;</td>
+</tr>
+<tr>
+<td>PGE</td>
+<td>Address relational greater or equal operation: 2 args (left addr, right addr)</td>
+<td>&check;</td>
+<td>&check;</td>
+<td>&cross;</td>
+</tr>
+<tr>
+<td>PGT</td>
+<td>Address relational greater than operation: 2 args (left addr, right addr)</td>
+<td>&check;</td>
+<td>&check;</td>
+<td>&cross;</td>
+</tr>
+<tr>
+<td>PLE</td>
+<td>Address relational less or equal operation: 2 args (left addr, right addr)</td>
+<td>&check;</td>
+<td>&check;</td>
+<td>&cross;</td>
+</tr>
+<tr>
+<td>PLT</td>
+<td>Address relational less than operation</td>
+<td>&check;</td>
+<td>&check;</td>
+<td>&cross;</td>
+</tr>
+<tr>
+<td>PADD_DEREF</td>
+<td>Pointer-int addition followerd by dereference.e.g. *(p+3): 2 args (addess, int)</td>
+<td>&check;</td>
+<td>&check;</td>
+<td>&cross;</td>
+</tr>
+<tr>
+<td>PSUB_DEREF</td>
+<td>Address-int substraction followed by dereference.e.g. *(p-3): 2 args (Address, int)</td>
+<td>&check;</td>
+<td>&check;</td>
+<td>&cross;</td>
+</tr>
+<tr>
+<td>PDEREF_ADD</td>
+<td>Pointer dereference followed by addition.e.g. (*p)+2: 2 args (address, number)</td>
+<td>&check;</td>
+<td>&check;</td>
+<td>&cross;</td>
+</tr>
+<tr>
+<td>PDEREF_SUB</td>
+<td>Pointer dereference followed by substraction.e.g. (*p)-2: 2 args (address, number)</td>
+<td>&check;</td>
+<td>&check;</td>
+<td>&cross;</td>
+</tr>
+<tr>
+<td>PLEFTDEC_DEREF</td>
+<td>Pointer variable left decrement followed by dereference.e.g. *(--p): 1 args (pointer variable)</td>
+<td>&check;</td>
+<td>&check;</td>
+<td>&cross;</td>
+</tr>
+<tr>
+<td>PLEFTINC_DEREF</td>
+<td>Pointer variable left increment followed by dereference.e.g. *(--p): 1 args (pointer variable)</td>
+<td>&check;</td>
+<td>&check;</td>
+<td>&cross;</td>
+</tr>
+<tr>
+<td>PRIGHTDEC_DEREF</td>
+<td>Pointer variable right decrement followed by dereference.e.g. *(p--): 1 args (pointer variable)</td>
+<td>&check;</td>
+<td>&check;</td>
+<td>&cross;</td>
+</tr>
+<tr>
+<td>PRIGHTINC_DEREF</td>
+<td>Pointer variable right increment followed by dereference.e.g. *(p++): 1 args (pointer variable)</td>
+<td>&check;</td>
+<td>&check;</td>
+<td>&cross;</td>
+</tr>
+<tr>
+<td>PDEREF_LEFTDEC</td>
+<td>Pointer dereference followed by left decrement.e.g. --(*p): 1 args (pointer variable)</td>
+<td>&check;</td>
+<td>&check;</td>
+<td>&cross;</td>
+</tr>
+<tr>
+<td>PDEREF_LEFTINC</td>
+<td>Pointer dereference followed by left increment.e.g. ++(*p): 1 args (pointer variable)</td>
+<td>&check;</td>
+<td>&check;</td>
+<td>&cross;</td>
+</tr>
+<tr>
+<td>PDEREF_RIGHTDEC</td>
+<td>Pointer dereference followed by right decrement.e.g. (*p)--: 1 args (pointer variable)</td>
+<td>&check;</td>
+<td>&check;</td>
+<td>&cross;</td>
+</tr>
+<tr>
+<td>PDEREF_RIGHTINC</td>
+<td>Pointer dereference followed by right increment.e.g. (*p)++: 1 args (pointer variable)</td>
+<td>&check;</td>
+<td>&check;</td>
+<td>&cross;</td>
+</tr>
+<tr>
+<td>CALL</td>
+<td>function call: 1 arg (callee)</td>
+<td>&check;</td>
+<td>&cross;</td>
+<td>&cross;</td>
+</tr>
+<tr>
+<td>NEWCALLEE</td>
+<td>Set new callee of function call: 1 arg (new callee)</td>
+<td>&cross;</td>
+<td>&check;</td>
+<td>&cross;</td>
+</tr>
+<tr>
+<td>SHUFFLEARGS</td>
+<td>Shuffle the arguments of a function call: 1 arg (number of args to shuffle)</td>
+<td>&cross;</td>
+<td>&check;</td>
+<td>&cross;</td>
+</tr>
+<tr>
+<td>SWITCH</td>
+<td>Match the a statement: no arg</td>
+<td>&check;</td>
+<td>&cross;</td>
+<td>&cross;</td>
+</tr>
+<tr>
+<td>SHUFFLECASESDESTS</td>
+<td>Shuffle the destination BBs of a <em>switch</em>: 1 arg (number of destination BB to shuffle)</td>
+<td>&cross;</td>
+<td>&check;</td>
+<td>&cross;</td>
+</tr>
+<tr>
+<td>REMOVECASES</td>
+<td>Remove a specific number of cases for switch instruction randomly: 1 args (number of cases to remove)</td>
+<td>&cross;</td>
+<td>&check;</td>
+<td>&cross;</td>
+</tr>
+<tr>
+<td>RETURN_BREAK_CONTINUE</td>
+<td>match return, break or continue: no arg</td>
+<td>&check;</td>
+<td>&cross;</td>
+<td>&cross;</td>
+</tr>
+<tr>
+<td>STMT</td>
+<td>Match any statement</td>
+<td>&check;</td>
+<td>&cross;</td>
+<td>&cross;</td>
+</tr>
+<tr>
+<td>DELSTMT</td>
+<td>remove statement: no args</td>
+<td>&cross;</td>
+<td>&check;</td>
+<td>&cross;</td>
+</tr>
+<tr>
+<td>TRAPSTMT</td>
+<td>a trap statement (artificial failure): no arg</td>
+<td>&cross;</td>
+<td>&check;</td>
+<td>&cross;</td>
+</tr>
+</tbody>
+</table>
+<h3 id="3-programmatically-generate-mutants-operators-configuration">3. Programmatically Generate Mutants Operators Configuration</h3>
+<p>In order to programmatically create the mutant operators configuration file, there is a helper python script, located in <code>&lt;path to build dir&gt;/tools/useful/create_mconf.py</code>, that implement a class named <code>GlobalDefs</code>.
+The objects of the class <code>GlobalDefs</code> have the following iportant properties:
+1) <code>FORMATS</code>: Is a key value (python dict) of each relevant Fragment element as key, and the key's value is the fragment element's operands as list of operand classes.</p>
+<p>2) <code>RULES</code>: Is a key value (python dict) of each relevant Fragment element as key, and the key's value is the list of compatible fragment element (that can replace this).</p>
+<p>3) <code>CLASSES</code>: Define Fragment elements groups. This is a key value (python dict) having as key, each fragment element and as value the corresponding operator groups. 
+Group granularity is represented by different levels separated by the character <code>'/'</code>, similarly to the file system path structure on UNIX systems. e.g. 'EXPRESSION-MUTATION/SCALAR/BINARY/AO' is used for Arithmetic binary operations such as '+', '-', '<em>', '/' as these form the same group. 
+Nevertheless, '&gt;', '&lt;' are 'EXPRESSION-MUTATION/SCALAR/BINARY/RO' as they are relational binary operations (Note the common prefix).
+Thus '+', '-', '</em>', '/', '&gt;', '&lt;' belong to the same group 'EXPRESSION-MUTATION/SCALAR/BINARY' for this group granularity.</p></div>
+            </div>
+        </div>
+
+        <footer class="col-md-12">
+            <hr>
+            <p>Documentation built with <a href="https://www.mkdocs.org/">MkDocs</a>.</p>
+        </footer>
+        <script>
+            var base_url = "../..",
+                shortcuts = {"help": 191, "next": 78, "previous": 80, "search": 83};
+        </script>
+        <script src="../../js/base.js" defer></script>
+        <script src="../../search/main.js" defer></script>
+
+        <div class="modal" id="mkdocs_search_modal" tabindex="-1" role="dialog" aria-labelledby="searchModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h4 class="modal-title" id="searchModalLabel">Search</h4>
+                <button type="button" class="close" data-dismiss="modal"><span aria-hidden="true">&times;</span><span class="sr-only">Close</span></button>
+            </div>
+            <div class="modal-body">
+                <p>From here you can search these documents. Enter your search terms below.</p>
+                <form>
+                    <div class="form-group">
+                        <input type="search" class="form-control" placeholder="Search..." id="mkdocs-search-query" title="Type search term here">
+                    </div>
+                </form>
+                <div id="mkdocs-search-results" data-no-results-text="No results found"></div>
+            </div>
+            <div class="modal-footer">
+            </div>
+        </div>
+    </div>
+</div><div class="modal" id="mkdocs_keyboard_modal" tabindex="-1" role="dialog" aria-labelledby="keyboardModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h4 class="modal-title" id="keyboardModalLabel">Keyboard Shortcuts</h4>
+                <button type="button" class="close" data-dismiss="modal"><span aria-hidden="true">&times;</span><span class="sr-only">Close</span></button>
+            </div>
+            <div class="modal-body">
+              <table class="table">
+                <thead>
+                  <tr>
+                    <th style="width: 20%;">Keys</th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td class="help shortcut"><kbd>?</kbd></td>
+                    <td>Open this help</td>
+                  </tr>
+                  <tr>
+                    <td class="next shortcut"><kbd>n</kbd></td>
+                    <td>Next page</td>
+                  </tr>
+                  <tr>
+                    <td class="prev shortcut"><kbd>p</kbd></td>
+                    <td>Previous page</td>
+                  </tr>
+                  <tr>
+                    <td class="search shortcut"><kbd>s</kbd></td>
+                    <td>Search</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <div class="modal-footer">
+            </div>
+        </div>
+    </div>
+</div>
+
+    </body>
+</html>
