@@ -34,7 +34,7 @@
                         <!-- Main navigation -->
                         <ul class="nav navbar-nav">
                             <li class="navitem">
-                                <a href="../.." class="nav-link">Home</a>
+                                <a href="../.." class="nav-link">Welcome to MART</a>
                             </li>
                             <li class="dropdown active">
                                 <a href="#" class="nav-link dropdown-toggle" data-toggle="dropdown">User doc <b class="caret"></b></a>
@@ -114,6 +114,10 @@
               <ul class="nav flex-column">
               </ul>
             </li>
+            <li class="nav-item" data-level="2"><a href="#manually-build-from-source" class="nav-link">Manually build from source</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
             <li class="nav-item" data-level="2"><a href="#testing" class="nav-link">Testing</a>
               <ul class="nav flex-column">
               </ul>
@@ -178,7 +182,7 @@ docker build --tag thierrytct/mart mart/src
 <p>or interactively</p>
 <pre><code>docker run --rm -it thierrytct/mart /bin/bash
 </code></pre>
-<h3 id="manually-build-from-source">Manually build from source</h3>
+<h2 id="manually-build-from-source">Manually build from source</h2>
 <p>Compile MART form source (using cmake version &gt;= 3.4.3):
 * Clone repository with git clone. (<code>--recursive</code> to clone the submodules dg and JsonBox)</p>
 <pre><code>git clone --recursive https://github.com/thierry-tct/mart.git src

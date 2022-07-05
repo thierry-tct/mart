@@ -34,7 +34,7 @@
                         <!-- Main navigation -->
                         <ul class="nav navbar-nav">
                             <li class="navitem">
-                                <a href="../.." class="nav-link">Home</a>
+                                <a href="../.." class="nav-link">Welcome to MART</a>
                             </li>
                             <li class="dropdown active">
                                 <a href="#" class="nav-link dropdown-toggle" data-toggle="dropdown">User doc <b class="caret"></b></a>
@@ -106,6 +106,10 @@
             
             <li class="nav-item" data-level="1"><a href="#getting-pre-compiled-mart" class="nav-link">Getting pre-compiled Mart</a>
               <ul class="nav flex-column">
+            <li class="nav-item" data-level="2"><a href="#docker-image" class="nav-link">Docker image</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
               </ul>
             </li>
         </ul>
@@ -114,9 +118,9 @@
                     <div class="col-md-9" role="main">
 
 <h1 id="getting-pre-compiled-mart">Getting pre-compiled Mart</h1>
-<h3 id="docker-image">Docker image</h3>
+<h2 id="docker-image">Docker image</h2>
 <p>Use <em>Mart</em> <a href="https://docs.docker.com">docker</a> image, available on <a href="https://hub.docker.com/r/thierrytct/mart">Docker Hub</a>, to run.</p>
-<h4 id="get-the-image-ready">Get the image Ready</h4>
+<h3 id="get-the-image-ready">Get the image Ready</h3>
 <p>Pull the docker image or build the docker image locally
 1. Pulling the image </p>
 <pre><code>docker pull thierrytct/mart
@@ -127,7 +131,7 @@
 <pre><code>git clone --recursive https://github.com/thierry-tct/mart.git mart/src
 docker build --tag thierrytct/mart mart/src
 </code></pre>
-<h4 id="run-docker-container">Run Docker container</h4>
+<h3 id="run-docker-container">Run Docker container</h3>
 <p>run docker container for demo</p>
 <pre><code>docker run --rm thierrytct/mart
 </code></pre>
