@@ -2,3 +2,15 @@ site_name: Mart Docs
 docs_dir: @MKDOCS_INPUT_DIR@
 site_dir: @MKDOCS_OUTPUT_DIR@
 repo_url: https://github.com/thierry-tct/mart/
+
+plugins:
+  - search
+  - include_dir_to_nav
+
+nav:
+    - Welcome to Mart: "index.md"
+    - Usage: "user-doc"
+    - reference: "doxygen-doc/index.html"
+
+theme:
+  name: material

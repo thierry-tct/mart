@@ -114,10 +114,10 @@ This requires [MKdocs](https://www.mkdocs.org/user-guide/installation/), [Doxyge
 On Ubuntu, install using the command:
 ```
 sudo apt-get install doxygen graphviz
-pip install mkdocs
+pip install mkdocs mkdocs-include-dir-to-nav
 ```
 
-Build the documentation using the command:
+Build the documentation using the command (the documentation wil be available in `<build-dir>/docs/site`):
 ```
 make gen-docs
 ```
