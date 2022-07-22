@@ -28,10 +28,15 @@ ADD(@1,@2) --> Mutop1.1, SUB(@1, @2); Mutop1.2, SUB(@2, @1); Mutop1.3 TRAPSTMT;
 LEFTINC(V) --> Mutop2.1, RIGHTDEC(V); Mutop2.2, ASSIGN(V, 0)
 ```
 In this example we have 3 mutation operators:
+
 - _Mutop1.1_: Replace Sum of two expressions by Their Difference.
+
 - _Mutop1.2_: Replace Sum of two expressions by The negation of their difference Difference.
+
 - _Mutop1.3_: Replace Statement having a Sum by a Trap Statement (Failure).
+
 - _Mutop2.1_: Replace Variable left increment by its right decrement.
+
 - _Mutop2.2_: Replace Variable left increment by an assignement of `0` to it.
 
 The currently Supported _Fragment Elements_ are listed bellow.
@@ -111,7 +116,9 @@ The following table gives information about the currently Supported Fragment Ele
 
 ### 3. Programmatically Generate Mutants Operators Configuration
 In order to programmatically create the mutant operators configuration file, there is a helper python script, located in `<path to build dir>/tools/useful/create_mconf.py`, that implement a class named `GlobalDefs`.
+
 The objects of the class `GlobalDefs` have the following iportant properties:
+
 1) `FORMATS`: Is a key value (python dict) of each relevant Fragment element as key, and the key's value is the fragment element's operands as list of operand classes.
    
 2) `RULES`: Is a key value (python dict) of each relevant Fragment element as key, and the key's value is the list of compatible fragment element (that can replace this).

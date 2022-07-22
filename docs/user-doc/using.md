@@ -23,12 +23,14 @@ View the help on usage with the command:
 ```
 ## Mutation Generation Configuration
 Mutant generation configuration consist in 2 configurations: 
+
 1. **Code locations to mutates (mutation scope):**
 This specifies the source files and functions to mutate.
 This is done using the option: `-mutant-scope <path/to/mutant scope file>`
+
 2. **Mutation operators to apply:**
 This specifies the mutation operator to apply. Mart's way of specifying mutants is flexible. For example, the user has control on the constant to replace when replacing an expression with a constant value.
-This is done using the option: `-mutant-config <path./to/mutant config file>`
+This is done using the option: `-mutant-config <path./to/mutant config file>`.
 **_Note_**:_If mutants operators configuration is not specified, the default configuration of 816 transformation rule is used. That default configuration file is located in `<path to build dir>/tools/useful/mconf-scope/default_allmax.mconf`_
 
 Find the details about the format and language to specify the configuration [here](mutation_configuration.md). 

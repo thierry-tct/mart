@@ -15,6 +15,6 @@ For further information and documentation, see the [webpage](https://thierry-tct
 
 
 ---
-_Please, find the scientific paper that describes this framework in the following reference_ 
+_Please, find the scientific paper that describes this tool in the following reference_ 
 
 [1] Thierry Titcheu Chekam, Mike Papadakis, and Yves Le Traon. 2019. Mart: a mutant generation tool for LLVM. In Proceedings of the 2019 27th ACM Joint Meeting on European Software Engineering Conference and Symposium on the Foundations of Software Engineering (ESEC/FSE 2019). Association for Computing Machinery, New York, NY, USA, 1080–1084. https://doi.org/10.1145/3338906.3341180
