@@ -116,6 +116,13 @@ public:
     llvm::errs() << "Unsuported yet: 'matchIRs' mathod of SwitchCases should "
                     "not be called \n";
     assert(false);
+    // Suppress build warnings
+    (void)toMatch;
+    (void)mutationOp;
+    (void)pos;
+    (void)MU;
+    (void)MI;
+    return false;
   }
 
   void prepareCloneIRs(MatchStmtIR const &toMatch, unsigned pos,
@@ -125,6 +132,13 @@ public:
     llvm::errs() << "Unsuported yet: 'prepareCloneIRs' mathod of SwitchCases "
                     "should not be called \n";
     assert(false);
+    // Suppress build warnings
+    (void)toMatch;
+    (void)pos;
+    (void)MU;
+    (void)repl;
+    (void)DRU;
+    (void)MI;
   }
 
   void matchAndReplace(MatchStmtIR const &toMatch,

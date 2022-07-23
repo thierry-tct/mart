@@ -32,6 +32,10 @@ public:
   virtual bool matchIRs(MatchStmtIR const &toMatch,
                         llvmMutationOp const &mutationOp, unsigned pos,
                         MatchUseful &MU, ModuleUserInfos const &MI) {
+    // Suppress build warnings
+    (void)MI;
+
+    // Computation
     llvm::Value *val = toMatch.getIRAt(pos);
     if (auto *store = llvm::dyn_cast<llvm::StoreInst>(val)) {
       if (valTypeMatched(store->getOperand(0)->getType()) &&
@@ -81,13 +85,16 @@ public:
                        MatchUseful const &MU,
                        llvmMutationOp::MutantReplacors const &repl,
                        DoReplaceUseful &DRU, ModuleUserInfos const &MI) {
+    // Suppress build warnings
+    (void)pos;
+    // Computation
     DRU.toMatchMutant.setToCloneStmtIROf(toMatch, MI);
     llvm::Value *oprdptr[] = {nullptr, nullptr};
     unsigned storePos = MU.getRelevantIRPosOf(0);
     unsigned hlRetPos = MU.getHLReturningIRPos();
     assert(storePos >= hlRetPos && "storePos should be >= hlRetPos");
     llvm::Value *load = nullptr;
-    for (int i = 0; i < repl.getOprdIndexList().size(); i++) {
+    for (unsigned i = 0; i < repl.getOprdIndexList().size(); i++) {
       if (!(oprdptr[i] = createIfConst(
                 MU.getHLOperandSource(1 /*1 to select val operand*/,
                                       DRU.toMatchMutant)
@@ -96,11 +103,20 @@ public:
         if (repl.getOprdIndexList()[i] == 0) // lvalue
         {
           llvm::IRBuilder<> builder(MI.getContext());
+          llvm::Value *tmpVal = MU.getHLOperandSource(0 /*1st HL Oprd*/, DRU.toMatchMutant);
           load = builder.CreateAlignedLoad(
-              MU.getHLOperandSource(0 /*1st HL Oprd*/, DRU.toMatchMutant),
+#if (LLVM_VERSION_MAJOR >= 10)
+              tmpVal->getType()->getPointerElementType(),
+              tmpVal,
+              llvm::MaybeAlign(llvm::dyn_cast<llvm::StoreInst>(
+                  DRU.toMatchMutant.getIRAt(storePos))
+                  ->getAlignment()));
+#else
+              tmpVal,
               llvm::dyn_cast<llvm::StoreInst>(
                   DRU.toMatchMutant.getIRAt(storePos))
                   ->getAlignment());
+#endif
           oprdptr[i] = load;
         } else // rvalue
           oprdptr[i] = MU.getHLOperandSource(repl.getOprdIndexList()[i] /*1*/,
@@ -157,7 +173,11 @@ public:
            "The value to assign must be primitive here");
     llvm::Value *store = builder.CreateAlignedStore(
         oprd2_intValOprd, oprd1_addrOprd,
+#if (LLVM_VERSION_MAJOR >= 10)
+        llvm::MaybeAlign(MI.getDataLayout().getPrefTypeAlignment(oprd2_intValOprd->getType())));
+#else
         MI.getDataLayout().getPrefTypeAlignment(oprd2_intValOprd->getType()));
+#endif
     replacement.push_back(store);
     return valRet;
   }

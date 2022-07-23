@@ -28,6 +28,12 @@ class ShuffleArgs : public ReplaceOnly_Base {
     llvm::errs() << "Error: the class ShuffleArgs is unusable. only "
                     "FunctionCall can implements and use such replacer.\n";
     assert(false);
+    // Suppress build warnings
+    (void)oprd1_addrOprd;
+    (void)oprd2_intValOprd;
+    (void)replacement;
+    (void)MI;
+    return nullptr;
   }
 }; // class ShuffleArgs
 

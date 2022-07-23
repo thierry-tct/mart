@@ -43,9 +43,9 @@ static std::stringstream loginfo;
 static std::string outFile;
 static const std::string tmpFuncModuleFolder("tmp-func-module-dir.tmp");
 
-void insertMutSelectGetenv(llvm::Module *mod) {
+//void insertMutSelectGetenv(llvm::Module *mod) {
   // insert getenv and atol
-}
+//}
 
 /**
  * \brief print all the modules of mutants, sorted from mutant 0(original) to
@@ -119,7 +119,7 @@ bool dumpMutantsCallback(Mutation *mutEng,
       if (mutFunctions != nullptr) {
         mid = m.second.front();
         llvm::Function *currFunc = mutFunctions->at(m.first);
-        std::string funcName = currFunc->getName();
+        std::string funcName = currFunc->getName().str();
         std::string funcFile = tmpFunctionDir + "/" + funcName + ".bc";
         std::string mutDirPath = mutantsDir + "/" + std::to_string(mid);
         if (mkdir(mutDirPath.c_str(), 0777) != 0)
@@ -163,11 +163,11 @@ bool dumpMutantsCallback(Mutation *mutEng,
                                                "they have no parent.");
                   URInst->replaceUsesOfWith(tmpFF, fofi);
                 } else {
-                  /*if (llvm::isa<llvm::GlobalVariable>(UVal)) {
+                  if (llvm::isa<llvm::GlobalVariable>(UVal)) {
                     llvm::Function *dummyF = llvm::Function::Create (tmpFF->getFunctionType(), tmpFF->getLinkage()); //,"",formutsModule);
                     functionsGlobalUsers[formutsModule].emplace_back(UVal, dummyF);
                     UVal->replaceUsesOfWith(tmpFF, dummyF);
-                  /*} else {
+                  } else {
                     llvm::errs() << "\nError: Function '" << funcName
                                  << "' should have NO use here, since in its own "
                                     "module. But still have "

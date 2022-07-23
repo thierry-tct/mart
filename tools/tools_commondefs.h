@@ -13,15 +13,15 @@
 #define STRINGIFY2(X) #X
 #define STRINGIFY(X) STRINGIFY2(X)
 
-static const std::string mutantsInfosFileName("mutantsInfos.json");
-static const std::string equivalentduplicate_mutantsInfosFileName("equidup-mutantsInfos.json");
-static const char *wmOutIRFileSuffix = ".WM.bc";
-static const char *covOutIRFileSuffix = ".COV.bc";
-static const char *preTCEMetaIRFileSuffix = ".preTCE.MetaMu.bc";
-static const char *commonIRSuffix = ".bc";
-static const char *metaMuIRFileSuffix = ".MetaMu.bc";
-static const char *optimizedMetaMuIRFileSuffix = ".OptMetaMu.bc";
-static const char *usefulFolderName = "useful";
+const std::string mutantsInfosFileName("mutantsInfos.json");
+const std::string equivalentduplicate_mutantsInfosFileName("equidup-mutantsInfos.json");
+const char *wmOutIRFileSuffix = ".WM.bc";
+const char *covOutIRFileSuffix = ".COV.bc";
+const char *preTCEMetaIRFileSuffix = ".preTCE.MetaMu.bc";
+const char *commonIRSuffix = ".bc";
+const char *metaMuIRFileSuffix = ".MetaMu.bc";
+const char *optimizedMetaMuIRFileSuffix = ".OptMetaMu.bc";
+const char *usefulFolderName = "useful";
 #ifdef MART_GENMU_OBJECTFILE
 static const char *metaMuObjFileSuffix = ".MetaMu.o";
 #endif
@@ -58,7 +58,7 @@ std::string getUsefulAbsPath(char *argv0) {
     llvm::SmallString<512> rootpath(llvm::sys::fs::getMainExecutable(argv0, MainExecAddr));
     assert(!rootpath.empty() && "Failed to get xecutable abspath!");
     llvm::sys::path::remove_filename(rootpath);
-    useful_conf_dir = rootpath.str();
+    useful_conf_dir = rootpath.str().str();
   }
 
   useful_conf_dir = useful_conf_dir + "/" + usefulFolderName + "/";

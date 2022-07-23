@@ -27,6 +27,12 @@ class MatchOnly_Base : public GenericMuOpBase {
            "of the class: " /*<< typeid(*this).name()*/
         << "\n";
     assert(false);
+    // Suppress build warnings
+    (void)oprd1_addrOprd;
+    (void)oprd2_intValOprd;
+    (void)replacement;
+    (void)MI;
+    return nullptr;
   }
 }; // class MatchOnly_Base
 

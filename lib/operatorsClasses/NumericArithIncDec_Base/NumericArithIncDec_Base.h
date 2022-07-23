@@ -46,6 +46,10 @@ protected:
 public:
   bool matchIRs(MatchStmtIR const &toMatch, llvmMutationOp const &mutationOp,
                 unsigned pos, MatchUseful &MU, ModuleUserInfos const &MI) {
+    // Suppress build warnings
+    (void)MI;
+
+    // Computation
     llvm::Value *val = toMatch.getIRAt(pos);
     if (llvm::StoreInst *store = llvm::dyn_cast<llvm::StoreInst>(val)) {
       llvm::Value *addr = store->getOperand(1);
@@ -54,9 +58,9 @@ public:
               llvm::dyn_cast<llvm::BinaryOperator>(store->getOperand(0))) {
         llvm::LoadInst *load;
         unsigned notloadat01;
-        if (load = llvm::dyn_cast<llvm::LoadInst>(modif->getOperand(0)))
+        if ((load = llvm::dyn_cast<llvm::LoadInst>(modif->getOperand(0))))
           notloadat01 = 1;
-        else if (load = llvm::dyn_cast<llvm::LoadInst>(modif->getOperand(1)))
+        else if ((load = llvm::dyn_cast<llvm::LoadInst>(modif->getOperand(1))))
           notloadat01 = 0;
         else
           return false;
@@ -75,9 +79,9 @@ public:
         if (!isMyAdd1Sub1(modif, constpart, notloadat01))
           return false;
 
-        int returningIRPos;
-        int loadpos = toMatch.depPosofPos(load, pos, true);
-        int modifpos = toMatch.depPosofPos(modif, pos, true);
+        unsigned returningIRPos;
+        unsigned loadpos = toMatch.depPosofPos(load, pos, true);
+        unsigned modifpos = toMatch.depPosofPos(modif, pos, true);
         assert((pos > loadpos && pos > modifpos) && "problem in IR order");
 
         // check wheter it is left or right inc-dec
@@ -119,9 +123,13 @@ public:
                        MatchUseful const &MU,
                        llvmMutationOp::MutantReplacors const &repl,
                        DoReplaceUseful &DRU, ModuleUserInfos const &MI) {
+    // Suppress build warnings
+    (void)pos;
+
+    // Computation
     DRU.toMatchMutant.setToCloneStmtIROf(toMatch, MI);
     llvm::Value *oprdptr[] = {nullptr, nullptr};
-    for (int i = 0; i < repl.getOprdIndexList().size(); i++) {
+    for (unsigned i = 0; i < repl.getOprdIndexList().size(); i++) {
       if (!(oprdptr[i] = createIfConst(
                 MU.getHLOperandSource(0, DRU.toMatchMutant)->getType(),
                 repl.getOprdIndexList()[i]))) {

@@ -138,7 +138,7 @@ getWMUnsafeInstructions(llvm::BasicBlock *BB,
 Mutation::Mutation(llvm::Module &module, std::string mutConfFile,
                    DumpMutFunc_t writeMutsF, std::string scopeJsonFile)
     : forKLEESEMu(true), funcForKLEESEMu(nullptr),
-      writeMutantsCallback(writeMutsF), moduleInfo(&module, &usermaps) {
+      moduleInfo(&module, &usermaps), writeMutantsCallback(writeMutsF) {
   // tranform the PHI Node with any non-constant incoming value with reg2mem
   preprocessVariablePhi(module);
 
@@ -258,8 +258,11 @@ void Mutation::preprocessVariablePhi(llvm::Module &module) {
                                 ->getIterator()));
 #endif
             new llvm::StoreInst(alloc_arr_size, Slot, loadinsertpt);
-            llvm::Value *V =
-                new llvm::LoadInst(Slot, alloc_arr_size->getName() + ".reload",
+            llvm::Value *V = new llvm::LoadInst(
+#if (LLVM_VERSION_MAJOR >= 10)
+                                  Slot->getType()->getPointerElementType(),
+#endif
+                                  Slot, alloc_arr_size->getName() + ".reload",
                                    false /*VolatileLoads*/, alloca);
             alloca->setOperand(0, V); // set array size
           }
@@ -367,8 +370,11 @@ llvm::AllocaInst *Mutation::MYDemotePHIToStack(llvm::PHINode *P,
     /* empty */; // Don't insert before PHI nodes or landingpad instrs.
 #endif
 
-  llvm::Value *V =
-      new llvm::LoadInst(Slot, P->getName() + ".reload", &*InsertPt);
+  llvm::Value *V = new llvm::LoadInst(
+#if (LLVM_VERSION_MAJOR >= 10)
+                          Slot->getType()->getPointerElementType(),
+#endif
+                          Slot, P->getName() + ".reload", &*InsertPt);
   P->replaceAllUsesWith(V);
 
   // Delete PHI.
@@ -444,8 +450,11 @@ llvm::AllocaInst *Mutation::MyDemoteRegToStack(llvm::Instruction &I,
 
     for (auto *U : crossBBUsers) {
       // XXX: No need to care for PHI Nodes, since they are already all removed
-      llvm::Value *V =
-          new llvm::LoadInst(Slot, I.getName() + ".reload", VolatileLoads, U);
+      llvm::Value *V = new llvm::LoadInst(
+#if (LLVM_VERSION_MAJOR >= 10)
+                                  Slot->getType()->getPointerElementType(),
+#endif
+                                  Slot, I.getName() + ".reload", VolatileLoads, U);
       U->replaceUsesOfWith(&I, V);
     }
 
@@ -533,7 +542,7 @@ bool Mutation::getConfiguration(std::string &mutConfFile) {
         continue;
       }
 
-      std::regex rgx("\\s+\-\->\\s+"); // Matcher --> Replacors
+      std::regex rgx("\\s+\\-\\->\\s+"); // Matcher --> Replacors
       std::sregex_token_iterator iter(linei.begin(), linei.end(), rgx, -1);
       std::sregex_token_iterator end;
       unsigned short matchRepl = 0;
@@ -695,9 +704,9 @@ bool Mutation::getConfiguration(std::string &mutConfFile) {
 
             unsigned iM = 0;
             while (iM < correspKeysMutant->size() &&
-                   (isExpElemKeys_ForbidenType(
+                   (UserMaps::isExpElemKeys_ForbidenType(
                         mutationOperations[iM].getMatchOp()) ||
-                    isExpElemKeys_ForbidenType(correspKeysMutant->at(iM)))) {
+                    UserMaps::isExpElemKeys_ForbidenType(correspKeysMutant->at(iM)))) {
               iM++;
             }
             if (iM >= correspKeysMutant->size())
@@ -708,9 +717,9 @@ bool Mutation::getConfiguration(std::string &mutConfFile) {
             enum ExpElemKeys prevMu = correspKeysMutant->at(iM);
             enum ExpElemKeys prevMa = mutationOperations[iM].getMatchOp();
             for (iM = iM + 1; iM < correspKeysMutant->size(); iM++) {
-              if (!isExpElemKeys_ForbidenType(
+              if (!UserMaps::isExpElemKeys_ForbidenType(
                       mutationOperations[iM].getMatchOp()) &&
-                  !isExpElemKeys_ForbidenType(correspKeysMutant->at(iM))) {
+                  !UserMaps::isExpElemKeys_ForbidenType(correspKeysMutant->at(iM))) {
                 if (correspKeysMutant->at(iM) != prevMu ||
                     mutationOperations[iM].getMatchOp() != prevMa) {
                   mutationOperations[iM].addReplacor(correspKeysMutant->at(iM),
@@ -808,18 +817,19 @@ void Mutation::getMutantsOfStmt(MatchStmtIR const &stmtIR,
       }
     }
 
+    /*
     // Verify that no constant is considered as instruction in the mutant
     // (inserted in replacement vector)  TODO: Remove commented bellow
-    /*# llvm::errs() << "\n@orig\n";   //DBG
+    //llvm::errs() << "\n@orig\n";   //DBG
     for (auto *dd: stmtIR)          //DBG
-        dd->dump();                 //DBG*/
-    /*for (auto ind = 0; ind < ret_mutants.getNumMuts(); ind++)
+        dd->dump();                 //DBG
+    for (auto ind = 0; ind < ret_mutants.getNumMuts(); ind++)
     {
         auto &mutInsVec = ret_mutants.getMutantStmtIR(ind);
-        /*# llvm::errs() << "\n@Muts\n";    //DBG* /
+        //llvm::errs() << "\n@Muts\n";    //DBG
         for (auto *mutIns: mutInsVec)
         {
-            /*# mutIns->dump();     //DBG* /
+            //# mutIns->dump();     //DBG
             if(llvm::dyn_cast<llvm::Constant>(mutIns))
             {
                 llvm::errs() << "\nError: A constant is considered as
@@ -830,8 +840,6 @@ void Mutation::getMutantsOfStmt(MatchStmtIR const &stmtIR,
             }
         }
     }*/
-    //}
-    //}
   }
 } //~Mutation::getMutantsOfStmt
 
@@ -935,7 +943,11 @@ bool Mutation::doMutate() {
       module.getNamedGlobal(mutantIDSelectorName);
   // mutantIDSelectorGlobal->setLinkage(llvm::GlobalValue::CommonLinkage);
   // //commonlinkage require 0 as initial value
+#if (LLVM_VERSION_MAJOR >= 10) // && (LLVM_VERSION_MINOR < 5)
+  mutantIDSelectorGlobal->setAlignment(llvm::MaybeAlign(4));
+#else
   mutantIDSelectorGlobal->setAlignment(4);
+#endif
   mutantIDSelectorGlobal->setInitializer(llvm::ConstantInt::get(
       moduleInfo.getContext(), llvm::APInt(32, 0, false)));
 
@@ -1027,7 +1039,7 @@ bool Mutation::doMutate() {
 #endif
       if (!TI)
         return;
-      for (auto i = 0; i < TI->getNumSuccessors(); i++) {
+      for (unsigned i = 0; i < TI->getNumSuccessors(); i++) {
         llvm::BasicBlock *Succ = TI->getSuccessor(i);
         for (llvm::BasicBlock::iterator II = Succ->begin(), IE = Succ->end();
              II != IE; ++II) {
@@ -1092,7 +1104,7 @@ bool Mutation::doMutate() {
           llvm::TerminatorInst *TI = bb->getTerminator();
 #endif
           bool found = false; // DEBUG
-          for (auto i = 0; i < TI->getNumSuccessors(); i++) {
+          for (unsigned i = 0; i < TI->getNumSuccessors(); i++) {
             if (phiBB == TI->getSuccessor(i)) {
               TI->setSuccessor(i, proxyBlock);
               found = true; // DEBUG
@@ -1399,8 +1411,8 @@ bool Mutation::doMutate() {
       if (!remainMultiBBLiveStmts.empty())
         continue;
 
-      /***********************************************************
-      // \brief Actual mutation **********************************
+      /***********************************************************/
+      /// \brief Actual mutation **********************************
       /***********************************************************/
 
       /// \brief mutate all the basic blocks between 'mutationStartingAtBB' and
@@ -1427,7 +1439,7 @@ bool Mutation::doMutate() {
                            moduleInfo);
 
           // set the mutant IDs
-          for (auto mind = 0; mind < sstmt->mutantStmt_list.getNumMuts();
+          for (unsigned mind = 0; mind < sstmt->mutantStmt_list.getNumMuts();
                mind++) {
             sstmt->mutantStmt_list.setMutID(mind, ++curMutantID);
             // for(auto
@@ -1515,7 +1527,15 @@ bool Mutation::doMutate() {
               }
 
               sstmtMutants.push_back(sbuilder.CreateSwitch(
+#if (LLVM_VERSION_MAJOR >= 10)
+                  sbuilder.CreateAlignedLoad(
+                    mutantIDSelectorGlobal->getType()->getPointerElementType(), 
+                    mutantIDSelectorGlobal, 
+                    llvm::MaybeAlign(4)
+                  ),
+#else
                   sbuilder.CreateAlignedLoad(mutantIDSelectorGlobal, 4),
+#endif
                   original, nMuts));
 
               // Remove old terminator link
@@ -1545,7 +1565,7 @@ bool Mutation::doMutate() {
 
             // XXX: Insert mutant blocks here
             //@# MUTANTS (see ELSE bellow)
-            for (auto ms_ind = 0;
+            for (unsigned ms_ind = 0;
                  ms_ind < (*curSrcStmtIt)->mutantStmt_list.getNumMuts();
                  ms_ind++) {
               auto &mut_stmt_ir =
@@ -1882,9 +1902,9 @@ void Mutation::computeWeakMutation(std::unique_ptr<llvm::Module> &cmodule,
 
               std::vector<llvm::Instruction *> origUnsafes;
               getWMUnsafeInstructions(defaultBB, origUnsafes);
-              std::vector<llvm::IRBuilder<>> sbuilders;
-              for (auto *II : origUnsafes)
-                sbuilders.emplace_back(II);
+              std::vector<std::unique_ptr<llvm::IRBuilder<> > > sbuilders(origUnsafes.size());
+              for (unsigned idx=0; idx < origUnsafes.size(); idx++)
+                sbuilders[idx].reset(new llvm::IRBuilder<>(origUnsafes[idx]));
               for (llvm::SwitchInst::CaseIt i = sw->case_begin(),
                                             e = sw->case_end();
                    i != e; ++i) {
@@ -1964,10 +1984,10 @@ void Mutation::computeWeakMutation(std::unique_ptr<llvm::Module> &cmodule,
                       if (subcondInst)
                         subcondInst->insertBefore(origUnsafes[ic]);
                       if (condVals[ic].front() != condtmp)
-                        condVals[ic].front() = sbuilders[ic].CreateOr(
+                        condVals[ic].front() = sbuilders[ic]->CreateOr(
                             condVals[ic].front(), condtmp);
                     }
-                    condVals[ic].front() = sbuilders[ic].CreateZExt(
+                    condVals[ic].front() = sbuilders[ic]->CreateZExt(
                         condVals[ic].front(),
                         llvm::Type::getInt8Ty(
                             moduleInfo.getContext())); // convert i1 into i8
@@ -1976,7 +1996,7 @@ void Mutation::computeWeakMutation(std::unique_ptr<llvm::Module> &cmodule,
                     // weak kill condition
                     argsv.push_back(condVals[ic].front());
                     // call WM log func
-                    sbuilders[ic].CreateCall(funcWMLog, argsv); 
+                    sbuilders[ic]->CreateCall(funcWMLog, argsv); 
                   }
                 }
 
@@ -2001,7 +2021,7 @@ void Mutation::computeWeakMutation(std::unique_ptr<llvm::Module> &cmodule,
 
               // Now call fflush
               argsv.clear();
-              sbuilders.back().CreateCall(funcWMFflush, argsv);
+              sbuilders.back()->CreateCall(funcWMFflush, argsv);
 
               for (auto *caseval : cases) {
                 llvm::SwitchInst::CaseIt cit = sw->findCaseValue(caseval);
@@ -2436,7 +2456,7 @@ void Mutation::doTCE(std::unique_ptr<llvm::Module> &optMetaMu, std::unique_ptr<l
         clonedM = dup_eq_processor.clonedModByFunc.at(
             dup_eq_processor.funcMutByMutID[id]);
         const std::string subjFunctionName =
-            dup_eq_processor.funcMutByMutID[id]->getName();
+            dup_eq_processor.funcMutByMutID[id]->getName().str();
         llvm::GlobalVariable *mutantIDSelGlobFF =
             clonedM->getNamedGlobal(mutantIDSelectorName);
         llvm::Function *mutantIDSelGlob_FuncFF =
@@ -2915,7 +2935,7 @@ void Mutation::applyPostMutationPointForKSOnMetaModule(llvm::Module &module) {
                                         sw->getDefaultDest()->getTerminator());
 #endif
               assert (origBBterm_i && "malformed original BB");
-              for (auto sid = 0; sid < origBBterm_i->getNumSuccessors(); ++sid) {
+              for (unsigned sid = 0; sid < origBBterm_i->getNumSuccessors(); ++sid) {
                 llvm::BasicBlock * pointBB = origBBterm_i->getSuccessor(sid);
                 pointBB2mutantIDVect[pointBB].push_back(0);
               }
@@ -2939,7 +2959,7 @@ void Mutation::applyPostMutationPointForKSOnMetaModule(llvm::Module &module) {
                 uint64_t curcaseuint = (*csit).getCaseValue()->getZExtValue();
 #endif
                 assert (mutBBterm_i && "malformed mutant BB");
-                for (auto sid = 0; sid < mutBBterm_i->getNumSuccessors(); ++sid) {
+                for (unsigned sid = 0; sid < mutBBterm_i->getNumSuccessors(); ++sid) {
                   llvm::BasicBlock * pointBB = mutBBterm_i->getSuccessor(sid);
                   pointBB2mutantIDVect[pointBB].push_back(curcaseuint);
                 }
@@ -3170,8 +3190,8 @@ void Mutation::computeModuleBufsByFunc(
   std::unordered_set<MutantIDType> mutHavingMoreThan1Func;
   llvm::GlobalVariable *mutantIDSelGlob =
       module.getNamedGlobal(mutantIDSelectorName);
-  llvm::Function *mutantIDSelGlob_Func =
-      module.getFunction(mutantIDSelectorName_Func);
+  //llvm::Function *mutantIDSelGlob_Func =
+      //module.getFunction(mutantIDSelectorName_Func);
   // llvm::errs() << "XXXCloning...\n";   //////DBG
   /// \brief First pass to get the functions mutated for each mutant (nullptr
   /// when more than one function mutated).
@@ -3227,12 +3247,12 @@ void Mutation::computeModuleBufsByFunc(
         ReadWriteIRObj::cloneModuleAndRelease(&module);
     for (auto &funcmodIt : *clonedModByFunc)
       if (funcmodIt.first != nullptr)
-        mutFuncList.push_back(funcmodIt.first->getName());
+        mutFuncList.push_back(funcmodIt.first->getName().str());
   } else {
     (*inMemIRModBufByFunc)[nullptr].setToModule(&module);
     for (auto &funcmodIt : *inMemIRModBufByFunc)
       if (funcmodIt.first != nullptr)
-        mutFuncList.push_back(funcmodIt.first->getName());
+        mutFuncList.push_back(funcmodIt.first->getName().str());
   }
   if (!mutFuncList.empty())
     workStack.emplace(ReadWriteIRObj::cloneModuleAndRelease(&module), 0,

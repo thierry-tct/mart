@@ -173,10 +173,6 @@ enum ExpElemKeys {
   // enumExpElemKeysSIZE     //Number of elements in this enum  - Do not Modify
 }; // enum ExpElemKeys
 
-static bool isExpElemKeys_ForbidenType(enum ExpElemKeys me) {
-  return (me == mFORBIDEN_TYPE);
-}
-
 class GenericMuOpBase;
 
 class UserMaps {
@@ -198,7 +194,11 @@ private:
                          std::vector<enum ExpElemKeys> ops);
 
 public:
-  inline bool isConstValOPRD(llvm::StringRef oprd);
+  static bool isExpElemKeys_ForbidenType(enum ExpElemKeys me) {
+    return (me == mFORBIDEN_TYPE);
+  }
+
+  bool isConstValOPRD(llvm::StringRef oprd);
 
   void validateNonConstValOPRD(llvm::StringRef oprd, unsigned lno);
 

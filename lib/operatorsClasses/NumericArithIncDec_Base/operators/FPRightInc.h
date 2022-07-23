@@ -49,6 +49,10 @@ public:
                                  llvm::Value *oprd2_intValOprd,
                                  std::vector<llvm::Value *> &replacement,
                                  ModuleUserInfos const &MI) {
+    // Suppress build warnings
+    (void)oprd2_intValOprd;
+
+    // Computation
     llvm::IRBuilder<> builder(MI.getContext());
 
     // llvm::dyn_cast<llvm::Instruction>(oprd1_addrOprd)->dump();//DEBUG
@@ -99,7 +103,11 @@ public:
            "Must be primitive here");
     storeit = builder.CreateAlignedStore(
         changedVal, storeit,
+#if (LLVM_VERSION_MAJOR >= 10)
+        llvm::MaybeAlign(MI.getDataLayout().getPrefTypeAlignment(changedVal->getType())));
+#else
         MI.getDataLayout().getPrefTypeAlignment(changedVal->getType()));
+#endif
     replacement.push_back(storeit);
 
     return rawVal;

@@ -20,13 +20,28 @@ class AllStatements : public MatchOnly_Base {
 public:
   bool matchIRs(MatchStmtIR const &toMatch, llvmMutationOp const &mutationOp,
                 unsigned pos, MatchUseful &MU, ModuleUserInfos const &MI) {
+    // Suppress build warnings
+    (void)toMatch;
+    (void)mutationOp;
+    (void)pos;
+    (void)MU;
+    (void)MI;
+    // Return
     return true;
   }
 
   void prepareCloneIRs(MatchStmtIR const &toMatch, unsigned pos,
                        MatchUseful const &MU,
                        llvmMutationOp::MutantReplacors const &repl,
-                       DoReplaceUseful &DRU, ModuleUserInfos const &MI) {}
+                       DoReplaceUseful &DRU, ModuleUserInfos const &MI) {
+    // Suppress build warnings
+    (void)toMatch;
+    (void)pos;
+    (void)MU;
+    (void)repl;
+    (void)DRU;
+    (void)MI;
+  }
 
   void matchAndReplace(MatchStmtIR const &toMatch,
                        llvmMutationOp const &mutationOp,

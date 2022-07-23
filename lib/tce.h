@@ -28,7 +28,7 @@
 //#include "llvm/Transforms/IPO/InlinerPass.h"
 #include "llvm/Transforms/IPO.h"
 
-#include "llvm-diff/DifferenceEngine.h"
+#include "llvm-diff/DifferenceEngineEntry.h"
 
 namespace mart {
 

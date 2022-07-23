@@ -25,6 +25,12 @@ class LogicalAnd : public Logical_Base {
                                  ModuleUserInfos const &MI) {
     llvm::errs() << "Not yet implemented here, still in Logical_Base \n";
     assert(false);
+    // Suppress build warnings
+    (void)oprd1_addrOprd;
+    (void)oprd2_intValOprd;
+    (void)replacement;
+    (void)MI;
+    return nullptr;
   }
 };
 }

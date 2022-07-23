@@ -25,6 +25,9 @@ class FPAbs : public ReplaceOnly_Base {
                                  llvm::Value *oprd2_intValOprd,
                                  std::vector<llvm::Value *> &replacement,
                                  ModuleUserInfos const &MI) {
+    // Suppress build warnings
+    (void)oprd2_intValOprd;
+    // Computation
     llvm::IRBuilder<> builder(MI.getContext());
     llvm::Value *fminusVal = builder.CreateFSub(
         llvm::ConstantFP::get(oprd1_addrOprd->getType(), 0.0), oprd1_addrOprd);

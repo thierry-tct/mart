@@ -55,11 +55,11 @@ private:
   std::vector<std::pair<unsigned /*pos*/, int /*oprd index*/>>
       highLevelOprdsSources;
   // llvm::Value * highLevelReturningIR;
-  int posReturningIR;
+  unsigned posReturningIR;
   std::vector<unsigned> relevantIRPos;
   // llvm::Value * returnIntoIR;
-  int posReturnIntoIR;
-  int retIntoOprdIndex; // For constant replacement
+  unsigned posReturnIntoIR;
+  unsigned retIntoOprdIndex; // For constant replacement
 
 public:
   MatchUseful() : additionalMU(nullptr) { clearAll(); }
@@ -134,28 +134,28 @@ public:
   inline int getHLOperandSourceIndexInIR(unsigned hlOprdID) const {
     return highLevelOprdsSources.at(hlOprdID).second;
   }
-  inline int getHLOperandSourcePos(unsigned hlOprdID) const {
+  inline unsigned getHLOperandSourcePos(unsigned hlOprdID) const {
     return highLevelOprdsSources.at(hlOprdID).first;
   }
   inline unsigned getNumberOfHLOperands() const {
     return highLevelOprdsSources.size();
   }
-  inline void appendRelevantIRPos(int pos) { relevantIRPos.push_back(pos); }
-  inline int getRelevantIRPosOf(int posInList) const {
+  inline void appendRelevantIRPos(unsigned pos) { relevantIRPos.push_back(pos); }
+  inline unsigned getRelevantIRPosOf(unsigned posInList) const {
     return relevantIRPos.at(posInList);
   }
   inline const std::vector<unsigned> &getRelevantIRPos() const {
     return relevantIRPos;
   }
 
-  inline void setHLReturningIRPos(int pos) { posReturningIR = pos; }
-  inline int getHLReturningIRPos() const { return posReturningIR; }
+  inline void setHLReturningIRPos(unsigned pos) { posReturningIR = pos; }
+  inline unsigned getHLReturningIRPos() const { return posReturningIR; }
 
-  inline void setHLReturnIntoIRPos(int pos) { posReturnIntoIR = pos; }
-  inline int getHLReturnIntoIRPos() const { return posReturnIntoIR; }
+  inline void setHLReturnIntoIRPos(unsigned pos) { posReturnIntoIR = pos; }
+  inline unsigned getHLReturnIntoIRPos() const { return posReturnIntoIR; }
 
-  inline void setHLReturnIntoOprdIndex(int pos) { retIntoOprdIndex = pos; }
-  inline int getHLReturnIntoOprdIndex() const { return retIntoOprdIndex; }
+  inline void setHLReturnIntoOprdIndex(unsigned pos) { retIntoOprdIndex = pos; }
+  inline unsigned getHLReturnIntoOprdIndex() const { return retIntoOprdIndex; }
 
   /// \brief Iterators methods
   inline MatchUseful const *first() const { return (curLast ? this : nullptr); }
@@ -178,12 +178,13 @@ protected:
   // not the original (toMatch)
   std::vector<llvm::Value *> highLevelOprds;
   // llvm::Value * highLevelReturningIR;
-  int posHighLevelReturningIR;
+  unsigned posHighLevelReturningIR;
   std::vector<unsigned> const *origRelevantIRPos;
   // llvm::Value * returnIntoIR;
-  int posReturnIntoIR;
-  int retIntoOprdIndex; // For constant replacement and some other that need
-                        // dumb
+  unsigned posReturnIntoIR;
+  bool clearedPosReturnIntoIR = true;
+  // For constant replacement and some other that need dumb
+  unsigned retIntoOprdIndex;
 
 public:
   MutantsOfStmt::MutantStmtIR toMatchMutant;
@@ -198,6 +199,7 @@ public:
     posHighLevelReturningIR = -1;
     // returnIntoIR = nullptr;
     posReturnIntoIR = -1;
+    clearedPosReturnIntoIR = true;
     retIntoOprdIndex = -1;
 
     toMatchMutant.clear();
@@ -208,7 +210,7 @@ public:
   inline void appendHLOprds(llvm::Value *oprdV) {
     highLevelOprds.push_back(oprdV);
   }
-  inline llvm::Value *getHLOprdOrNull(int ind) {
+  inline llvm::Value *getHLOprdOrNull(unsigned ind) {
     return (ind < highLevelOprds.size() ? highLevelOprds.at(ind) : nullptr);
   }
 
@@ -216,29 +218,33 @@ public:
   // val;}
   // inline llvm::Value * getHLReturningIR () {return highLevelReturningIR;}
 
-  // inline void appendOrigRelevantIRPos (int pos)
+  // inline void appendOrigRelevantIRPos (unsigned pos)
   // {origRelevantIRPos.push_back(pos);}
   inline void setOrigRelevantIRPos(std::vector<unsigned> const &posVect) {
     origRelevantIRPos = &posVect;
   }
-  inline int getOrigRelevantIRPosOf(int posInList) {
+  inline unsigned getOrigRelevantIRPosOf(unsigned posInList) {
     return origRelevantIRPos->at(posInList);
   }
   inline const std::vector<unsigned> &getOrigRelevantIRPos() {
     return *origRelevantIRPos;
   }
 
-  inline void setHLReturningIRPos(int pos) { posHighLevelReturningIR = pos; }
-  inline int getHLReturningIRPos() { return posHighLevelReturningIR; }
+  inline void setHLReturningIRPos(unsigned pos) { posHighLevelReturningIR = pos; }
+  inline unsigned getHLReturningIRPos() { return posHighLevelReturningIR; }
 
   // inline void setHLReturnIntoIR(llvm::Value *val) {returnIntoIR = val;}
   // inline llvm::Value * getHLReturnIntoIR () {return returnIntoIR;}
 
-  inline void setHLReturnIntoIRPos(int pos) { posReturnIntoIR = pos; }
-  inline int getHLReturnIntoIRPos() { return posReturnIntoIR; }
+  inline void setHLReturnIntoIRPos(unsigned pos) { 
+    posReturnIntoIR = pos; 
+    clearedPosReturnIntoIR = false;
+  }
+  inline unsigned getHLReturnIntoIRPos() { return posReturnIntoIR; }
+  inline bool hasValidHLReturnIntoIRPos() { return (!clearedPosReturnIntoIR); }
 
-  inline void setHLReturnIntoOprdIndex(int pos) { retIntoOprdIndex = pos; }
-  inline int getHLReturnIntoOprdIndex() { return retIntoOprdIndex; }
+  inline void setHLReturnIntoOprdIndex(unsigned pos) { retIntoOprdIndex = pos; }
+  inline unsigned getHLReturnIntoOprdIndex() { return retIntoOprdIndex; }
 }; // struct DoReplaceUseful
 
 class GenericMuOpBase {
@@ -323,8 +329,9 @@ public:
     MatchUseful mu;
     DoReplaceUseful dru;
     int pos = -1;
-    bool stmtDeleted = false;
+    //bool stmtDeleted = false;
     for (auto *val : toMatch.getIRList()) {
+      (void)val;
       pos++;
       if (matchIRs(toMatch, mutationOp, pos, mu, MI)) {
         for (auto &repl : mutationOp.getMutantReplacorsList()) {
@@ -375,6 +382,31 @@ public:
 
 protected:
   /**
+   * \brief Tels whether the llvm type is a sequential type
+   * @param type is the type to be checked
+   * @return true if the type is a sequential type, else false
+   */
+  inline bool isSequentialType(const llvm::Type *type) {
+    if (llvm::isa<llvm::ArrayType>(type)
+        || llvm::isa<llvm::PointerType>(type)
+        || llvm::isa<llvm::VectorType>(type)) {
+      return true;
+    }
+    return false;
+  }
+  /**
+   * \brief Tels whether the llvm type is a composite type
+   * @param type is the type to be checked
+   * @return true if the type is a composite type, else false
+   */
+  inline bool isCompositeType(const llvm::Type *type) {
+    if (isSequentialType(type) || llvm::isa<llvm::StructType>(type)) {
+      return true;
+    }
+    return false;
+  }
+
+  /**
    * \brief the method checkCPTypeInIR - "Check Code Part Type In IR" - validate
    * the seen value type match with the expected one.
    * \detail Use this when matching IR with code parts to mutate, to match each
@@ -393,7 +425,7 @@ protected:
       if (!llvm::PointerType::isLoadableOrStorableType(val->getType()))
 #endif
         return false;
-      if (!(llvm::isa<llvm::CompositeType>(val->getType()) ||
+      if (!(isCompositeType(val->getType()) ||
             llvm::isa<llvm::FunctionType>(val->getType())))
         return true;
       return false;
@@ -422,7 +454,7 @@ protected:
                                   ->getOperand(0)
                                   ->getType()
                                   ->getPointerElementType();
-        if (!(llvm::isa<llvm::CompositeType>(valelty) ||
+        if (!(isCompositeType(valelty) ||
               llvm::isa<llvm::FunctionType>(valelty))) // XXX: Change this to
                                                        // add support for array
                                                        // and vector operation
@@ -629,7 +661,7 @@ protected:
                                             /// contition or the ret IR.
     {
       std::vector<unsigned> relpos;
-      for (auto i = 0; i < toMatch.getTotNumIRs(); i++)
+      for (unsigned i = 0; i < toMatch.getTotNumIRs(); i++)
         relpos.push_back(i);
       MutantsOfStmt::MutantStmtIR toMatchMutant;
       toMatchMutant.setToEmptyOrFixedStmtOf(toMatch, MI);
@@ -682,13 +714,17 @@ protected:
     if (iswholestmtmutated.isTrapped())
       return;
     std::vector<unsigned> relpos;
-    for (auto i = 0; i < toMatch.getTotNumIRs(); i++)
+    for (unsigned i = 0; i < toMatch.getTotNumIRs(); i++)
       relpos.push_back(i);
     MutantsOfStmt::MutantStmtIR toMatchMutant;
     llvm::SmallVector<llvm::Instruction *, 1> trapinst;
-    llvm::Value *TrapFn =
+    llvm::Function *TrapFn =
         llvm::Intrinsic::getDeclaration(MI.getModule(), llvm::Intrinsic::trap);
+#if (LLVM_VERSION_MAJOR >= 8)
+    trapinst.push_back(llvm::CallInst::Create(TrapFn->getFunctionType(), TrapFn, "")); //->setDebugLoc(dl);
+#else
     trapinst.push_back(llvm::CallInst::Create(TrapFn, "")); //->setDebugLoc(dl);
+#endif
 
     // This will be the terminator for the mutant BB in case the current
     // original stmt has terminator
@@ -780,7 +816,7 @@ protected:
                                           "load before doing any other Gep)");
       index = 0;
       return *(gep->idx_begin() + index);
-    } else if (!llvm::isa<llvm::SequentialType>(ptrOprdElemType)) {
+    } else if (!isSequentialType(ptrOprdElemType)) {
       if (llvm::isa<llvm::LoadInst>(ptrOprd)) {
         // return the first index (idx = 0)
         index = 0;
@@ -814,6 +850,8 @@ protected:
         }
       }
     }
+    // Should never reach here but add this to suppress build warnings
+    return nullptr;
   }
 
   /**
@@ -872,6 +910,10 @@ protected:
                      std::vector<unsigned> const &relevantPosInToMatch,
                      ModuleUserInfos const &MI, int returnIntoIRPos = -1,
                      int retIntoOprdIndex = -1) {
+    // Suppress build warnings
+    (void)toMatch;
+
+    // Computation
     std::vector<llvm::Value *> replacement;
     int replacementInsertPos = -1;
 
@@ -910,8 +952,8 @@ protected:
              "both returningIR and returnIntoIR mode are selected, should only "
              "be one!");
 
-      replacementInsertPos =
-          returningIRPos + 1; /// This is used in case posOfIRtoRemove is empty
+      /// This is used in case posOfIRtoRemove is empty
+      replacementInsertPos = returningIRPos + 1;
       returningIR = toMatchMutant.getIRAt(returningIRPos);
 
       std::vector<std::pair<llvm::User *, unsigned>> affectedUnO;
@@ -983,7 +1025,7 @@ protected:
         } else {
           unsigned cshift = 0;
           for (auto ttmp : posOfIRtoRemove) {
-            if (ttmp >= replacementInsertPos)
+            if ((int)ttmp >= replacementInsertPos)
               break;
             ++cshift;
           }

@@ -29,6 +29,13 @@ class ReplaceOnly_Base : public GenericMuOpBase {
                     "objects of the class: " /*<< typeid(*this).name()*/
                  << "\n";
     assert(false);
+    // Suppress build warnings
+    (void)toMatch;
+    (void)mutationOp;
+    (void)pos;
+    (void)MU;
+    (void)MI;
+    return false;
   }
 
   /**
@@ -43,6 +50,13 @@ class ReplaceOnly_Base : public GenericMuOpBase {
            "of the class: " /*<< typeid(*this).name()*/
         << "\n";
     assert(false);
+    // Suppress build warnings
+    (void)toMatch;
+    (void)pos;
+    (void)MU;
+    (void)repl;
+    (void)DRU;
+    (void)MI;
   }
 
   /**
@@ -58,6 +72,12 @@ class ReplaceOnly_Base : public GenericMuOpBase {
            "of the class: " /*<< typeid(*this).name()*/
         << "\n";
     assert(false);
+    // Suppress build warnings
+    (void)toMatch;
+    (void)mutationOp;
+    (void)resultMuts;
+    (void)iswholestmtmutated;
+    (void)MI;
   }
 }; // class ReplaceOnly_Base
 

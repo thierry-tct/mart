@@ -39,6 +39,8 @@ protected:
   inline virtual bool checkPtrContainedType(llvm::Value *pval) {
     assert(false &&
            "Must be implemented by any operation whit NOT deref first");
+    // Suppress build warnings
+    (void)pval;
   }
 
   inline virtual bool isCommutative() { return false; }
@@ -75,7 +77,7 @@ public:
   virtual bool matchIRs(MatchStmtIR const &toMatch,
                         llvmMutationOp const &mutationOp, unsigned pos,
                         MatchUseful &MU, ModuleUserInfos const &MI) {
-    llvm::Value *val = toMatch.getIRAt(pos);
+    //llvm::Value *val = toMatch.getIRAt(pos);
     llvmMutationOp tmpMutationOp;
     getSubMatchMutationOp(mutationOp, tmpMutationOp);
     if (MI.getUserMaps()
@@ -194,6 +196,10 @@ public:
                        MatchUseful const &MU,
                        llvmMutationOp::MutantReplacors const &repl,
                        DoReplaceUseful &DRU, ModuleUserInfos const &MI) {
+    // Suppress build warnings
+    (void)pos;
+
+    // Computation
     DRU.toMatchMutant.setToCloneStmtIROf(toMatch, MI);
     llvm::Value *ptroprd = nullptr, *valoprd = nullptr;
     // the pointer oprd cannot be replaced by 0 since we need to dereference
@@ -211,9 +217,9 @@ public:
                                         DRU.toMatchMutant);
       }
     } else { // size is 1
-      if (ptroprd = createIfConst(
+      if ((ptroprd = createIfConst(
               (DRU.toMatchMutant.getIRAt(MU.getHLReturningIRPos()))->getType(),
-              repl.getOprdIndexList()[0])) { // The replacor should be
+              repl.getOprdIndexList()[0]))) { // The replacor should be
                                              // CONST_VALUE_OF
         llvm::IRBuilder<> builder(MI.getContext());
         ptroprd = builder.CreateIntToPtr(

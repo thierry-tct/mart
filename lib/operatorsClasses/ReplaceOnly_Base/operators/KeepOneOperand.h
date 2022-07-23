@@ -25,6 +25,11 @@ class KeepOneOperand : public ReplaceOnly_Base {
                                  llvm::Value *oprd2_intValOprd,
                                  std::vector<llvm::Value *> &replacement,
                                  ModuleUserInfos const &MI) {
+    // Suppress build warnings
+    (void)oprd2_intValOprd;
+    (void)replacement;
+    (void)MI;
+    // Return value
     return oprd1_addrOprd;
   }
 }; // class KeepOneOperand

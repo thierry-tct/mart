@@ -46,6 +46,10 @@ protected:
 public:
   bool matchIRs(MatchStmtIR const &toMatch, llvmMutationOp const &mutationOp,
                 unsigned pos, MatchUseful &MU, ModuleUserInfos const &MI) {
+    // Suppress build warnings
+    (void)MI;
+
+    // Computation
     llvm::Value *val = toMatch.getIRAt(pos);
     if (llvm::CmpInst *cmp = llvm::dyn_cast<llvm::CmpInst>(val)) {
       if (!(checkCPTypeInIR(mutationOp.getCPType(0), cmp->getOperand(0)) &&
@@ -76,6 +80,10 @@ public:
                        MatchUseful const &MU,
                        llvmMutationOp::MutantReplacors const &repl,
                        DoReplaceUseful &DRU, ModuleUserInfos const &MI) {
+    // Suppress build warnings
+    (void)pos;
+
+    // Computation
     const std::map<enum ExpElemKeys, llvm::CmpInst::Predicate> *mrel_IRrel_Map =
         getPredRelMap();
     DRU.toMatchMutant.setToCloneStmtIROf(toMatch, MI);
@@ -102,7 +110,7 @@ public:
       //\\\\resultMuts.push_back(DRU.toMatchMutant);
     } else {
       llvm::Value *oprdptr[] = {nullptr, nullptr};
-      for (int i = 0; i < repl.getOprdIndexList().size(); i++) {
+      for (unsigned i = 0; i < repl.getOprdIndexList().size(); i++) {
         if (!(oprdptr[i] = createIfConst(
                   MU.getHLOperandSource(i /*either 0 or 1*/, DRU.toMatchMutant)
                       ->getType(),
@@ -139,15 +147,16 @@ public:
     DoReplaceUseful dru;
     int pos = -1;
     for (auto *val : toMatch.getIRList()) {
+      (void)val;
       pos++;
       if (matchIRs(toMatch, mutationOp, pos, mu, MI)) {
         for (auto &repl : mutationOp.getMutantReplacorsList()) {
           if (checkWholeStmtAndMutate(toMatch, repl, resultMuts,
                                       iswholestmtmutated, MI)) {
-            ; // Do nothing, already mutated
+            // Do nothing, already mutated
           } else {
             for (MatchUseful const *ptr_mu = mu.first(); ptr_mu != mu.end();
-                 ptr_mu = ptr_mu->next()) {
+                                                  ptr_mu = ptr_mu->next()) {
               prepareCloneIRs(toMatch, pos, *ptr_mu, repl, dru, MI);
               try {
                 dru.getOrigRelevantIRPos();
@@ -155,9 +164,8 @@ public:
                 llvm::errs() << "didn't set 'OrigRelevantIRPos': " << e.what();
               }
 
-              if (dru.getHLReturnIntoIRPos() < 0) // the replacer is also
-                                                  // reational: already mutated
-                                                  // into toMatchMutant
+              // the replacer is also reational: already mutated into toMatchMutant
+              if (!dru.hasValidHLReturnIntoIRPos()) 
                 resultMuts.add(/*toMatch, */ dru.toMatchMutant, repl,
                                dru.getOrigRelevantIRPos());
               else

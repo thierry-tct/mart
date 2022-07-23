@@ -461,7 +461,7 @@ public:
           }
         }
         if (!specFuncs.empty()) {
-          if (specFuncs.count(Func.getName())) {
+          if (specFuncs.count(Func.getName().str())) {
             if (!canMutThisFunc) {
               llvm::errs() << "Error in input file: Function selected to be "
                               "mutated but corresponding source file not "
@@ -482,8 +482,8 @@ public:
                "Error: Either some specified function do not exist or Bug (non "
                "specified function is added).");
         for (auto *f : funcsToMutate) {
-          if (!specFuncs.count(f->getName())) {
-            assert(specFuncs.count(f->getName()) &&
+          if (!specFuncs.count(f->getName().str())) {
+            assert(specFuncs.count(f->getName().str()) &&
                    "a function specified is not in function to mutate. please "
                    "report a bug");
           }
@@ -547,7 +547,7 @@ struct MatchStmtIR {
     for (auto *x : toMatchIRs)
       x->print(llvm::errs());
   }
-  inline int getNumBB() const { return bbStartPosToOrigBB.size(); }
+  inline unsigned getNumBB() const { return bbStartPosToOrigBB.size(); }
   inline llvm::BasicBlock *getBBAt(int i) const {
     return bbStartPosToOrigBB[i].second;
   }
@@ -583,7 +583,7 @@ struct MatchStmtIR {
 #endif
         if (term->getNumSuccessors() == 0) // case for return and unreachable...
           return true;
-        for (auto i = 0; i < term->getNumSuccessors(); i++) {
+        for (unsigned i = 0; i < term->getNumSuccessors(); i++) {
           llvm::BasicBlock *bb = term->getSuccessor(i);
           bool notfound = true;
           for (auto &pit : bbStartPosToOrigBB)
@@ -609,19 +609,23 @@ struct MatchStmtIR {
    * before (true) @param pos or after (false)
    * @return the position of the searched IR instruction
    */
-  int depPosofPos(llvm::Value const *irinst, int pos,
+  unsigned depPosofPos(llvm::Value const *irinst, unsigned pos,
                   bool firstCheckBefore = true) const {
-    int findpos;
+    unsigned findpos;
+    const unsigned irListSize = toMatchIRs.size();
     if (firstCheckBefore) {
-      findpos = pos - 1;
-      for (; findpos >= 0; findpos--)
-        if (toMatchIRs[findpos] == irinst)
-          break;
-      if (findpos < 0) {
-        for (findpos = pos + 1; findpos < toMatchIRs.size(); findpos++)
+      // First search before
+      if(pos > 0) {
+        for (findpos = pos - 1; findpos > 0; findpos--)
           if (toMatchIRs[findpos] == irinst)
             break;
-        if (!(toMatchIRs.size() > findpos)) {
+      }
+      // If not found search after
+      if (!(toMatchIRs[findpos] == irinst)) {
+        for (findpos = pos + 1; findpos < irListSize; findpos++)
+          if (toMatchIRs[findpos] == irinst)
+            break;
+        if (!(irListSize > findpos)) {
           for (auto *tmpins : toMatchIRs)
             llvm::dyn_cast<llvm::Instruction>(tmpins)->print(llvm::errs());
           llvm::errs() << "Pos = " << pos << "\n";
@@ -630,15 +634,16 @@ struct MatchStmtIR {
         }
       }
     } else {
-      findpos = pos + 1;
-      for (; findpos < toMatchIRs.size(); findpos++)
+      // First search after
+      for (findpos = pos + 1; findpos < irListSize; findpos++)
         if (toMatchIRs[findpos] == irinst)
           break;
-      if (findpos >= toMatchIRs.size()) {
-        for (findpos = pos - 1; findpos >= 0; findpos--)
+      // If not found search before
+      if (findpos >= irListSize && pos > 0) {
+        for (findpos = pos - 1; findpos > 0; findpos--)
           if (toMatchIRs[findpos] == irinst)
             break;
-        if (!(findpos >= 0)) {
+        if (!(toMatchIRs[findpos] == irinst)) {
           for (auto *tmpins : toMatchIRs)
             llvm::dyn_cast<llvm::Instruction>(tmpins)->print(llvm::errs());
           llvm::errs() << "Pos = " << pos << "\n";
@@ -794,7 +799,7 @@ struct MutantsOfStmt {
         MatchStmtIR const &toMatch, ModuleUserInfos const &MI,
         llvm::SmallVector<llvm::Instruction *, 1> *fixedinsts = nullptr) {
       assert(empty() && "already have some data, first clear it");
-      for (auto i = 0; i < toMatch.getNumBB(); i++) {
+      for (unsigned i = 0; i < toMatch.getNumBB(); i++) {
         llvm::BasicBlock *bb = llvm::BasicBlock::Create(MI.getContext());
         origBBToMutBB[toMatch.getBBAt(i)] =
             std::vector<llvm::BasicBlock *>({bb});
@@ -895,7 +900,7 @@ struct MutantsOfStmt {
         if (auto *term = llvm::dyn_cast<llvm::TerminatorInst>(
                 toMatchIRsMutClone[instpos])) {
 #endif
-          for (auto i = 0; i < term->getNumSuccessors(); i++) {
+          for (unsigned i = 0; i < term->getNumSuccessors(); i++) {
             llvm::BasicBlock *bb = term->getSuccessor(i);
             if (origBBToMutBB.count(bb) > 0) {
               term->setSuccessor(i, origBBToMutBB[bb].front());
@@ -906,14 +911,13 @@ struct MutantsOfStmt {
         // Insert the instructions
         llvm::BasicBlock *workBB =
             origBBToMutBB[toMatch.bbStartPosToOrigBB[bbind].second].front();
-        for (auto ipos = toMatch.bbStartPosToOrigBB[bbind].first;
+        for (int ipos = toMatch.bbStartPosToOrigBB[bbind].first;
              ipos <= instpos; ipos++) {
           workBB->getInstList().push_back(
               llvm::dyn_cast<llvm::Instruction>(toMatchIRsMutClone[ipos]));
         }
-        instpos = toMatch.bbStartPosToOrigBB[bbind--].first -
-                  1; // Index of last instruction of basic block before that at
-                     // position bbind
+        // Index of last instruction of basic block before that at position bbind
+        instpos = toMatch.bbStartPosToOrigBB[bbind--].first - 1;
       } while (bbind >= 0);
 
       /*// Fix Phi Nodes with non-constant incoming values (those with constant
@@ -1186,7 +1190,7 @@ struct MutantInfoList {
                llvm::Function *curFunc, std::vector<unsigned> const &absPos) {
       id = mid;
       typeName = mName;
-      locFuncName = curFunc->getName();
+      locFuncName = curFunc->getName().str();
       for (auto ind : relpos)
         irLeveLocInFunc.push_back(absPos[ind]);
 
@@ -1276,7 +1280,7 @@ private:
     //Since mutant ID follow the stmt order, search nearest after and before,
     // within the same function and take the closest 
     auto nMuts = getMutantsNumber();
-    for (auto mid = 1; mid <= nMuts; ++mid)
+    for (MutantIDType mid = 1; mid <= nMuts; ++mid)
       if (getMutantSourceLoc(mid).length() == 0) {
         auto &func = getMutantFunction(mid);
         MutantIDType b_mid = mid-1;
