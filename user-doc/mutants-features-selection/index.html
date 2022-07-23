@@ -286,39 +286,9 @@
         
       
       
-        <label class="md-nav__link md-nav__link--active" for="__toc">
-          MART mutants features and selection
-          <span class="md-nav__icon md-icon"></span>
-        </label>
-      
       <a href="./" class="md-nav__link md-nav__link--active">
         MART mutants features and selection
       </a>
-      
-        
-<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
-  
-  
-  
-    
-  
-  
-    <label class="md-nav__title" for="__toc">
-      <span class="md-nav__icon md-icon"></span>
-      Table of contents
-    </label>
-    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#todo" class="md-nav__link">
-    TODO
-  </a>
-  
-</li>
-      
-    </ul>
-  
-</nav>
       
     </li>
   
@@ -407,21 +377,6 @@
     
   
   
-    <label class="md-nav__title" for="__toc">
-      <span class="md-nav__icon md-icon"></span>
-      Table of contents
-    </label>
-    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#todo" class="md-nav__link">
-    TODO
-  </a>
-  
-</li>
-      
-    </ul>
-  
 </nav>
                   </div>
                 </div>
@@ -440,7 +395,7 @@
                 <h1 id="mart-mutants-features-and-selection">MART mutants features and selection</h1>
 <p>This feature is enabled when the variable <code>MART_MUTANT_SELECTION</code> is defined during <code>cmake</code> build, as following: <code>-DMART_MUTANT_SELECTION</code>.</p>
 <p>The Mart's generated mutants' code features can be extracted, after running mart, using the tool <code>mart-selection</code> located in the folder <code>tools</code>. The same tool can be used to predicts the mutans as described on the following paper:</p>
-<p>[x] Titcheu Chekam, T., Papadakis, M., Bissyandé, T.F. et al. Selecting fault revealing mutants. Empir Software Eng 25, 434–487 (2020). https://doi.org/10.1007/s10664-019-09778-7 </p>
+<p><em>[x] Titcheu Chekam, T., Papadakis, M., Bissyandé, T.F. et al. Selecting fault revealing mutants. Empir Software Eng 25, 434–487 (2020). https://doi.org/10.1007/s10664-019-09778-7</em></p>
 <p>In this same context, the tool <code>mart-training</code> can be used to train the gradient boosted decision tree model described on the paper, which can be used to make the selection.</p>
 <p>View the help of the tools using:</p>
 <pre><code>mart-training --help
@@ -448,10 +403,6 @@
 <p>and </p>
 <pre><code>mart-selection --help
 </code></pre>
-<h2 id="todo">TODO</h2>
-<ul>
-<li>Fix compiling third-parties/dg (CMake file when pull), should point to right version</li>
-</ul>
                 
               
               

@@ -526,12 +526,24 @@ The Bottom diagram is the representation of both the <code>Matched Fragment</cod
 <pre><code>ADD(@1,@2) --&gt; Mutop1.1, SUB(@1, @2); Mutop1.2, SUB(@2, @1); Mutop1.3 TRAPSTMT;
 LEFTINC(V) --&gt; Mutop2.1, RIGHTDEC(V); Mutop2.2, ASSIGN(V, 0)
 </code></pre>
-<p>In this example we have 3 mutation operators:
-- <em>Mutop1.1</em>: Replace Sum of two expressions by Their Difference.
-- <em>Mutop1.2</em>: Replace Sum of two expressions by The negation of their difference Difference.
-- <em>Mutop1.3</em>: Replace Statement having a Sum by a Trap Statement (Failure).
-- <em>Mutop2.1</em>: Replace Variable left increment by its right decrement.
-- <em>Mutop2.2</em>: Replace Variable left increment by an assignement of <code>0</code> to it.</p>
+<p>In this example we have 3 mutation operators:</p>
+<ul>
+<li>
+<p><em>Mutop1.1</em>: Replace Sum of two expressions by Their Difference.</p>
+</li>
+<li>
+<p><em>Mutop1.2</em>: Replace Sum of two expressions by The negation of their difference Difference.</p>
+</li>
+<li>
+<p><em>Mutop1.3</em>: Replace Statement having a Sum by a Trap Statement (Failure).</p>
+</li>
+<li>
+<p><em>Mutop2.1</em>: Replace Variable left increment by its right decrement.</p>
+</li>
+<li>
+<p><em>Mutop2.2</em>: Replace Variable left increment by an assignement of <code>0</code> to it.</p>
+</li>
+</ul>
 <p>The currently Supported <em>Fragment Elements</em> are listed bellow.</p>
 <h3 id="2-fragment-elements">2. Fragment Elements</h3>
 <p>The following table gives information about the currently Supported Fragment Elements (The Fragment Element names are case insensitive).</p>
@@ -1018,9 +1030,9 @@ LEFTINC(V) --&gt; Mutop2.1, RIGHTDEC(V); Mutop2.2, ASSIGN(V, 0)
 </tbody>
 </table>
 <h3 id="3-programmatically-generate-mutants-operators-configuration">3. Programmatically Generate Mutants Operators Configuration</h3>
-<p>In order to programmatically create the mutant operators configuration file, there is a helper python script, located in <code>&lt;path to build dir&gt;/tools/useful/create_mconf.py</code>, that implement a class named <code>GlobalDefs</code>.
-The objects of the class <code>GlobalDefs</code> have the following iportant properties:
-1) <code>FORMATS</code>: Is a key value (python dict) of each relevant Fragment element as key, and the key's value is the fragment element's operands as list of operand classes.</p>
+<p>In order to programmatically create the mutant operators configuration file, there is a helper python script, located in <code>&lt;path to build dir&gt;/tools/useful/create_mconf.py</code>, that implement a class named <code>GlobalDefs</code>.</p>
+<p>The objects of the class <code>GlobalDefs</code> have the following iportant properties:</p>
+<p>1) <code>FORMATS</code>: Is a key value (python dict) of each relevant Fragment element as key, and the key's value is the fragment element's operands as list of operand classes.</p>
 <p>2) <code>RULES</code>: Is a key value (python dict) of each relevant Fragment element as key, and the key's value is the list of compatible fragment element (that can replace this).</p>
 <p>3) <code>CLASSES</code>: Define Fragment elements groups. This is a key value (python dict) having as key, each fragment element and as value the corresponding operator groups. 
 Group granularity is represented by different levels separated by the character <code>'/'</code>, similarly to the file system path structure on UNIX systems. e.g. 'EXPRESSION-MUTATION/SCALAR/BINARY/AO' is used for Arithmetic binary operations such as '+', '-', '<em>', '/' as these form the same group. 

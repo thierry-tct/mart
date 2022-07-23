@@ -497,14 +497,20 @@ Compile with <code>debug</code> flag enable (<code>-g</code> option for C/C++ co
 <pre><code class="language-bash">&lt;path to mart build dir&gt;/tools/mart --help
 </code></pre>
 <h2 id="mutation-generation-configuration">Mutation Generation Configuration</h2>
-<p>Mutant generation configuration consist in 2 configurations: 
-1. <strong>Code locations to mutates (mutation scope):</strong>
+<p>Mutant generation configuration consist in 2 configurations: </p>
+<ol>
+<li>
+<p><strong>Code locations to mutates (mutation scope):</strong>
 This specifies the source files and functions to mutate.
-This is done using the option: <code>-mutant-scope &lt;path/to/mutant scope file&gt;</code>
-2. <strong>Mutation operators to apply:</strong>
+This is done using the option: <code>-mutant-scope &lt;path/to/mutant scope file&gt;</code></p>
+</li>
+<li>
+<p><strong>Mutation operators to apply:</strong>
 This specifies the mutation operator to apply. Mart's way of specifying mutants is flexible. For example, the user has control on the constant to replace when replacing an expression with a constant value.
-This is done using the option: <code>-mutant-config &lt;path./to/mutant config file&gt;</code>
+This is done using the option: <code>-mutant-config &lt;path./to/mutant config file&gt;</code>.
 <strong><em>Note</em></strong>:<em>If mutants operators configuration is not specified, the default configuration of 816 transformation rule is used. That default configuration file is located in <code>&lt;path to build dir&gt;/tools/useful/mconf-scope/default_allmax.mconf</code></em></p>
+</li>
+</ol>
 <p>Find the details about the format and language to specify the configuration <a href="../mutation_configuration/">here</a>. </p>
                 
               
