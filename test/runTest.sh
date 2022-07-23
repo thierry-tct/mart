@@ -12,7 +12,8 @@ error_exit()
 # Example (inside of 'build' dir): TEST_SRCS="abd.c add.c" ../src/test/runTest.sh ./ 
 
 testSrcs="${TEST_SRCS:-}"
-example_only="${EXAMPLE_ONLY:-off}"
+example_only="${EXAMPLE_ONLY:-OFF}"
+test_feat_extract="${TEST_FEATURE_EXTRACTION:-OFF}"
 
 [ $# -eq 1 ] || error_exit "Expected 1 argument(build dir), $# passed"
 
@@ -54,7 +55,7 @@ else
     run_example_on=0
 fi
 
-if [ "$example_only" != "off" ]; then
+if [ "$example_only" != "OFF" ]; then
     run_example_on=1
     testSrcs=""
 fi
@@ -79,6 +80,14 @@ do
     $LLVM_DIS -o $filep-out/$filep.MetaMu.ll $filep-out/$filep.MetaMu.bc || error_exit "llvm-dis failed on $filep-out/$filep.MetaMu.bc"
     $LLVM_DIS -o $filep-out/$filep.preTCE.MetaMu.ll $filep-out/$filep.preTCE.MetaMu.bc || error_exit "llvm-dis failed on $filep-out/$filep.preTCE.MetaMu.bc"
     test -f $filep-out/$filep.WM.bc && { $LLVM_DIS -o $filep-out/$filep.WM.ll $filep-out/$filep.WM.bc || error_exit "llvm-dis failed on $filep-out/wm-$filep.bc" ; }
+
+    # test feature extraction is enabled
+    if [ "$test_feat_extract" = "ON" ]; then
+        echo ">> $filep mutant features extraction ..."
+        $buildDir/../tools/mart-selection $filep-out -preprocessed-bc-file $filep-out/$filep.bc \
+                    -mutant-dep-cache -dump-features -no-selection || error_exit "feature extraction failed for '$filep'"
+    fi
+    echo "==========================="; echo
 done  
 
 if [ $run_example_on -eq 1 ]; then
