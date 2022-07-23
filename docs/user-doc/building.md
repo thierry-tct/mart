@@ -2,7 +2,7 @@
 
 ## Requirements
 - Linux (Tested on Ubuntu)
-- LLVM >= 3.4
+- LLVM >= 3.4 (currently tested up to LLVM11)
 Note: Mart uses [JsonBox](https://github.com/anhero/JsonBox) and [dg](https://github.com/mchalupa/dg)(for mutant selection's dependence analysis), included as git submodules
 - cmake >= 3.4.3 (for build)
     ```bash

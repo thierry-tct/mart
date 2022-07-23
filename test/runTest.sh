@@ -83,7 +83,7 @@ do
 
     # test feature extraction is enabled
     if [ "$test_feat_extract" = "ON" ]; then
-        echo ">> $filep mutant features extraction ..."
+        echo " >> $filep mutant features extraction ..."
         $buildDir/../tools/mart-selection $filep-out -preprocessed-bc-file $filep-out/$filep.bc \
                     -mutant-dep-cache -dump-features -no-selection || error_exit "feature extraction failed for '$filep'"
     fi
