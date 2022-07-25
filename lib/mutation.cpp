@@ -676,7 +676,11 @@ bool Mutation::getConfiguration(std::string &mutConfFile) {
               for (std::vector<std::string>::iterator it41 =
                        matchoprd.begin() + 1;
                    it41 != matchoprd.end(); ++it41) {
+#if (LLVM_VERSION_MAJOR >= 13)
+                if (llvm::StringRef(*it41).equals_insensitive(
+#else
                 if (llvm::StringRef(*it41).equals_lower(
+#endif
                         llvm::StringRef(*iter4))) {
                   found = true;
                   break;
@@ -2165,7 +2169,11 @@ void Mutation::setModFuncToFunction(llvm::Module *Mod, llvm::Function *srcF,
 
   llvm::SmallVector<llvm::ReturnInst *, 8> Returns;
   targetF->dropAllReferences(); // deleteBody();
+#if (LLVM_VERSION_MAJOR <= 12)
   llvm::CloneFunctionInto(targetF, srcF, vmap, true, Returns);
+#else
+  llvm::CloneFunctionInto(targetF, srcF, vmap, llvm::CloneFunctionChangeType::GlobalChanges, Returns);
+#endif
   // verify post clone into module
   // Mutation::checkModuleValidity(*Mod, "ERROR: Misformed module after
   // cloneFunctionInto!");

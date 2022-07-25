@@ -1,4 +1,6 @@
 ##############################################################################
+# When specifying the version, without custom llvm, note that the last part of the version will be removed when looking for the package
+# That is: for version 3.4.2, the package llvm-3.4 will be installed. and for  7.1, llvm-7 will be installed
 #
 # Some build examples:
 # - LLVM 3.4.2
@@ -17,9 +19,12 @@
 #
 ##############################################################################
 
-ARG base_image=docker.io/ubuntu:focal
+ARG ubuntu_version_name=focal 
+ARG base_image=docker.io/ubuntu:${ubuntu_version_name}
 
 FROM $base_image AS base
+
+ARG ubuntu_version_name
 
 # Tells whether the specified base image is a custom llvm built image.
 # In that case, llvm will not be installed anymore
@@ -46,7 +51,8 @@ ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get -y update; exit 0
 # Install LLVM if not using custom llvm base image
 RUN if [ "${using_custom_llvm_base_image}" = "" ]; then \
-        apt-get -y install cmake g++\
+        apt-get -y install cmake g++ wget software-properties-common \
+            && apt-get -y update \
             && apt-get install -y python3-pip python3-dev \
             && cd /usr/local/bin \
             && ln -s /usr/bin/python3 python \
@@ -56,6 +62,11 @@ RUN if [ "${using_custom_llvm_base_image}" = "" ]; then \
         || exit 1; \
         llvm_version_suffix=""; \
         [ "${llvm_version}" != "" ] && llvm_version_suffix="-${llvm_version}"; \
+        if ! apt-cache search llvm${llvm_version_suffix} | grep "llvm${llvm_version_suffix} " > /dev/null; then \
+            wget -O - https://apt.llvm.org/llvm-snapshot.gpg.key | apt-key add - \
+                && add-apt-repository "deb http://apt.llvm.org/${ubuntu_version_name}/ llvm-toolchain-${ubuntu_version_name}${llvm_version_suffix%.*} main"\
+                && apt-get -y update || exit 1; \
+        fi; \
         apt-get -y install llvm${llvm_version_suffix} clang${llvm_version_suffix} llvm${llvm_version_suffix}-dev \
         || exit 1; \
         [ "${llvm_version}" != "" ] && ${mart_location}/src/update-alternatives-llvm-clang.sh ${llvm_version} 100; \

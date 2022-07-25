@@ -130,7 +130,11 @@ public:
     }
 #else
     std::error_code EC;
+#if (LLVM_VERSION_MAJOR < 7)
     llvm::raw_fd_ostream Out(filename, EC, llvm::sys::fs::F_None);
+#else
+    llvm::raw_fd_ostream Out(filename, EC, llvm::sys::fs::OF_None);
+#endif
     if (EC) {
       llvm::errs() << "Could not open file: " << EC.message();
       return false;
