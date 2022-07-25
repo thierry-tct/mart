@@ -61,9 +61,15 @@ void UserMaps::addConfNameOpPair(llvm::StringRef cname,
 }
 
 bool UserMaps::isConstValOPRD(llvm::StringRef oprd) {
+#if (LLVM_VERSION_MAJOR >= 13)
+  if (oprd.startswith_insensitive("@") || oprd.startswith_insensitive("C") ||
+      oprd.startswith_insensitive("V") || oprd.startswith_insensitive("A") ||
+      oprd.startswith_insensitive("P"))
+#else
   if (oprd.startswith_lower("@") || oprd.startswith_lower("C") ||
       oprd.startswith_lower("V") || oprd.startswith_lower("A") ||
       oprd.startswith_lower("P"))
+#endif
     return true;
   return false;
 }
@@ -77,15 +83,35 @@ void UserMaps::validateNonConstValOPRD(llvm::StringRef oprd, unsigned lno) {
 }
 
 /*static*/ enum codeParts UserMaps::getCodePartType(llvm::StringRef oprd) {
+#if (LLVM_VERSION_MAJOR >= 13)
+  if (oprd.startswith_insensitive("@"))
+#else
   if (oprd.startswith_lower("@"))
+#endif
     return cpEXPR;
+#if (LLVM_VERSION_MAJOR >= 13)
+  else if (oprd.startswith_insensitive("C"))
+#else
   else if (oprd.startswith_lower("C"))
+#endif
     return cpCONSTNUM;
+#if (LLVM_VERSION_MAJOR >= 13)
+  else if (oprd.startswith_insensitive("V"))
+#else
   else if (oprd.startswith_lower("V"))
+#endif
     return cpVAR;
+#if (LLVM_VERSION_MAJOR >= 13)
+  else if (oprd.startswith_insensitive("A"))
+#else
   else if (oprd.startswith_lower("A"))
+#endif
     return cpADDRESS;
+#if (LLVM_VERSION_MAJOR >= 13)
+  else if (oprd.startswith_insensitive("P"))
+#else
   else if (oprd.startswith_lower("P"))
+#endif
     return cpPOINTER;
   else {
     llvm::errs() << "Error: Invalid codepart: '" << oprd.str() << "'.\n";
@@ -94,7 +120,11 @@ void UserMaps::validateNonConstValOPRD(llvm::StringRef oprd, unsigned lno) {
 }
 
 bool UserMaps::isWholeStmtMutationConfName(llvm::StringRef s) {
+#if (LLVM_VERSION_MAJOR >= 13)
+  return s.equals_insensitive("delstmt") || s.equals_insensitive("trapstmt");
+#else
   return s.equals_lower("delstmt") || s.equals_lower("trapstmt");
+#endif
 }
 
 /*static*/ bool UserMaps::containsDeleteStmtConfName(llvm::StringRef s) {
